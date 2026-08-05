@@ -350,9 +350,11 @@ footer.legend{
   <div class="tab-row">
     <button class="tab-btn active" id="tabChantiers">Chantiers</button>
     <button class="tab-btn" id="tabHeures">Ma feuille d'heures</button>
+    <button class="tab-btn" id="tabHabilitations">Habilitations</button>
   </div>
   <main id="cardList"></main>
   <main id="hoursPanel" style="display:none;"></main>
+  <main id="habilitationsPanel" style="display:none;"></main>
 </div>
 
 <footer class="legend" id="legend"></footer>
@@ -651,16 +653,32 @@ function escapeHtml(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+const HABILITATIONS_LINK = "https://www.dropbox.com/scl/fo/6hno0txksitsov24x79bi/AGQ7XjH6ptOCqAvS57nxvd0?rlkey=u9mn53gqsk2or2yyj5rumc7y3&dl=0";
+
 document.getElementById('tabChantiers').onclick=()=>{ currentTab='chantiers'; updateTabsUI(); };
 document.getElementById('tabHeures').onclick=()=>{ currentTab='heures'; updateTabsUI(); };
+document.getElementById('tabHabilitations').onclick=()=>{ currentTab='habilitations'; updateTabsUI(); };
 
 function updateTabsUI(){
   document.getElementById('tabChantiers').classList.toggle('active', currentTab==='chantiers');
   document.getElementById('tabHeures').classList.toggle('active', currentTab==='heures');
+  document.getElementById('tabHabilitations').classList.toggle('active', currentTab==='habilitations');
   document.getElementById('cardList').style.display = currentTab==='chantiers' ? 'flex':'none';
   document.getElementById('hoursPanel').style.display = currentTab==='heures' ? 'flex':'none';
+  document.getElementById('habilitationsPanel').style.display = currentTab==='habilitations' ? 'flex':'none';
   if(currentTab==='heures') loadAndRenderHours();
+  if(currentTab==='habilitations') renderHabilitations();
 }
+
+function renderHabilitations(){
+  const panel = document.getElementById('habilitationsPanel');
+  panel.innerHTML = '<div class="h-section">'
+    + '<div class="h-section-title">Mes habilitations</div>'
+    + '<div style="font-size:13.5px; color:var(--text-muted); line-height:1.5;">Retrouve tes habilitations et certifications à jour dans ce dossier partagé.</div>'
+    + '<a class="h-send-btn" style="display:block; text-align:center; text-decoration:none;" href="'+HABILITATIONS_LINK+'" target="_blank" rel="noopener">📁 Ouvrir mes habilitations</a>'
+    + '</div>';
+}
+
 
 function getWeekChantiers(tech, mon, sun){
   const result=[];
@@ -684,6 +702,12 @@ async function ensureFeuilleForWeek(tech, weekInfo){
   if(!entry){
     entry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{}, vehiculeMode:null, km:'', commentaires:'' };
   }
+  // Nettoyage : "Contribution agence" ne doit plus jamais apparaître automatiquement sous Absences
+  // (l'ancien système la sauvegardait là), ni persister toute seule d'une semaine à l'autre.
+  // Elle n'est légitime que si elle a été ajoutée volontairement via "+ Ajouter un chantier"
+  // (marquée addedManually) — toute autre occurrence est un résidu de l'ancien système, à retirer.
+  entry.absences = entry.absences.filter(a=>a.key!=='contribution');
+  entry.chantierLines = entry.chantierLines.filter(l=> l.id!=='__contribution_agence__' || l.addedManually===true);
   const existingIds = new Set(entry.chantierLines.filter(l=>l.id).map(l=>l.id));
   weekChantiers.forEach(wc=>{
     if(!existingIds.has(wc.id) && entry.removedAutoIds.indexOf(wc.id)===-1){
@@ -739,6 +763,9 @@ function addChantierConfirm(){
       hoursEntry.chantierLines.push({id:null, nom, lieu, client:'', jours:{}});
       scheduleSaveHours();
     }
+  } else if(val==='__contribution_agence__'){
+    hoursEntry.chantierLines.push({id:'__contribution_agence__', addedManually:true, nom:'Contribution agence', lieu:'', client:'', jours:{}});
+    scheduleSaveHours();
   } else if(val){
     const c = chantierById(val);
     if(c) hoursEntry.chantierLines.push({id:c.id, nom:c.nom, lieu:c.lieu||'', client:c.client||'', jours:{}});
@@ -827,7 +854,9 @@ function renderHoursUI(){
     const options = SEED_DATA
       .filter(c=> !e.chantierLines.some(l=>l.id===c.id))
       .map(c=>'<option value="'+c.id+'">'+escapeHtml(c.nom)+'</option>').join('');
-    addChantierHtml = '<select class="h-picker" id="addChantierSelect"><option value="">— choisir un chantier —</option>'+options+'<option value="__autre__">Autre (saisie libre)</option></select>'
+    const contribOption = e.chantierLines.some(l=>l.id==='__contribution_agence__')
+      ? '' : '<option value="__contribution_agence__">Contribution agence</option>';
+    addChantierHtml = '<select class="h-picker" id="addChantierSelect"><option value="">— choisir un chantier —</option>'+contribOption+options+'<option value="__autre__">Autre (saisie libre)</option></select>'
       + '<div style="display:flex; gap:8px; margin-top:8px;">'
       + '<button class="h-add-btn" style="flex:1;" onclick="addChantierConfirm()">Ajouter</button>'
       + '<button class="h-add-btn" style="flex:1;" onclick="addChantierCancel()">Annuler</button>'
@@ -853,7 +882,7 @@ function renderHoursUI(){
   let addAbsenceHtml;
   if(addingAbsence){
     const usedKeys = new Set(e.absences.map(a=>a.key));
-    const options = ABSENCE_CODES.filter(a=>!usedKeys.has(a.key)).map(a=>'<option value="'+a.key+'">'+escapeHtml(a.label)+'</option>').join('');
+    const options = ABSENCE_CODES.filter(a=>a.key!=='contribution' && !usedKeys.has(a.key)).map(a=>'<option value="'+a.key+'">'+escapeHtml(a.label)+'</option>').join('');
     addAbsenceHtml = '<select class="h-picker" id="addAbsenceSelect"><option value="">— choisir —</option>'+options+'</select>'
       + '<div style="display:flex; gap:8px; margin-top:8px;">'
       + '<button class="h-add-btn" style="flex:1;" onclick="addAbsenceConfirm()">Ajouter</button>'
@@ -1006,19 +1035,21 @@ function buildExportPayload(mon, weekNum){
   const {nom, prenom} = splitTechName(currentTech);
   const nomTitle = titleCase(nom);
   const prenomTitle = titleCase(prenom);
-  const chantierLines = hoursEntry.chantierLines.map(line=>{
-    const jours={};
-    for(let d=0; d<7; d++){
-      const h = line.jours && line.jours[d];
-      if(h && (h.j || h.n)){
-        jours[d] = {
-          j: h.j? parseFloat(String(h.j).replace(',','.')) : null,
-          n: h.n? parseFloat(String(h.n).replace(',','.')) : null,
-        };
+  const chantierLines = hoursEntry.chantierLines
+    .filter(line=> line.id!=='__contribution_agence__')
+    .map(line=>{
+      const jours={};
+      for(let d=0; d<7; d++){
+        const h = line.jours && line.jours[d];
+        if(h && (h.j || h.n)){
+          jours[d] = {
+            j: h.j? parseFloat(String(h.j).replace(',','.')) : null,
+            n: h.n? parseFloat(String(h.n).replace(',','.')) : null,
+          };
+        }
       }
-    }
-    return { client: line.client||'', lieu: line.lieu||'', jours };
-  });
+      return { client: line.client||'', lieu: line.lieu||'', jours };
+    });
   const absences = (hoursEntry.absences||[]).map(a=>{
     const jours={};
     for(let d=0; d<7; d++){
@@ -1027,6 +1058,18 @@ function buildExportPayload(mon, weekNum){
     }
     return { key:a.key, jours };
   });
+  // La "Contribution agence" est saisie comme un chantier dans l'interface (plus pratique pour le
+  // technicien), mais elle doit remonter dans sa case dédiée du document officiel, pas comme chantier.
+  const contribLine = hoursEntry.chantierLines.find(l=> l.id==='__contribution_agence__');
+  if(contribLine){
+    const jours={};
+    for(let d=0; d<7; d++){
+      const h = contribLine.jours && contribLine.jours[d];
+      const total = (h && h.j? parseFloat(String(h.j).replace(',','.')) : 0) + (h && h.n? parseFloat(String(h.n).replace(',','.')) : 0);
+      if(total) jours[d] = total;
+    }
+    if(Object.keys(jours).length) absences.push({ key:'contribution', jours });
+  }
   return {
     weekNum, mondayDate: mon,
     nom: nomTitle, prenom: prenomTitle,
