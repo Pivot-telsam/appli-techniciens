@@ -705,7 +705,7 @@ async function ensureFeuilleForWeek(tech, weekInfo){
   let entry = await kvGet(key);
   const weekChantiers = getWeekChantiers(tech, weekInfo.mon, weekInfo.sun);
   if(!entry){
-    entry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{}, vehiculeMode:null, km:'', commentaires:'' };
+    entry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{}, vehiculeMode:null, km:'', immat:'', commentaires:'' };
   }
   // Nettoyage : "Contribution agence" ne doit plus jamais apparaître automatiquement sous Absences
   // (l'ancien système la sauvegardait là), ni persister toute seule d'une semaine à l'autre.
@@ -830,6 +830,7 @@ function setVehiculeMode(mode){
   renderHoursUI();
 }
 function updateKm(value){ hoursEntry.km=value; scheduleSaveHours(); }
+function updateImmat(value){ hoursEntry.immat=value; scheduleSaveHours(); }
 function updateCommentaires(value){ hoursEntry.commentaires=value; scheduleSaveHours(); }
 
 /* ---- rendu de l'écran ---- */
@@ -922,7 +923,8 @@ function renderHoursUI(){
     + '<button class="h-veh-btn '+(e.vehiculeMode==='TELSAM'?'active':'')+'" onclick="setVehiculeMode(\'TELSAM\')">Véhicule TELSAM</button>'
     + '<button class="h-veh-btn '+(e.vehiculeMode==='LOCATION'?'active':'')+'" onclick="setVehiculeMode(\'LOCATION\')">Location</button>'
     + '</div>'
-    + '<input class="h-km-input" type="number" inputmode="numeric" placeholder="Km fin de semaine (optionnel)" value="'+(e.km||'')+'" oninput="updateKm(this.value)">'
+    + '<input class="h-km-input" type="text" placeholder="Immatriculation du véhicule" value="'+escapeHtml(e.immat||'')+'" oninput="updateImmat(this.value)">'
+    + '<input class="h-km-input" type="number" inputmode="numeric" placeholder="Km fin de semaine" value="'+(e.km||'')+'" oninput="updateKm(this.value)">'
     + '</div>';
 
   const comSection = '<div class="h-section">'
@@ -1017,6 +1019,7 @@ function applyPayloadToSheetXML(xml, payload){
   if(payload.vehiculeMode==='TELSAM') xml = setTextCellXML(xml, 'I51', 'X');
   if(payload.vehiculeMode==='LOCATION') xml = setTextCellXML(xml, 'I52', 'X');
   if(payload.km) xml = setNumberCellXML(xml, 'J52', payload.km);
+  if(payload.immat) xml = setTextCellXML(xml, 'A52', payload.immat);
   if(payload.commentaires) xml = setTextCellXML(xml, 'J47', 'Commentaires : '+payload.commentaires);
   if(payload.signatureText) xml = setTextCellXML(xml, 'D47', payload.signatureText);
   xml = setFormulaCellXML(xml, 'D49', 'TODAY()'); // absente du modèle vierge, ajoutée nous-mêmes
@@ -1082,6 +1085,7 @@ function buildExportPayload(mon, weekNum){
     pd: hoursEntry.pd||{}, gd: hoursEntry.gd||{}, nacelle: hoursEntry.nacelle||{},
     vehiculeMode: hoursEntry.vehiculeMode||null,
     km: hoursEntry.km||null,
+    immat: hoursEntry.immat||null,
     commentaires: hoursEntry.commentaires||'',
     signatureText: nomTitle+' '+prenomTitle,
     sheetName: 'S'+weekNum+'-'+nom.toUpperCase()+'_'+prenomTitle.replace(/\s+/g,''),
@@ -1247,8 +1251,10 @@ function buildPdfFromPayload(payload){
   });
   const nacelle = [];
   DAY_COLS_LABELS.forEach((lbl,d)=>{ if(payload.nacelle && payload.nacelle[d]) nacelle.push(lbl+' ('+payload.nacelle[d]+')'); });
-  const vehLine = (payload.vehiculeMode || payload.km)
-    ? (payload.vehiculeMode||'Non precise') + (payload.km ? '   -   Km fin de semaine : '+payload.km : '')
+  const vehLine = (payload.vehiculeMode || payload.km || payload.immat)
+    ? (payload.vehiculeMode||'Non precise')
+      + (payload.immat ? '   -   Immatriculation : '+payload.immat : '')
+      + (payload.km ? '   -   Km fin de semaine : '+payload.km : '')
     : null;
 
   const infoItems = [];
