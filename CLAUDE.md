@@ -106,6 +106,25 @@ Dropbox est connecté et utilisable directement (create_folder, create_shared_li
 search, list_folder, fetch). Toujours confirmer le plan exact avec Patrice avant toute création/modification
 dans Dropbox (dossier, lien de partage, file request) — ne jamais deviner un chemin de destination.
 
+**RÈGLE — liens de partage "App Tech" toujours privés par défaut, à vérifier systématiquement.**
+`create_shared_link` de ce connecteur Dropbox est bridé en dur sur `audience: "no_one"` (lien
+privé, accessible seulement aux personnes déjà autorisées) — il ne peut jamais créer un lien
+public directement, quel que soit le réglage du compte Dropbox de Patrice (confirmé le 20/08/26 :
+un lien "App Tech" plus ancien, Fleyriat, est bien `audience: "public"`, donc le compte autorise
+les liens publics — c'est uniquement l'outil qui les crée restreints). Conséquence pratique :
+- Après CHAQUE `create_shared_link` sur un nouveau dossier "App Tech", vérifier immédiatement
+  avec `get_shared_link_metadata` si `audience` == `"public"`.
+- Si ce n'est pas le cas (`"no_one"` ou autre), le signaler explicitement à Patrice dans la même
+  réponse, avec le lien exact et l'étape à faire côté Dropbox : clic droit sur le dossier →
+  Partager → dans "Paramètres de partage", régler le **lien de consultation** (pas la partie
+  grisée "qui peut être ajouté", inutile pour des techniciens sans compte Dropbox) sur
+  "Toute personne disposant du lien". Ne pas committer/pousser `documentsAppTech` sans avoir
+  fait cette vérification et ce signalement — ne jamais supposer que le lien est public.
+- Décision de Patrice (20/08/26) : on ne restructure PAS les dossiers Dropbox pour contourner ça
+  (ex. dossier parent unique déjà public où tout hériterait automatiquement) — il préfère garder
+  la structure actuelle et faire le clic manuel à chaque nouveau chantier plutôt que de sortir les
+  docs techniciens de leur dossier de chantier respectif.
+
 ## Workflow hebdomadaire
 1. Le lien personnalisé technicien (`?tech=slugifiedname`) est permanent — jamais régénéré à chaque semaine.
 2. Ce qui change chaque semaine : les affectations technicien/chantier (TECH_RANGES côté appli-techniciens,
