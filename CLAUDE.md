@@ -101,6 +101,30 @@ C'est le numéro de référence que Patrice utilise pour organiser Dropbox (il r
 les dossiers avec ce préfixe, ex: "26-055 - Fleyriat - Brou - La Cluse"). Pour tout nouveau chantier,
 attribuer le prochain numéro disponible et le communiquer à Patrice.
 
+## Contenu standard d'un dossier "App Tech" — RÈGLE SYSTÉMATIQUE (à appliquer TOUJOURS)
+Chaque fois qu'un dossier "App Tech" est créé ou complété pour un chantier (nouveau chantier,
+ou chantier existant qui devient actif — cf. workflow hebdomadaire ci-dessous), il doit contenir :
+1. **Brief_Techniciens_RTE_<Nom>.pdf** — généré via le skill `brief-techniciens` à partir du
+   devis TELSAM pertinent trouvé dans Dropbox. Jamais de prix/référence devis/conditions
+   commerciales dans le brief, uniquement travaux + matériel. **Obligatoire à chaque fois**, pas
+   seulement pour les nouveaux chantiers.
+   - Ce skill s'appuie normalement sur ReportLab (Python) pour générer le PDF — **indisponible
+     sur cette machine** (cf. [[feedback_environment_no_python]]). Solution de repli qui marche :
+     construire le document via **Word (COM PowerShell)** avec la même charte visuelle
+     (BLEU_F #1F4E79 titres, BLEU_M #2E75B6 sous-titre, marges 2cm = 56.7pt) puis
+     `$doc.SaveAs2($path, 17)` (17 = wdFormatPDF) pour exporter directement en PDF.
+2. **MO et NDS TELSAM** (si présents dans Dropbox pour ce chantier).
+3. **PDP/PGO pertinents** (le plus récent indice / la version signée).
+4. **IST — uniquement si elle est signée/validée par RTE** (`ist.valideRTE == true`). Si une IST
+   existe pour ce chantier mais n'est PAS signée par RTE : NE PAS la mettre dans App Tech, et à
+   la place ajouter une alerte (niveau `warn`) dans `suivi-chantiers` signalant l'IST non signée
+   par RTE, avec `ist.valideRTE:false`.
+5. **Sous-dossier "Photos terrain" vide** — toujours créé, pour que les techniciens y déposent
+   leurs photos de chantier directement depuis l'app.
+- Ne jamais inclure devis, contrats de sous-traitance, factures ou PV de réception commerciaux.
+- Après avoir ajouté un Brief ou tout autre fichier : vérifier le lien de partage (cf. règle
+  ci-dessous) avant de committer `documentsAppTech`.
+
 ## Accès Dropbox
 Dropbox est connecté et utilisable directement (create_folder, create_shared_link, create_file_request,
 search, list_folder, fetch). Toujours confirmer le plan exact avec Patrice avant toute création/modification
@@ -129,8 +153,13 @@ les liens publics — c'est uniquement l'outil qui les crée restreints). Consé
 1. Le lien personnalisé technicien (`?tech=slugifiedname`) est permanent — jamais régénéré à chaque semaine.
 2. Ce qui change chaque semaine : les affectations technicien/chantier (TECH_RANGES côté appli-techniciens,
    structure équivalente côté suivi-chantiers) — à mettre à jour dans les deux dépôts en cohérence.
-3. Les liens Documents/Dépôt photos/base de vie ne sont à créer/vérifier que pour les NOUVEAUX chantiers
-   apparaissant dans le planning, pas à chaque semaine pour les chantiers déjà configurés.
+3. Les liens Documents/Dépôt photos/base de vie sont à créer/vérifier pour les NOUVEAUX chantiers
+   apparaissant dans le planning, ET pour tout chantier déjà existant qui devient actif pour la
+   PREMIÈRE FOIS cette semaine-là (première fois avec des techniciens réellement affectés,
+   même si la fiche existait déjà sans jamais avoir eu de TECH_RANGES) — vécu le 20/08/26 avec
+   DATA4-Marcoussis et Audit Multi Postes, oubliés lors d'une mise à jour de planning car leur
+   fiche n'était pas "nouvelle". Ne pas se fier uniquement à la date de création de la fiche.
+   Pas besoin de recréer/vérifier pour les chantiers déjà actifs les semaines précédentes.
 
 ## État au 20/08/2026
 - 6 chantiers ont un bouton "📷 Dépôt photos" (Portet, Fleyriat, Fibrage THYM Bissy-Grand Ile,
