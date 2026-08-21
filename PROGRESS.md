@@ -1,12 +1,27 @@
-# État d'avancement — session du 20/08/2026
+# État d'avancement — session du 20-21/08/2026
 
-Dernier commit `appli-techniciens` : `fe43bfb`
-Dernier commit `suivi-chantiers` : `206c423`
+Dernier commit `appli-techniciens` : `b59b9d9` (+ copie CLAUDE.md à jour, pas encore committée)
+Dernier commit `suivi-chantiers` : `6ddf8ab`
 
 Ce fichier récapitule une longue session de travail sur les deux dépôts. Objectif : pouvoir
 reprendre le fil après compactage de la conversation, sans perdre le contexte.
 
 ## Ce qui est fait
+
+### Session du 21/08/26 (suite)
+- Copies de `CLAUDE.md` et `PROGRESS.md` ajoutées dans `suivi-chantiers` aussi (les deux dépôts
+  sont interconnectés, doivent rester synchronisés sur ces deux fichiers de référence).
+- **Correction importante du Gantt (`suivi-chantiers`)** : la barre bleue "Intervention TELSAM
+  prévue" était construite à partir du texte des `fenetres` (plages larges, pas reconfirmées
+  chaque semaine), pas à partir de `REAL_DAYS` (jours réellement confirmés par la couleur du
+  planning). Conséquence concrète repérée par Patrice : Cantegrit/Fleyriat/Joncquiere/Lisieux/
+  Chaineau-Cordy-Lamotte affichaient une "présence" TELSAM alors qu'aucun technicien n'y était
+  placé en semaine 35 ; à l'inverse Audit Multi Postes (sans champ `fenetres`) n'affichait rien
+  du tout malgré 2 techniciens confirmés. Corrigé : la barre est maintenant construite depuis
+  `REAL_DAYS` (le texte des fenêtres n'alimente plus que le tooltip). Le tri du Gantt (chantiers
+  "en cours" en tête) se corrige de facto. `mergePresenceSegs` supprimée (remplacée par
+  `mergeCoveragePeriods`, déjà existante, réutilisée). Vérifié sans erreur console, testé sur
+  tous les chantiers cités + quelques autres en sanity-check. Règle documentée dans `CLAUDE.md`.
 
 ### Mise en place / structure
 - Dépôt `appli-techniciens` cloné dans `TELSAM-apps/appli-techniciens/`.

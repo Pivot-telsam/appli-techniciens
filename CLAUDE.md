@@ -86,6 +86,16 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
   passées" décoché) — une fenêtre/segment entièrement passé est invisible tant qu'on ne coche pas
   cette case, même s'il est bien présent dans les données (vécu avec le PGO Bradascou, 20/08/26).
   Toujours vérifier avec la case cochée avant de conclure qu'une donnée manque.
+- **La barre bleue "Intervention TELSAM prévue" du Gantt est construite à partir de `REAL_DAYS`**
+  (jours confirmés par le code couleur du planning RTE), PAS à partir du texte des `fenetres`
+  (corrigé le 21/08/26 — avant ça, une fenêtre à plage large affichait une "présence" même sans
+  aucun technicien réellement confirmé cette semaine-là : Cantegrit, Fleyriat, Joncquiere,
+  Lisieux, Chaineau-Cordy-Lamotte en ont été victimes ; à l'inverse, un chantier sans champ
+  `fenetres` du tout — ex. Audit Multi Postes — n'affichait jamais rien même avec des
+  techniciens confirmés). Le texte des `fenetres` ne sert plus qu'à enrichir le tooltip. La
+  couverture PGO (teal) et la validité PDP (verte) restent indépendantes de `REAL_DAYS` — un
+  PGO signé couvre une période même avant confirmation couleur, c'est une info complémentaire,
+  pas redondante. Ne pas revenir à une logique basée sur le texte des fenêtres seul.
 - `MTFO_STANDALONE` (suivi-chantiers) : rappels MTFO sans fiche chantier associée, décision
   volontaire de Patrice pour les lignes du planning sans PDP/PGO à gérer. Ne pas créer de fiche
   chantier pour "régulariser" ces lignes.
