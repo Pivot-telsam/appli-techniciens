@@ -1,7 +1,7 @@
 # État d'avancement — session du 20-21/08/2026
 
-Dernier commit `appli-techniciens` : `b59b9d9` (+ copie CLAUDE.md à jour, pas encore committée)
-Dernier commit `suivi-chantiers` : `6ddf8ab`
+Dernier commit `appli-techniciens` : `9f1f43f`
+Dernier commit `suivi-chantiers` : `92b08aa`
 
 Ce fichier récapitule une longue session de travail sur les deux dépôts. Objectif : pouvoir
 reprendre le fil après compactage de la conversation, sans perdre le contexte.
@@ -27,6 +27,28 @@ reprendre le fil après compactage de la conversation, sans perdre le contexte.
   que Portet/DATA4/Audit (techniciens réellement placés). La présence réelle passe maintenant
   toujours en premier. Vérifié : Portet, DATA4-Marcoussis, Audit Multi Postes sont bien les 3
   premiers du Gantt en semaine 35.
+- **PDP reçus pour DATA4-Marcoussis et Audit Garies-Pessac** (documents ajoutés par Patrice dans
+  App Tech) : statuts pdp/pgo mis à jour dans les deux dépôts (voir commits `92b08aa`/`9f1f43f`).
+  Point notable : le PGO de l'Audit (indice 1, .xlsm) est en réalité un **modèle vide** (aucune
+  tâche/date renseignée dans les feuilles PGO/Gantt/Données) — statut mis à `warn` avec alerte
+  dédiée plutôt que `ok`, à relancer auprès de RTE.
+- **Rappel important (répété 2 fois ce jour-là)** : ajouter un fichier dans Dropbox "App Tech"
+  ne met JAMAIS à jour automatiquement les champs `pdp`/`pgo`/`ist` de `SEED_DATA` — il faut
+  toujours qu'une session interactive ouvre le document et saisisse l'indice/les dates.
+- **Tentative d'automatisation abandonnée** : Patrice a demandé si la détection de nouveaux
+  PDP/PGO/IST dans Dropbox pouvait être automatisée. Tentative de créer une routine planifiée
+  cloud (skill `schedule` / `RemoteTrigger`) — bloquée à deux niveaux : (1) aucun moyen de
+  récupérer le `connector_uuid` du connecteur Dropbox pour l'attacher à la routine (la page
+  Connecteurs de Patrice montre des permissions par outil, pas un ID de connecteur ; aucun outil
+  API ne liste les connecteurs disponibles), (2) `RemoteTrigger create` a été rejeté avec
+  "Connect your GitHub account before saving a routine that uses a GitHub repository" — GitHub
+  n'est pas connecté pour les routines non plus, et ni Patrice ni Claude n'ont trouvé où faire
+  ça dans son interface. Décision : **on reste sur le traitement manuel en session**, comme
+  avant. Ne pas retenter cette automatisation sans une vraie raison de penser que ces deux
+  blocages sont résolus (cf. mémoire `feedback_no_cloud_automation_pdp_pgo`). Autre limite à
+  garder en tête si retenté un jour : même connecteurs OK, une routine cloud ne pourrait
+  toujours pas ouvrir les PGO/PDP `.xlsm` (Excel via COM PowerShell, Windows uniquement) ni
+  générer les Briefs Techniciens (Word COM) — ça resterait à faire en session locale.
 
 ### Mise en place / structure
 - Dépôt `appli-techniciens` cloné dans `TELSAM-apps/appli-techniciens/`.
