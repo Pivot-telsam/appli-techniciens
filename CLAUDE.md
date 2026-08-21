@@ -125,6 +125,21 @@ ou chantier existant qui devient actif — cf. workflow hebdomadaire ci-dessous)
 - Après avoir ajouté un Brief ou tout autre fichier : vérifier le lien de partage (cf. règle
   ci-dessous) avant de committer `documentsAppTech`.
 
+**RÈGLE — tenir App Tech à jour dans la durée, pas seulement à la création.**
+Dès que je prends connaissance d'un PDP, PGO ou IST nouveau/mis à jour pour un chantier qui a
+déjà un dossier App Tech (que Patrice me le signale, ou que je le découvre en traitant autre
+chose — ex. mise à jour du planning, recherche Dropbox) :
+- Si ce chantier a un dossier App Tech existant, remplacer dans App Tech l'ancienne version du
+  document par la nouvelle (supprimer l'ancienne, copier la nouvelle) — ne pas laisser une
+  version obsolète à côté de la nouvelle.
+- Une IST qui revient signée par RTE alors qu'elle n'y était pas encore : l'ajouter à App Tech à
+  ce moment-là (elle ne l'était pas avant, cf. règle ci-dessus), et lever l'alerte `warn`
+  correspondante dans suivi-chantiers + repasser `ist.valideRTE` à `true`.
+- Mettre à jour en cohérence les champs structurés (`pdp`/`pgo`/`ist` indice, ref, dates) dans
+  les deux dépôts, comme pour toute mise à jour de document déjà pratiquée (ex. Bradascou PGO).
+- Le but : ce que le technicien ouvre dans App Tech doit toujours être la version en vigueur,
+  jamais une version périmée qui traîne depuis la création du dossier.
+
 ## Accès Dropbox
 Dropbox est connecté et utilisable directement (create_folder, create_shared_link, create_file_request,
 search, list_folder, fetch). Toujours confirmer le plan exact avec Patrice avant toute création/modification
