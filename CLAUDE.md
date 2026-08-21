@@ -35,6 +35,17 @@ Toujours : `telsamfibre > RTE > [Ligne aérienne | Ligne souterraine | Postes | 
 puis dossier du chantier, puis sous-dossier `Documents Telsam` (contient les NDS).
 Ne jamais sortir de cette arborescence pour ce type de recherche.
 
+Sous-dossiers frères possibles directement sous le dossier du chantier (confirmé 21/08/26) :
+- `PDP` et `PGO` — c'est ICI que Patrice dépose les nouveaux PDP/PGO reçus, PAS dans "App Tech"
+  ni dans "Documents Telsam". Un nouveau fichier déposé là ne se propage JAMAIS automatiquement
+  vers "App Tech" — il faut activement l'y copier (en remplaçant l'ancienne version) à chaque
+  mise à jour, cf. règle App Tech ci-dessous.
+- `App Tech` — dossier curé à part, alimenté par copie depuis PDP/PGO/Documents Telsam, jamais
+  la source primaire des documents.
+Si je découvre un document par moi-même (recherche Dropbox pour une autre raison, pas signalé par
+Patrice), penser à regarder aussi dans `PDP`/`PGO`, pas seulement dans "Documents Telsam" ou
+"App Tech" — sinon une mise à jour peut être manquée.
+
 ## Planning RTE 2026.xlsx — RÈGLE CRITIQUE (affectations technicien/chantier)
 Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1" :
 - 370 colonnes = 1 jour par colonne à partir du 1er janvier (col2 = 1er janvier ; formule :
