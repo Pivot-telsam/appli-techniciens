@@ -226,3 +226,10 @@ les liens publics — c'est uniquement l'outil qui les crée restreints). Consé
 - Valider la syntaxe JS (node --check) et le JSON (SEED_DATA) avant toute livraison.
 - **Avant de committer un changement à `SEED_DATA` dans suivi-chantiers, incrémenter `SEED_VERSION`.**
   Sans ça, la modification est invisible pour les collègues qui ont déjà chargé une version antérieure.
+  Cette règle a déjà été oubliée deux fois malgré sa documentation (20/08 puis 21/08) — un hook
+  git local (`scripts/check-seed-version.sh`, installé dans `.git/hooks/pre-commit`) bloque
+  maintenant tout commit qui modifie un enregistrement `SEED_DATA` sans toucher `SEED_VERSION`
+  dans le même commit. À réinstaller après un nouveau clone du dépôt :
+  `cp scripts/check-seed-version.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+  (les hooks ne sont pas versionnés par Git lui-même). Toujours annoncer explicitement dans le
+  résumé de commit "SEED_VERSION bumpé : oui/non" quand `SEED_DATA` est modifié.
