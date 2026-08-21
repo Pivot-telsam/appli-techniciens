@@ -128,6 +128,25 @@ C'est le numéro de référence que Patrice utilise pour organiser Dropbox (il r
 les dossiers avec ce préfixe, ex: "26-055 - Fleyriat - Brou - La Cluse"). Pour tout nouveau chantier,
 attribuer le prochain numéro disponible et le communiquer à Patrice.
 
+## Chantiers à plusieurs lots / sous-chantiers — RÈGLE (cas Chaineau-Cordy-Lamotte, 21/08/26)
+Certains chantiers sont découpés en plusieurs lots attribués à des sous-traitants différents
+(ex. Chaineau-Cordy-Lamotte : LOT 1 RODA / LOT 2 SELT dans Dropbox). Décision de Patrice (21/08/26) :
+- Numérotation : un sous-chantier par lot, suffixe numérique sur le numéro parent — ex. `26-036-1`
+  et `26-036-2` pour les deux lots de Chaineau-Cordy-Lamotte (parent `26-036`).
+- **PDP et PGO sont communs** aux sous-chantiers d'un même chantier parent — un seul jeu de
+  documents de sécurité, partagé, pas dupliqué ni divergent entre sous-chantiers.
+- **NDS, IST et Brief technicien sont propres à chaque sous-chantier** — un jeu différent par lot
+  (cohérent avec le fait que chaque lot a son propre sous-traitant, donc son propre périmètre de
+  travaux techniciens).
+- Donc chaque sous-chantier a son propre dossier "App Tech" (avec son propre Brief, sa propre IST
+  si applicable, son propre "Photos terrain" + File Request + `depotTerrain`), mais le PDP et le
+  PGO qui y figurent sont une copie du même document partagé entre les sous-chantiers du même
+  parent — pas deux versions indépendantes qui pourraient diverger.
+- Renommage Dropbox pas encore fait pour Chaineau-Cordy-Lamotte au 21/08/26 (dossiers encore
+  "LOT 1 RODA"/"LOT 2 SELT") — Patrice le fera progressivement, ne pas renommer à sa place sans
+  demande explicite. Cette règle de structuration (numérotation, PDP/PGO commun, NDS/IST/Brief
+  séparés) s'applique à ce cas ET à tout futur chantier multi-lots similaire.
+
 ## Contenu standard d'un dossier "App Tech" — RÈGLE SYSTÉMATIQUE (à appliquer TOUJOURS)
 Chaque fois qu'un dossier "App Tech" est créé ou complété pour un chantier (nouveau chantier,
 ou chantier existant qui devient actif — cf. workflow hebdomadaire ci-dessous), il doit contenir :
@@ -151,6 +170,25 @@ ou chantier existant qui devient actif — cf. workflow hebdomadaire ci-dessous)
 - Ne jamais inclure devis, contrats de sous-traitance, factures ou PV de réception commerciaux.
 - Après avoir ajouté un Brief ou tout autre fichier : vérifier le lien de partage (cf. règle
   ci-dessous) avant de committer `documentsAppTech`.
+
+**RÈGLE — le bouton "📷 Dépôt photos" (`depotTerrain`) fait partie intégrante de la création
+d'App Tech, jamais une étape séparée qu'on remet à plus tard.** Incident vécu le 21/08/26 :
+DATA4-Marcoussis et Audit Garies-Pessac avaient un dossier App Tech complet (avec "Photos
+terrain" déjà créé) depuis plusieurs jours, mais sans File Request Dropbox associée ni champ
+`depotTerrain` dans `appli-techniciens/index.html` — le bouton photo n'existait donc pas pour
+les techniciens, sans que personne ne s'en rende compte jusqu'à ce que Pascal Bonaventure le
+signale. Sur un audit du 21/08/26, seulement 2 chantiers sur 7 avec présence technicien réelle
+avaient ce bouton opérationnel. Donc, à chaque création/complétion d'un dossier App Tech
+(nouveau chantier, ou chantier existant qui devient actif) :
+1. Créer le sous-dossier "Photos terrain" (déjà obligatoire ci-dessus).
+2. **Dans le même geste**, créer une Dropbox File Request (`create_file_request`) dont la
+   destination est ce sous-dossier "Photos terrain".
+3. Câbler immédiatement le champ `depotTerrain` (URL de la File Request) dans
+   `appli-techniciens/index.html` pour ce chantier — jamais laissé pour "plus tard".
+4. Avant de clore une session de mise à jour hebdomadaire (cf. workflow ci-dessous), lister tous
+   les chantiers ayant une présence technicien réelle cette semaine ou les 2 prochaines
+   (`TECH_RANGES`) et vérifier qu'aucun n'a `documentsAppTech` sans `depotTerrain` — traiter ce
+   contrôle comme aussi obligatoire que le bump de `SEED_VERSION`.
 
 **RÈGLE — tenir App Tech à jour dans la durée, pas seulement à la création.**
 Dès que je prends connaissance d'un PDP, PGO ou IST nouveau/mis à jour pour un chantier qui a
