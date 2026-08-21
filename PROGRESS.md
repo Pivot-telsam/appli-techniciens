@@ -22,6 +22,11 @@ reprendre le fil après compactage de la conversation, sans perdre le contexte.
   "en cours" en tête) se corrige de facto. `mergePresenceSegs` supprimée (remplacée par
   `mergeCoveragePeriods`, déjà existante, réutilisée). Vérifié sans erreur console, testé sur
   tous les chantiers cités + quelques autres en sanity-check. Règle documentée dans `CLAUDE.md`.
+- **Tri du Gantt corrigé aussi** : `chronoSortKey` faisait passer PGO/consignation/NIP à égalité
+  avec la présence technicien réelle, donc Cantegrit (PGO seul) pouvait remonter au même niveau
+  que Portet/DATA4/Audit (techniciens réellement placés). La présence réelle passe maintenant
+  toujours en premier. Vérifié : Portet, DATA4-Marcoussis, Audit Multi Postes sont bien les 3
+  premiers du Gantt en semaine 35.
 
 ### Mise en place / structure
 - Dépôt `appli-techniciens` cloné dans `TELSAM-apps/appli-techniciens/`.

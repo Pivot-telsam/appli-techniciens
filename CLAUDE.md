@@ -96,6 +96,12 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
   couverture PGO (teal) et la validité PDP (verte) restent indépendantes de `REAL_DAYS` — un
   PGO signé couvre une période même avant confirmation couleur, c'est une info complémentaire,
   pas redondante. Ne pas revenir à une logique basée sur le texte des fenêtres seul.
+- **Tri du Gantt (`chronoSortKey`) : la présence technicien réelle prime toujours sur PGO/
+  consignation/NIP** (corrigé le 21/08/26). Avant, un chantier seulement couvert par un PGO en
+  cours (sans technicien placé, ex. Cantegrit) pouvait remonter au même niveau qu'un chantier
+  où des techniciens sont réellement envoyés (Portet/DATA4/Audit) — contraire au but du Gantt
+  ("voir où sont les techs" d'un coup d'œil). Les segments 'normal'/'tourets' (présence réelle)
+  sont maintenant toujours classés avant tout autre type de fenêtre réelle.
 - `MTFO_STANDALONE` (suivi-chantiers) : rappels MTFO sans fiche chantier associée, décision
   volontaire de Patrice pour les lignes du planning sans PDP/PGO à gérer. Ne pas créer de fiche
   chantier pour "régulariser" ces lignes.
