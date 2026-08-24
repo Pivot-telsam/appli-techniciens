@@ -158,6 +158,34 @@ Validation : Pascal Bonaventure (35h sur DATA4-Marcoussis, GD 4, PD 1) et Ahmed 
 `recap_FH-TEST.xlsx` sans ressaisie, et le skill régénère correctement les onglets 2 et 3.
 
 
+
+## État des fichiers au 24/08/2026 (à lire avant de reprendre)
+
+**`feuille d'heures/recap_FH-TEST.xlsx` — NE PAS ENVOYER AUX RH.** C'est le fichier d'essai.
+Son bloc **S34 contient des données inventées par Claude** pour tester la mécanique (les heures
+sont exactes car reprises des vraies feuilles, mais la répartition Chaineau/Dambron de Hamouch et
+Moussa est une reconstitution de la saisie manuelle de Patrice, pas une donnée d'origine). Seul
+le bloc **S35 est réel** : Pascal Bonaventure et Ahmed Hamouch, passés par toute la chaîne.
+Patrice avait envisagé de renommer ce fichier en « septembre » pour l'envoyer — à ne pas faire
+tant que la S34 n'a pas été remise à blanc et resaisie.
+
+**`feuille d'heures/recap_FH-septembre.xlsx`** est le vrai fichier de production. Ses étiquettes
+de semaines ont été corrigées le 24/08 (`S34 S35 S36 S37 S38` au lieu de `S34 S36 S37 S38 vide`) ;
+aucune donnée n'a été déplacée, seul le bloc S34 est rempli, c'est la saisie manuelle de Patrice.
+Sauvegarde d'avant correction : `recap FH/recap_FH-septembre_sauvegarde-avant-etiquettes.xlsx`.
+
+**`feuille d'heures/dépôts appli/`** contient encore les deux PDF de test
+(`S35-HAMOUCH_Ahmed.pdf`, `S35-BONAVENTURE_Pascal.pdf`). Ils ont été intégrés dans le fichier de
+test, pas dans le vrai récap. À déplacer dans `traité` ou à supprimer avant le déploiement, sinon
+ils seront réintégrés lors de la prochaine commande sur la S35.
+
+**Documents Word remis à Patrice le 24/08** (sur son Bureau, régénérables à la demande) :
+- `Liens_App_Techniciens_TELSAM.docx` — les 13 techniciens et leur lien personnel cliquable, à
+  diffuser au moment du déploiement. Le code d'accès partagé n'y figure volontairement pas.
+- `Chantiers_Numeros_Index_TELSAM.docx` — les 68 chantiers avec leur n° d'index, groupés par
+  priorité de renommage Dropbox (A : techniciens déjà placés, B : fenêtre à venir, C : sans date,
+  D : terminés).
+
 ## Décisions prises par Patrice (à respecter, ne pas rouvrir sans qu'il le demande)
 - Garder la structure Dropbox actuelle (un "App Tech" par dossier de chantier) plutôt que de
   créer un dossier parent unique déjà public — accepte de refaire le clic manuel à chaque
