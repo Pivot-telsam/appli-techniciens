@@ -1398,8 +1398,30 @@ async function generateFeuillePDF(){
   const filename = payload.sheetName + '.pdf';
   return { blob, filename, weekNum, payload };
 }
+/* Une feuille sans aucune heure part sans rien dire, et Patrice ne le decouvre
+   qu'en ouvrant le PDF (vecu le 24/08/26 avec Ahmed Hamouch : n'ayant aucun
+   chantier attribue, il n'avait aucune ligne ou saisir ses heures, seulement
+   les boutons de deplacement). On previent avant l'envoi. */
+function feuilleSansHeures(){
+  const nb = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(n) ? 0 : n; };
+  const heures = (hoursEntry.chantierLines||[]).some(l =>
+    l.jours && Object.keys(l.jours).some(d => nb(l.jours[d].j) > 0 || nb(l.jours[d].n) > 0));
+  const absences = (hoursEntry.absences||[]).some(a =>
+    a.jours && Object.keys(a.jours).some(d => nb(a.jours[d]) > 0));
+  return !heures && !absences;
+}
 async function emailFeuille(){
   if(!hoursEntry) return;
+  // Verification synchrone AVANT tout await : sur mobile, navigator.share exige
+  // un geste utilisateur encore "frais", qu'une attente asynchrone peut perdre.
+  if(feuilleSansHeures()){
+    const ok = confirm(
+      "Ta feuille ne contient aucune heure travaillée ni absence.\n\n"
+      + "Pour saisir des heures, ajoute d'abord une ligne avec « + Ajouter un chantier » "
+      + "(choisis « Contribution agence » si tu n'es sur aucun chantier précis).\n\n"
+      + "Envoyer quand même une feuille vide ?");
+    if(!ok) return;
+  }
   const btn = document.getElementById('emailBtn');
   const originalLabel = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Génération...'; }
