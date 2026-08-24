@@ -280,9 +280,16 @@ footer.legend{
 .h-absence-title{ display:flex; justify-content:space-between; align-items:center; font-size:13.5px; font-weight:700; }
 .h-toggle-row{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
 .h-toggle-btn{
-  background:var(--surface-2); border:1px solid var(--border); color:var(--text-muted);
-  border-radius:8px; padding:8px 2px; font-size:11px; font-weight:800; cursor:pointer; text-align:center;
+  background:var(--surface-2); border:1px dashed var(--border); color:var(--text-muted);
+  border-radius:8px; padding:5px 2px 6px; font-size:11px; font-weight:800; cursor:pointer; text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:1px;
 }
+/* le jour reste toujours lisible : sans lui, une fois "PD" affiche, le technicien
+   ne sait plus quel jour il a coche (retour terrain du 24/08/26). */
+.h-toggle-day{ font-size:9.5px; font-weight:700; opacity:0.7; letter-spacing:0.04em; }
+.h-toggle-val{ font-size:13px; font-weight:800; line-height:1.1; }
+.h-toggle-btn.pd, .h-toggle-btn.gd, .h-toggle-btn.n1, .h-toggle-btn.n2{ border-style:solid; }
+.h-hint{ font-size:11.5px; color:var(--text-muted); margin:2px 0 7px; line-height:1.35; }
 .h-toggle-btn.pd{ background:var(--amber-dim); border-color:#5A4519; color:var(--amber); }
 .h-toggle-btn.gd{ background:var(--cyan-dim); border-color:#1F5750; color:var(--cyan); }
 .h-toggle-btn.n1{ background:var(--amber-dim); border-color:#5A4519; color:var(--amber); }
@@ -931,19 +938,22 @@ function renderHoursUI(){
 
   const deplHtml = JOURS.map((lbl,d)=>{
     const state = e.pd[d]? 'pd' : (e.gd[d]? 'gd' : '');
-    const stateLabel = e.pd[d]? 'PD' : (e.gd[d]? 'GD' : lbl);
-    return '<button class="h-toggle-btn '+state+'" onclick="cycleDeplacement('+d+')">'+stateLabel+'</button>';
+    const val = e.pd[d]? 'PD' : (e.gd[d]? 'GD' : '–');
+    return '<button class="h-toggle-btn '+state+'" onclick="cycleDeplacement('+d+')">'
+      + '<span class="h-toggle-day">'+lbl+'</span><span class="h-toggle-val">'+val+'</span></button>';
   }).join('');
   const nacelleHtml = JOURS.map((lbl,d)=>{
     const v = e.nacelle[d]||0;
     const cls = v===1?'n1':(v===2?'n2':'');
-    const label = v? String(v) : lbl;
-    return '<button class="h-toggle-btn '+cls+'" onclick="cycleNacelle('+d+')">'+label+'</button>';
+    return '<button class="h-toggle-btn '+cls+'" onclick="cycleNacelle('+d+')">'
+      + '<span class="h-toggle-day">'+lbl+'</span><span class="h-toggle-val">'+(v? String(v) : '–')+'</span></button>';
   }).join('');
   const deplSection = '<div class="h-section">'
     + '<div class="h-section-title">Déplacement (PD / GD)</div>'
+    + '<div class="h-hint">Appuie sur un jour : 1 fois = PD (petit déplacement), 2 fois = GD (grand déplacement), 3 fois pour effacer.</div>'
     + '<div class="h-toggle-row">'+deplHtml+'</div>'
-    + '<div class="h-section-title" style="margin-top:6px;">Nacelle</div>'
+    + '<div class="h-section-title" style="margin-top:12px;">Nacelle</div>'
+    + '<div class="h-hint">Appuie sur un jour pour indiquer le nombre de nacelles utilisées (1 ou 2).</div>'
     + '<div class="h-toggle-row">'+nacelleHtml+'</div>'
     + '</div>';
 
