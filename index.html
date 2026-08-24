@@ -1362,24 +1362,31 @@ function buildPdfFromPayload(payload){
 
   return doc;
 }
+/* Les donnees de la feuille sont glissees DANS le PDF, en propriete de document.
+   Le technicien n'envoie donc qu'un seul fichier, exactement comme avant, et
+   Patrice peut malgre tout reinjecter la feuille dans son recap sans ressaisie.
+   Un fichier .json separe avait ete essaye le 24/08/26 : la plupart des
+   telephones ne savent pas partager deux fichiers d'un coup et retombaient sur
+   un telechargement manuel (ouvrir chaque fichier, puis le partager), juge trop
+   lourd par les techniciens. Ne pas revenir a deux fichiers. */
+function embedPayloadInPdf(doc, payload){
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  doc.setProperties({
+    title: payload.sheetName,
+    subject: "Feuille d'heures TELSAM",
+    author: payload.signatureText || payload.technicien || '',
+    keywords: 'TELSAMDATA:' + b64,
+  });
+}
 async function generateFeuillePDF(){
   await loadPdfLib();
   const {mon, weekNum} = weekRange(currentOffset);
   const payload = buildExportPayload(mon, weekNum);
   const doc = buildPdfFromPayload(payload);
+  embedPayloadInPdf(doc, payload);
   const blob = doc.output('blob');
   const filename = payload.sheetName + '.pdf';
   return { blob, filename, weekNum, payload };
-}
-/* Fichier de donnees joint au PDF : c'est lui que Patrice depose dans son dossier
-   d'integration, pour que la feuille remonte dans le recap RH sans ressaisie.
-   Le PDF reste la piece lisible/signee ; ce fichier-ci n'est jamais lu a l'oeil. */
-function buildFeuilleDataFile(payload){
-  const json = JSON.stringify(payload, null, 1);
-  return {
-    blob: new Blob([json], {type:'application/json'}),
-    filename: payload.sheetName + '.json',
-  };
 }
 async function emailFeuille(){
   if(!hoursEntry) return;
@@ -1387,19 +1394,17 @@ async function emailFeuille(){
   const originalLabel = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Génération...'; }
   try{
-    const {blob, filename, weekNum, payload} = await generateFeuillePDF();
-    const data = buildFeuilleDataFile(payload);
+    const {blob, filename, weekNum} = await generateFeuillePDF();
     let shared=false;
     let cancelled=false;
     if(navigator.share){
       try{
         const file = new File([blob], filename, {type: blob.type});
-        const dataFile = new File([data.blob], data.filename, {type: data.blob.type});
         // certains navigateurs n'exposent pas canShare correctement : on tente quand même
         // le partage dans ce cas, plutôt que d'abandonner sans essayer.
-        const canTry = navigator.canShare ? navigator.canShare({files:[file, dataFile]}) : true;
+        const canTry = navigator.canShare ? navigator.canShare({files:[file]}) : true;
         if(canTry){
-          await navigator.share({files:[file, dataFile], title: filename, text: "Feuille d'heures - "+currentTech});
+          await navigator.share({files:[file], title: filename, text: "Feuille d'heures - "+currentTech});
           shared=true;
         }
       }catch(e){
@@ -1412,9 +1417,8 @@ async function emailFeuille(){
       // Étape clé : il faut l'OUVRIR (pas juste le laisser dans les téléchargements) pour que
       // l'application qui s'ouvre propose son propre bouton Partager, fiable sur tous les téléphones.
       downloadBlob(blob, filename);
-      downloadBlob(data.blob, data.filename);
       const subject = 'Feuille d\'heures S'+weekNum+' - '+currentTech;
-      const body = 'Bonjour,\n\nDeux fichiers viennent d\'être téléchargés sur ce téléphone :\n- "'+filename+'" (la feuille à lire)\n- "'+data.filename+'" (les données, à joindre aussi)\n\nPour les envoyer : ouvre chaque fichier depuis la notification de téléchargement, puis utilise le bouton Partager qui s\'affiche.\n\nCordialement,\n'+currentTech;
+      const body = 'Bonjour,\n\nLe fichier "'+filename+'" vient d\'être téléchargé sur ce téléphone.\n\nPour l\'envoyer avec la pièce jointe : ouvre d\'abord ce fichier (notification de téléchargement), puis utilise le bouton Partager de l\'application qui s\'affiche.\n\nCordialement,\n'+currentTech;
       const mailto = 'mailto:equipefibretelsam@telsam.com'
         + '?subject='+encodeURIComponent(subject)
         + '&body='+encodeURIComponent(body);
