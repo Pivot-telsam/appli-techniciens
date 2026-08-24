@@ -1306,9 +1306,25 @@ function buildPdfFromPayload(payload){
       + (payload.km ? '   -   Km fin de semaine : '+payload.km : '')
     : null;
 
+  // Les totaux d'abord : c'est ce que Patrice reporte dans son recap RH (colonnes
+  // GD / PD / Nacelle). Sans eux il devait compter les jours a la main dans le
+  // detail (retour du 24/08/26). Le detail par jour reste affiche en dessous,
+  // pour pouvoir verifier.
+  const nbPd = payload.pd ? Object.keys(payload.pd).filter(d=> payload.pd[d]).length : 0;
+  const nbGd = payload.gd ? Object.keys(payload.gd).filter(d=> payload.gd[d]).length : 0;
+  const nbNacelle = payload.nacelle
+    ? Object.keys(payload.nacelle).reduce((s,d)=> s + (parseFloat(payload.nacelle[d])||0), 0) : 0;
+
   const infoItems = [];
-  if(depl.length) infoItems.push(['Deplacement', depl.join(', ')]);
-  if(nacelle.length) infoItems.push(['Nacelle', nacelle.join(', ')]);
+  if(nbGd || nbPd || nbNacelle){
+    const totaux = [];
+    totaux.push('Grands deplacements (GD) : ' + nbGd);
+    totaux.push('Petits deplacements (PD) : ' + nbPd);
+    if(nbNacelle) totaux.push('Nacelles : ' + nbNacelle);
+    infoItems.push(['TOTAUX', totaux.join('   -   ')]);
+  }
+  if(depl.length) infoItems.push(['Detail par jour', depl.join(', ')]);
+  if(nacelle.length) infoItems.push(['Nacelle par jour', nacelle.join(', ')]);
   if(vehLine) infoItems.push(['Vehicule', vehLine]);
 
   if(infoItems.length){
