@@ -1,7 +1,7 @@
-# État d'avancement — session du 20-21/08/2026
+# État d'avancement — sessions des 20, 21 et 24/08/2026
 
-Dernier commit `appli-techniciens` : `9f1f43f`
-Dernier commit `suivi-chantiers` : `92b08aa`
+Dernier commit `appli-techniciens` : `4f9d93a`
+Dernier commit `suivi-chantiers` : `3865e66`
 
 Ce fichier récapitule une longue session de travail sur les deux dépôts. Objectif : pouvoir
 reprendre le fil après compactage de la conversation, sans perdre le contexte.
@@ -132,6 +132,32 @@ reprendre le fil après compactage de la conversation, sans perdre le contexte.
 - Obligation de bump `SEED_VERSION`.
 - Vérification systématique des liens Dropbox.
 
+
+### Session du 24/08/26 — le pont feuilles d'heures (chantier majeur, terminé et validé)
+
+Objectif de Patrice : que les feuilles d'heures saisies par les techniciens alimentent son récap
+RH sans aucune ressaisie de sa part, tout en gardant son point de contrôle avant envoi aux RH.
+**La chaîne complète est en place et validée avec de vraies feuilles.** Le détail des règles est
+dans `CLAUDE.md`, section « Feuilles d'heures : de l'appli au récap RH » — ne pas le dupliquer ici.
+
+Ce qui a été construit :
+- `suivi-chantiers/scripts/integrer-feuilles-heures.ps1` : lit les feuilles déposées, montre un
+  aperçu, n'écrit qu'avec `-Ecrire`. Idempotent, refuse d'écrire dans quatre situations à risque.
+- L'appli technicien embarque les données de saisie **dans le PDF** (un seul fichier à partager).
+- Dossier de dépôt `feuille d'heures/dépôts appli/` avec son `_LISEZ-MOI.txt`.
+- N° d'index `26-0XX` propagé aux 68 fiches de `appli-techniciens` (il y était absent).
+- Colonnes `Devis N` du récap renommées en `N° chantier N`, skill `recap-feuilles-heures` adapté
+  en conséquence (accepte les deux formats, les anciens fichiers mensuels restent recalculables).
+- Corrections issues du test terrain avec Ahmed Hamouch : boutons de déplacement rendus
+  compréhensibles, totaux GD/PD/Nacelle affichés sur le PDF, avertissement avant l'envoi d'une
+  feuille vide, une seule nacelle par jour, bouton « Effacer et recommencer cette semaine ».
+- Logo TELSAM ajouté en en-tête de l'appli (écrans d'accueil et bandeau).
+
+Validation : Pascal Bonaventure (35h sur DATA4-Marcoussis, GD 4, PD 1) et Ahmed Hamouch
+(GD 4, PD 1 seulement) ont rempli sur leur téléphone ; leurs feuilles sont arrivées dans
+`recap_FH-TEST.xlsx` sans ressaisie, et le skill régénère correctement les onglets 2 et 3.
+
+
 ## Décisions prises par Patrice (à respecter, ne pas rouvrir sans qu'il le demande)
 - Garder la structure Dropbox actuelle (un "App Tech" par dossier de chantier) plutôt que de
   créer un dossier parent unique déjà public — accepte de refaire le clic manuel à chaque
@@ -155,3 +181,13 @@ reprendre le fil après compactage de la conversation, sans perdre le contexte.
   rétroactif fait sur ces 6-là.
 - Rien d'autre en attente de validation à ce stade — tout ce qui a été discuté a été commité et
   poussé sur les deux dépôts.
+
+- **Déploiement prévu la semaine prochaine** aux 13 techniciens. Prévoir de remettre à blanc les
+  blocs S34 et S35 du récap (sauvegarde d'abord) et de demander à tous de saisir ces deux
+  semaines, pour un galop d'essai grandeur nature. Patrice conserve les feuilles de la S34 dans
+  son dossier dédié, il peut donc rattraper toute erreur.
+- Ahmed Hamouch et Pascal Bonaventure doivent effacer leur semaine de test sur leur téléphone
+  (bouton dédié) — la saisie vit dans leur navigateur, personne ne peut l'effacer à distance.
+- Renommage progressif des dossiers Dropbox avec les n° d'index, et annotation du Planning RTE
+  avec ces mêmes numéros (Patrice s'en charge) — voir le document
+  `Chantiers_Numeros_Index_TELSAM.docx` remis le 24/08.

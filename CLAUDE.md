@@ -123,10 +123,16 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
 - Le code d'accès partagé (`GATE_CODE_HASH`, hash SHA-256) est un confort d'accès, PAS une vraie
   sécurité — ne jamais le présenter comme une protection réelle des données techniciens/PDP.
 
-## Système de numérotation (`numero` dans suivi-chantiers, format `26-0XX`)
+## Système de numérotation (`numero`, format `26-0XX`)
 C'est le numéro de référence que Patrice utilise pour organiser Dropbox (il renomme progressivement
 les dossiers avec ce préfixe, ex: "26-055 - Fleyriat - Brou - La Cluse"). Pour tout nouveau chantier,
 attribuer le prochain numéro disponible et le communiquer à Patrice.
+
+Depuis le 24/08/26, ce numéro est présent dans **les deux dépôts** (68 fiches sur 68) : il sert
+aussi d'identifiant du chantier dans le récap RH, à la place du n° de devis (cf. section Feuilles
+d'heures). Objectif de Patrice : noter ce même numéro dans le Planning RTE à côté de chaque
+chantier, pour que le rapprochement planning ↔ fiche devienne mécanique au lieu d'être fait à
+l'œil. Renommage Dropbox et annotation du planning en cours de sa part, progressivement.
 
 ## Chantiers à plusieurs lots / sous-chantiers — RÈGLE (cas Chaineau-Cordy-Lamotte, 21/08/26)
 Certains chantiers sont découpés en plusieurs lots attribués à des sous-traitants différents
@@ -204,6 +210,102 @@ chose — ex. mise à jour du planning, recherche Dropbox) :
   les deux dépôts, comme pour toute mise à jour de document déjà pratiquée (ex. Bradascou PGO).
 - Le but : ce que le technicien ouvre dans App Tech doit toujours être la version en vigueur,
   jamais une version périmée qui traîne depuis la création du dossier.
+
+## Feuilles d'heures : de l'appli au récap RH (mis en place le 24/08/2026)
+
+**La chaîne, validée de bout en bout avec de vraies feuilles (Ahmed Hamouch et Pascal
+Bonaventure, S35) :**
+1. Le technicien remplit sa feuille dans l'appli et appuie sur « Envoyer ma feuille ».
+2. Son téléphone partage **un seul fichier** : le PDF. Les données de saisie sont **cachées
+   dedans** (propriété `Keywords` du PDF, préfixée `TELSAMDATA:`, JSON encodé en base64).
+3. Patrice dépose ce PDF dans
+   `TELSAM TEAM Dropbox/Patrice PIVOT/feuille d'heures/dépôts appli/` (un `_LISEZ-MOI.txt`
+   y rappelle la marche à suivre).
+4. Il demande « intègre la semaine NN ». Le script
+   `suivi-chantiers/scripts/integrer-feuilles-heures.ps1` lit les dépôts, montre un **aperçu**,
+   et n'écrit qu'avec `-Ecrire`.
+5. Patrice relit, lance son skill `recap-feuilles-heures` pour régénérer les onglets 2 et 3,
+   puis envoie aux RH.
+
+**RÈGLE — un seul fichier à envoyer, JAMAIS deux.** Un `.json` séparé à côté du PDF a été
+essayé le 24/08/26 : la plupart des téléphones ne savent pas partager deux fichiers d'un coup,
+le partage natif échouait et l'appli retombait sur « télécharger les deux, ouvrir chacun, puis
+partager » — trop de manipulations, les techniciens ne le feront pas (constaté avec Ahmed).
+Une fois revenu à un seul fichier, le partage s'ouvre directement. Ne pas revenir en arrière.
+
+**RÈGLE — le classeur n'a jamais qu'un seul écrivain.** Dropbox ne fusionne pas les `.xlsx` :
+deux écritures concurrentes donnent une « copie en conflit », et Excel verrouille le fichier
+quand il est ouvert. D'où le choix d'un fichier par soumission, jamais modifié, et d'une écriture
+groupée déclenchée par Patrice quand le classeur est fermé. Le script refuse d'écrire si le
+verrou `~$` existe, si un technicien est introuvable en colonne A, si une cellule contient déjà
+une valeur différente (sauf `-Ecraser`), ou si la semaine demande plus de chantiers que le bloc
+n'en a. Il est idempotent : le relancer ne duplique rien.
+
+**Structure de l'onglet `Recap` — pièges.**
+- Il ne s'agrandit pas vers le bas mais **vers la droite** : un « bloc » de colonnes par semaine,
+  étiqueté en ligne 1 (`S34`, `S35`…), en-têtes en ligne 2, un technicien par ligne (3 à 15).
+- **Les blocs n'ont pas tous la même largeur** : 2 ou 3 emplacements chantier selon les semaines.
+  Donc **toujours repérer les colonnes par leur en-tête (ligne 2), jamais par leur position.**
+  Erreur commise le 24/08/26 : copier des cellules d'un bloc à l'autre par position a envoyé le
+  GD dans la colonne COM et perdu PD/Nacelle/COM — et la source avait été effacée avant
+  vérification. Ne jamais effacer une source avant d'avoir confirmé que la destination a tout reçu.
+- **Les étiquettes de semaines doivent être consécutives.** Le fichier de septembre 2026 sautait
+  le `S35` (étiquettes `S34, S36, S37, S38, vide`), ce qui décalait tout et faisait écrire la S35
+  dans le dernier bloc. Corrigé le 24/08/26. Vérifier ce point avant toute intégration.
+- Ajouter une semaine **à droite** du dernier bloc est sans danger ; **élargir un bloc existant**
+  (technicien avec 4 chantiers alors que le bloc en prévoit 3) impose d'insérer des colonnes au
+  milieu et décale tout : le script s'arrête et prévient plutôt que de le faire seul.
+
+**RÈGLE — les heures supplémentaires se lisent dans la colonne COM, elles ne sont PAS déduites
+du total.** Le skill `recap-feuilles-heures` cherche le motif `(\d+)\s*h?\s*sup` dans COM
+(« 8h sups », « 1j recup et 9h sups »). Écrire seulement « 43h » en heures totales ferait donc
+apparaître **0h sup** dans l'onglet 2. Le script calcule l'écart au-delà de 35h et écrit
+`8h sups` dans COM, en le préfixant au commentaire du technicien plutôt qu'en l'écrasant.
+
+**Colonnes `Devis N` renommées en `N° chantier N` (24/08/2026).** Le n° d'index du chantier
+(`26-0XX`) remplace le n° de devis comme identifiant : il est unique et stable, alors qu'un devis
+change de version (`…V2`). Les colonnes `heures Devis N travaillées` ont suivi en
+`heures chantier N travaillées`. Conséquences :
+- Le n° d'index a été propagé de `suivi-chantiers` vers `appli-techniciens` (il y était totalement
+  absent), pour que l'appli puisse l'émettre dans ses soumissions.
+- Le skill a été adapté : sa détection accepte désormais `Devis N` **et** `N° chantier N`, donc les
+  fichiers mensuels antérieurs se recalculent toujours à l'identique.
+- **Le skill s'exécute côté Claude.ai, pas depuis Claude Code** (il tourne avec Python, absent de
+  cette machine, cf. [[feedback_environment_no_python]]). Modifier le fichier local dans
+  `AppData/.../skills/recap-feuilles-heures/` **ne change rien** : il faut demander la modification
+  dans une session qui l'exécute. Une copie de sauvegarde est conservée dans
+  `suivi-chantiers/scripts/skill-recap-feuilles-heures/`, ce cache `AppData` pouvant être écrasé.
+
+**Conventions de saisie relevées dans les récaps existants** (à respecter, ne pas inventer) :
+heures en texte (`35h`), GD/PD/Nacelle en nombres, `CP/RECUP` = marqueur texte (`CP`, `1 RTT`),
+`ARRET` = `AM`/`AT`, `COM` = texte libre.
+
+**Périodes mensuelles : du 20 au 20, en semaines entières.** La semaine qui contient le 20
+bascule dans la période suivante — vérifié sur les fichiers de Patrice : août = S30→S33
+(20/07→16/08), septembre = S34→S38 (17/08→20/09). C'est Claude qui crée le nouveau fichier vierge
+avec ses semaines quand Patrice le demande.
+
+**Cas particuliers de techniciens.**
+- `TECHS_SANS_CHANTIER` dans `appli-techniciens/index.html` : profils sans chantier attribué
+  (chargés d'affaires). **Ahmed HAMOUCH** y figure — sa semaine est forfaitairement à 35h, il ne
+  compte pas d'heures sup, et **seuls ses GD, PD et primes nacelle intéressent Patrice**. Une
+  feuille sans aucune heure est donc normale pour lui et ne déclenche pas l'avertissement de
+  feuille vide. Pour tous les autres, cet avertissement demande confirmation avant l'envoi.
+- **Une seule nacelle par jour au maximum** : la bascule est un simple oui/non. Elle montait à 2
+  avant le 24/08/26, ce qui permettait de saisir une prime impossible.
+
+**La saisie vit dans le navigateur du téléphone**, pas sur un serveur : ni Patrice ni Claude ne
+peuvent l'effacer à distance. D'où le bouton « Effacer et recommencer cette semaine » dans la
+feuille d'heures. Corollaire : après une mise à jour de l'appli, un technicien peut recevoir
+l'ancienne version en cache — lui faire fermer complètement l'onglet et rouvrir son lien.
+
+**Les feuilles Excel remplies à la main par les techniciens (ancien circuit) ne sont PAS
+exploitables par une machine.** Constaté le 24/08/26 sur les 7 fichiers de la S34 : chantier écrit
+sur la ligne « Qualité », ligne sans étiquette, et chez Moussa une disposition décalée d'une ligne
+(sa case « PD » là où les autres ont « GD »). Un programme qui les lirait mettrait des heures dans
+les mauvaises cases sans prévenir. De plus Patrice y ajoute sa propre connaissance en recopiant
+(un « Orléans, 35h » devient 21h sur Chaineau + 14h sur Dambron). Ne pas écrire de lecteur
+automatique pour ces fichiers : l'appli résout le problème à la source.
 
 ## Accès Dropbox
 Dropbox est connecté et utilisable directement (create_folder, create_shared_link, create_file_request,
