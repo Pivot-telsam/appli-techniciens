@@ -1086,7 +1086,14 @@ function buildExportPayload(mon, weekNum){
           };
         }
       }
-      return { client: line.client||'', lieu: line.lieu||'', jours };
+      // Le n° d'index (26-0XX) identifie le chantier dans le recap RH de Patrice :
+      // il remplace l'ancien n° de devis. Absent si le technicien a saisi un
+      // chantier libre (id null), ce qui doit rester visible plutot que devine.
+      const fiche = line.id ? SEED_DATA.find(x=> x.id===line.id) : null;
+      return {
+        client: line.client||'', lieu: line.lieu||'', jours,
+        nom: line.nom||'', numero: (fiche && fiche.numero) ? fiche.numero : '',
+      };
     });
   const absences = (hoursEntry.absences||[]).map(a=>{
     const jours={};
@@ -1109,6 +1116,8 @@ function buildExportPayload(mon, weekNum){
     if(Object.keys(jours).length) absences.push({ key:'contribution', jours });
   }
   return {
+    version: 1,
+    technicien: currentTech,   // nom complet tel qu'il figure en colonne A du recap RH
     weekNum, mondayDate: mon,
     nom: nomTitle, prenom: prenomTitle,
     chantierLines, absences,
@@ -1360,7 +1369,17 @@ async function generateFeuillePDF(){
   const doc = buildPdfFromPayload(payload);
   const blob = doc.output('blob');
   const filename = payload.sheetName + '.pdf';
-  return { blob, filename, weekNum };
+  return { blob, filename, weekNum, payload };
+}
+/* Fichier de donnees joint au PDF : c'est lui que Patrice depose dans son dossier
+   d'integration, pour que la feuille remonte dans le recap RH sans ressaisie.
+   Le PDF reste la piece lisible/signee ; ce fichier-ci n'est jamais lu a l'oeil. */
+function buildFeuilleDataFile(payload){
+  const json = JSON.stringify(payload, null, 1);
+  return {
+    blob: new Blob([json], {type:'application/json'}),
+    filename: payload.sheetName + '.json',
+  };
 }
 async function emailFeuille(){
   if(!hoursEntry) return;
@@ -1368,17 +1387,19 @@ async function emailFeuille(){
   const originalLabel = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Génération...'; }
   try{
-    const {blob, filename, weekNum} = await generateFeuillePDF();
+    const {blob, filename, weekNum, payload} = await generateFeuillePDF();
+    const data = buildFeuilleDataFile(payload);
     let shared=false;
     let cancelled=false;
     if(navigator.share){
       try{
         const file = new File([blob], filename, {type: blob.type});
+        const dataFile = new File([data.blob], data.filename, {type: data.blob.type});
         // certains navigateurs n'exposent pas canShare correctement : on tente quand même
         // le partage dans ce cas, plutôt que d'abandonner sans essayer.
-        const canTry = navigator.canShare ? navigator.canShare({files:[file]}) : true;
+        const canTry = navigator.canShare ? navigator.canShare({files:[file, dataFile]}) : true;
         if(canTry){
-          await navigator.share({files:[file], title: filename, text: "Feuille d'heures - "+currentTech});
+          await navigator.share({files:[file, dataFile], title: filename, text: "Feuille d'heures - "+currentTech});
           shared=true;
         }
       }catch(e){
@@ -1391,8 +1412,9 @@ async function emailFeuille(){
       // Étape clé : il faut l'OUVRIR (pas juste le laisser dans les téléchargements) pour que
       // l'application qui s'ouvre propose son propre bouton Partager, fiable sur tous les téléphones.
       downloadBlob(blob, filename);
+      downloadBlob(data.blob, data.filename);
       const subject = 'Feuille d\'heures S'+weekNum+' - '+currentTech;
-      const body = 'Bonjour,\n\nLe fichier "'+filename+'" vient d\'être téléchargé sur ce téléphone.\n\nPour l\'envoyer avec la pièce jointe : ouvre d\'abord ce fichier (notification de téléchargement), puis utilise le bouton Partager de l\'application qui s\'affiche.\n\nCordialement,\n'+currentTech;
+      const body = 'Bonjour,\n\nDeux fichiers viennent d\'être téléchargés sur ce téléphone :\n- "'+filename+'" (la feuille à lire)\n- "'+data.filename+'" (les données, à joindre aussi)\n\nPour les envoyer : ouvre chaque fichier depuis la notification de téléchargement, puis utilise le bouton Partager qui s\'affiche.\n\nCordialement,\n'+currentTech;
       const mailto = 'mailto:equipefibretelsam@telsam.com'
         + '?subject='+encodeURIComponent(subject)
         + '&body='+encodeURIComponent(body);
