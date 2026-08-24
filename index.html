@@ -314,6 +314,7 @@ footer.legend{
 }
 .h-send-btn:active{ opacity:0.85; }
 .h-send-btn.secondary-link{ background:none; border:1px solid var(--border); color:var(--text-muted); font-size:13px; padding:11px; }
+.h-send-btn.danger{ border-color:var(--red-border); color:var(--red); }
 .h-send-sub{ font-size:12px; color:var(--text-muted); text-align:center; }
 .h-saved-tag{ font-size:11px; color:var(--green); font-weight:700; }
 .gate-input{
@@ -883,6 +884,28 @@ function updateKm(value){ hoursEntry.km=value; scheduleSaveHours(); }
 function updateImmat(value){ hoursEntry.immat=value; scheduleSaveHours(); }
 function updateCommentaires(value){ hoursEntry.commentaires=value; scheduleSaveHours(); }
 
+/* Remet la semaine affichee a blanc. La saisie vit dans le navigateur du
+   telephone : personne ne peut l'effacer a distance, il faut donc que le
+   technicien puisse le faire lui-meme (demande de Patrice le 24/08/26, avant le
+   deploiement, pour que ceux qui ont teste repartent proprement). On repart d'une
+   entree neuve : ensureFeuilleForWeek y remettra ensuite les chantiers affectes
+   de la semaine, vides. */
+async function effacerSemaine(){
+  if(!hoursEntry) return;
+  const w = weekRange(currentOffset);
+  const ok = confirm(
+    "Effacer toute ta saisie de la semaine " + w.weekNum + " ?\n\n"
+    + "Heures, absences, déplacements, nacelles, véhicule et commentaires seront remis à zéro. "
+    + "Tes chantiers de la semaine réapparaîtront, vides.\n\n"
+    + "Cette action est définitive.");
+  if(!ok) return;
+  if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; }
+  hoursEntry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{},
+                 vehiculeMode:null, km:'', immat:'', commentaires:'' };
+  await kvSet(hoursKeyCurrent, hoursEntry);
+  await loadAndRenderHours();
+}
+
 /* ---- rendu de l'écran ---- */
 function renderHoursUI(){
   const panel = document.getElementById('hoursPanel');
@@ -989,6 +1012,7 @@ function renderHoursUI(){
     + '<button class="h-send-btn" id="emailBtn" onclick="emailFeuille()">📤 Envoyer ma feuille (S'+weekInfo.weekNum+')</button>'
     + '<div class="h-send-sub">Génère un résumé PDF et ouvre directement le partage du téléphone, fichier déjà joint — choisis Mail et envoie à equipefibretelsam@telsam.com. '+escapeHtml(currentTech)+' apparaît comme signataire.</div>'
     + '<button class="h-send-btn secondary-link" id="excelBtn" onclick="downloadExcelFeuille()">📊 Télécharger aussi le fichier Excel officiel</button>'
+    + '<button class="h-send-btn secondary-link danger" onclick="effacerSemaine()">🗑️ Effacer et recommencer cette semaine</button>'
     + '</div>';
 
   panel.innerHTML = chantiersSection + absencesSection + deplSection + vehSection + comSection + sendSection;
