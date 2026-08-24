@@ -293,7 +293,6 @@ footer.legend{
 .h-toggle-btn.pd{ background:var(--amber-dim); border-color:#5A4519; color:var(--amber); }
 .h-toggle-btn.gd{ background:var(--cyan-dim); border-color:#1F5750; color:var(--cyan); }
 .h-toggle-btn.n1{ background:var(--amber-dim); border-color:#5A4519; color:var(--amber); }
-.h-toggle-btn.n2{ background:var(--red-bg); border-color:var(--red-border); color:var(--red); }
 .h-veh-row{ display:flex; gap:8px; }
 .h-veh-btn{
   flex:1; background:var(--surface-2); border:1px solid var(--border); color:var(--text-muted);
@@ -749,6 +748,11 @@ async function ensureFeuilleForWeek(tech, weekInfo){
   // Elle n'est légitime que si elle a été ajoutée volontairement via "+ Ajouter un chantier"
   // (marquée addedManually) — toute autre occurrence est un résidu de l'ancien système, à retirer.
   entry.absences = entry.absences.filter(a=>a.key!=='contribution');
+  // Une seule nacelle par jour : ramene a 1 d'eventuelles saisies a 2 faites
+  // avant le 24/08/26, quand la bascule allait jusqu'a 2. L'affectation protege
+  // aussi les entrees anciennes ou le champ n'existait pas encore.
+  entry.nacelle = entry.nacelle || {};
+  Object.keys(entry.nacelle).forEach(d=>{ if(entry.nacelle[d]) entry.nacelle[d] = 1; });
   entry.chantierLines = entry.chantierLines.filter(l=> l.id!=='__contribution_agence__' || l.addedManually===true);
   const existingIds = new Set(entry.chantierLines.filter(l=>l.id).map(l=>l.id));
   weekChantiers.forEach(wc=>{
@@ -853,9 +857,11 @@ function cycleDeplacement(dayIdx){
   renderHoursUI();
 }
 function cycleNacelle(dayIdx){
-  const cur = hoursEntry.nacelle[dayIdx] || 0;
-  const next = cur===0?1:(cur===1?2:0);
-  if(next===0) delete hoursEntry.nacelle[dayIdx]; else hoursEntry.nacelle[dayIdx]=next;
+  // Un technicien n'utilise au maximum qu'UNE nacelle par jour : simple bascule
+  // oui/non. L'appui faisait defiler 1 puis 2 auparavant, ce qui permettait de
+  // saisir une prime impossible (retour terrain du 24/08/26).
+  if(hoursEntry.nacelle[dayIdx]) delete hoursEntry.nacelle[dayIdx];
+  else hoursEntry.nacelle[dayIdx] = 1;
   scheduleSaveHours();
   renderHoursUI();
 }
@@ -943,17 +949,16 @@ function renderHoursUI(){
       + '<span class="h-toggle-day">'+lbl+'</span><span class="h-toggle-val">'+val+'</span></button>';
   }).join('');
   const nacelleHtml = JOURS.map((lbl,d)=>{
-    const v = e.nacelle[d]||0;
-    const cls = v===1?'n1':(v===2?'n2':'');
-    return '<button class="h-toggle-btn '+cls+'" onclick="cycleNacelle('+d+')">'
-      + '<span class="h-toggle-day">'+lbl+'</span><span class="h-toggle-val">'+(v? String(v) : '–')+'</span></button>';
+    const on = !!e.nacelle[d];
+    return '<button class="h-toggle-btn '+(on?'n1':'')+'" onclick="cycleNacelle('+d+')">'
+      + '<span class="h-toggle-day">'+lbl+'</span><span class="h-toggle-val">'+(on?'✓':'–')+'</span></button>';
   }).join('');
   const deplSection = '<div class="h-section">'
     + '<div class="h-section-title">Déplacement (PD / GD)</div>'
     + '<div class="h-hint">Appuie sur un jour : 1 fois = PD (petit déplacement), 2 fois = GD (grand déplacement), 3 fois pour effacer.</div>'
     + '<div class="h-toggle-row">'+deplHtml+'</div>'
     + '<div class="h-section-title" style="margin-top:12px;">Nacelle</div>'
-    + '<div class="h-hint">Appuie sur un jour pour indiquer le nombre de nacelles utilisées (1 ou 2).</div>'
+    + '<div class="h-hint">Appuie sur les jours où tu as utilisé une nacelle. Appuie à nouveau pour effacer.</div>'
     + '<div class="h-toggle-row">'+nacelleHtml+'</div>'
     + '</div>';
 
@@ -1299,7 +1304,8 @@ function buildPdfFromPayload(payload){
     if(payload.gd && payload.gd[d]) depl.push(lbl+' (GD)');
   });
   const nacelle = [];
-  DAY_COLS_LABELS.forEach((lbl,d)=>{ if(payload.nacelle && payload.nacelle[d]) nacelle.push(lbl+' ('+payload.nacelle[d]+')'); });
+  // Une nacelle par jour au maximum : on liste les jours, sans nombre.
+  DAY_COLS_LABELS.forEach((lbl,d)=>{ if(payload.nacelle && payload.nacelle[d]) nacelle.push(lbl); });
   const vehLine = (payload.vehiculeMode || payload.km || payload.immat)
     ? (payload.vehiculeMode||'Non precise')
       + (payload.immat ? '   -   Immatriculation : '+payload.immat : '')
