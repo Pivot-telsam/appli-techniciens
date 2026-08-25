@@ -1,4 +1,4 @@
-# État d'avancement — sessions des 20, 21 et 24/08/2026
+# État d'avancement — sessions des 20, 21, 24 et 25/08/2026
 
 Dernier commit `appli-techniciens` : `4f9d93a`
 Dernier commit `suivi-chantiers` : `3865e66`
@@ -195,7 +195,107 @@ ils seront réintégrés lors de la prochaine commande sur la S35.
   sont valides, pas besoin de NDS TELSAM propre.
 - Les ICP (visites préalables) ne justifient jamais la création d'une fiche chantier.
 
-## Ce qu'il reste à faire / points ouverts
+### Session du 25/08/26 — surveillance automatique, portée des PDP, chantiers multi-lots
+
+Journée dense. Le détail des règles est dans `CLAUDE.md` — ne pas le dupliquer ici.
+
+**Ce qui a été construit**
+
+- **Veille documentaire quotidienne** (`scripts/veille-documents.ps1`, tâche Windows « TELSAM -
+  Veille documents RTE », 07h30). Balaie les 142 000 fichiers du Dropbox local en ~20 s, repère
+  les PDP/PGO/IST/NDS/PPSPS nouveaux et les dossiers App Tech en retard. Écrit dans
+  `Desktop\TELSAM-apps\veille\`. **En lecture seule**, ne modifie jamais Dropbox.
+  La voie cloud, échouée en août, est définitivement abandonnée : tout le Dropbox est déjà
+  synchronisé sur le disque, aucun connecteur n'est nécessaire.
+- **Injection automatique du rapport au démarrage de session** (hook `SessionStart` dans
+  `TELSAM-apps/.claude/settings.json` → `scripts/hook-veille-session.ps1`). Répond à la question
+  de Patrice « qu'est-ce que tu appelles début de session ? » : la consigne écrite dans CLAUDE.md
+  dépendait de la mémoire de Claude, comme la règle `SEED_VERSION` oubliée deux fois. Désormais
+  c'est l'outil qui l'exécute. **Vérifié en conditions réelles** : le rapport est bien arrivé seul
+  à l'ouverture de la session suivante.
+- **Contrôle de couverture PDP par périmètre** (`perimetre` + `pdps` + `computePdpAlerts`).
+  Un PDP ligne n'ouvre pas la porte d'un poste — sans PDP couvrant le poste, l'équipe est refoulée
+  alors que la fiche affichait « PDP OK » en vert.
+- **Vue par semaine alignée sur le Gantt** : les deux lisent maintenant la même source
+  (`joursPresenceReels`, union de `REAL_DAYS` et `TECH_RANGES`). La S35 est passée de 9 chantiers
+  affichés à 3 — Portet, DATA4, Audit Multi Postes.
+- **Chaineau-Cordy-Lamotte scindé** en `26-036-1` (RODA) et `26-036-2` (SELT), chacun avec son
+  dossier App Tech, son brief, sa NDS, son bouton photos et son lien public vérifié.
+
+**Chantiers traités**
+
+- Fleyriat (26-055) : PGO passé en indice 5. Tests Phase 1 avancés d'une semaine (31/08 au lieu du
+  07/09) et deux consignations avancées. App Tech mis à jour.
+- Portet (26-051) : IST 63 kV indice A transmise à RTE, tableau de validation encore vierge →
+  statut `warn`, document volontairement PAS dans App Tech. Le poste 225 kV, où le technicien
+  travaille, ne nécessite pas d'IST. PGO App Tech corrigé de V37 en V40 (deux semaines de retard).
+- DATA4 (26-065) : **accès au poste de Villejust non couvert par un PDP**, alors que le devis
+  prévoit une recette qui s'y termine. Alerte rouge active, laissée en l'état sur demande de
+  Patrice. Un PPSPS y est aussi exigé par la VIC et n'existe pas.
+- Aure-Loudenvielle (26-024) : MTFO annulée, rappel et alerte retirés, fiche conservée.
+
+**Erreurs commises et corrigées**
+
+- **Encodage cassé et poussé.** Un bump de `SEED_VERSION` fait avec `Get-Content -Raw` sans
+  `-Encoding UTF8` a doublé l'encodage de tout `suivi_chantiers_205.html` : 4 202 séquences
+  abîmées, plus un seul accent correct, commit `df964c0` poussé dans cet état. Réparé en
+  `055aa2c`, avec vérification que les 67 fiches non concernées étaient identiques à la version
+  saine. **Règle et procédure de réparation écrites dans CLAUDE.md.**
+- **Généralisation abusive** : j'avais écrit que « sur un audit, le PDP s'établit sur place »
+  comme si c'était une règle. Patrice a corrigé : c'est le cas de ce chantier-là, pas une
+  généralité. Reformulé, et le marqueur `pdpSurPlace` est explicitement « à poser au cas par cas,
+  jamais déduit ».
+- **Explications trop techniques** : Patrice a dû me demander deux fois de reprendre en langage
+  simple. À retenir : expliquer d'abord ce qui change pour lui, sans jargon, et ne donner le
+  détail technique que s'il le demande.
+- Une tâche de fond laissée tourner à vide 92 minutes après avoir tué le processus Word dont elle
+  dépendait. Nettoyer derrière soi.
+
+**Documents remis à Patrice** (sur son Bureau, régénérables)
+- `Memo_Exploitation_TELSAM.docx` — qui fait quoi, à jour au 25/08.
+- `Appli_TELSAM_Consigne_Technicien.docx` et `.pdf` — à joindre au mail de mise en service.
+  L'ancien `Appli_TELSAM_Mode_emploi` a été supprimé du Bureau pour éviter d'envoyer la mauvaise
+  version.
+
+## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
+
+Dans l'ordre où ça se fait :
+
+1. **Affecter les techniciens de la semaine prochaine sur Chaineau** : dire à Claude qui va sur le
+   lot 1 (RODA) et/ou le lot 2 (SELT). Sans ça le chantier n'apparaît pas dans leur appli.
+2. **Remettre à blanc les blocs S34 et S35** du récap RH, sauvegarde d'abord. Claude le fait sur
+   signal de Patrice. Objectif : galop d'essai grandeur nature, les 13 saisissent ces deux
+   semaines. Patrice garde les feuilles papier de la S34, tout est rattrapable.
+3. **Sortir les deux PDF de test** (`S35-HAMOUCH_Ahmed.pdf`, `S35-BONAVENTURE_Pascal.pdf`) du
+   dossier `feuille d'heures/dépôts appli/`, sinon ils seront réintégrés au prochain passage.
+4. **Demander à Ahmed Hamouch et Pascal Bonaventure d'effacer leur semaine d'essai** sur leur
+   téléphone (bouton « Effacer et recommencer cette semaine »). Personne ne peut le faire à leur
+   place : la saisie vit dans leur navigateur.
+5. **Envoyer le mail** aux 13, avec le lien personnel de chacun
+   (`Liens_App_Techniciens_TELSAM.docx`) et `Appli_TELSAM_Consigne_Technicien.pdf` en pièce
+   jointe. Le code d'accès se transmet par un autre canal, il n'est dans aucun des deux documents.
+   Prévenir que l'application Dropbox, si elle est installée, intercepte les liens et réclame une
+   connexion : appui long → « ouvrir dans le navigateur », ou la désinstaller (cas Pascal).
+
+## Points ouverts, sans urgence
+
+- **DATA4** : accès au poste de Villejust non couvert, et PPSPS manquant. Alerte active.
+- **Chaineau** : le PDP en vigueur est un « Projet … indice 2 ». La fiche annonçait un indice 3
+  sous la référence `PP26-SOL-EEL-002D`, introuvable dans Dropbox. Si un PDP signé arrive sous
+  cette référence, il remplace le projet.
+- **Trois App Tech pas à jour**, sans technicien planifié donc sans urgence : PDP de
+  Verney-St Guillerme (Ind 7 au lieu de Ind 8), PDP de Lamativie-La Mole, NDS de Fibrage Feyriat.
+  Patrice doit d'abord vérifier auprès des chargés de travaux si ces chantiers sont terminés.
+- **Périmètre PDP** renseigné sur les 3 chantiers actifs seulement. À compléter chantier par
+  chantier au moment où chacun devient actif. Les six chantiers où Dropbox montre déjà un
+  découpage poste/ligne sont les prochains candidats : Bagatelle-Issel, Bédarieux-Espondeilhan,
+  Issel-Revel, Sèvres-St Vallier, Fibrage FO DI Lyon, Givors.
+- **Renommage Dropbox** avec les n° d'index : en cours côté Patrice. La veille le tolère
+  désormais sans produire de fausses alertes.
+- **Habilitations** : dossier partagé à tous, chacun voit celles des autres. Signalé, pas traité.
+
+
+## Ce qu'il restait à faire au 24/08/26 (repris ci-dessus, conservé pour l'historique)
 - ~20 chantiers sur les 69 (suivi-chantiers) / 67 après fusions n'ont toujours pas de `baseVie`
   trouvée — non prioritaire, à reprendre seulement si Patrice le demande.
 - Numérotation Dropbox `26-0XX` : Patrice la met à jour progressivement de son côté ; une fois

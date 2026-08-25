@@ -653,7 +653,42 @@ les liens publics — c'est uniquement l'outil qui les crée restreints). Consé
 - Semaine 35 (24-28/08) mise à jour dans les deux dépôts : Poste de Portet, DATA4-Marcoussis,
   Audit Multi Postes — voir règle Planning RTE 2026.xlsx ci-dessus.
 
+## Habilitations des techniciens
+Le bouton « 📁 Ouvrir mes habilitations » de l'appli pointe sur **un dossier** :
+`Telsam Fibre/HABILITATIONS/HABILITATIONS 2026 signées` (`HABILITATIONS_LINK` dans
+`appli-techniciens/index.html`, lien public en lecture seule, le même pour tous).
+- **Un lien vers un dossier sert toujours son contenu du moment.** Pour mettre à jour une
+  habilitation, Patrice dépose ou remplace le fichier dans ce dossier : rien à recréer, rien à
+  demander à Claude, aucune modification de l'appli.
+- **Un ZIP figé y a été supprimé le 25/08/26.** Il datait du 13/04 et divergeait déjà des fichiers
+  individuels (il contenait un `EL ABBASSI.pdf` que Patrice venait de remplacer par une version à
+  jour). Un technicien qui l'aurait téléchargé aurait récupéré des habilitations périmées sans le
+  savoir. **Ne pas en recréer** : les fichiers individuels suffisent, un technicien veut le sien.
+- Le contrôle de suppression a refusé deux fois avant d'accepter, parce que le ZIP contenait un
+  fichier introuvable ailleurs — c'est ce qui a permis de découvrir le remplacement en cours.
+  Garder ce réflexe : ne jamais supprimer une archive sans avoir vérifié que TOUT son contenu
+  existe encore hors de l'archive.
+- Limite connue et assumée : ce dossier est partagé tel quel, donc **chaque technicien voit les
+  habilitations de tous les autres**. Signalé à Patrice le 25/08/26 ; à re-proposer seulement s'il
+  l'évoque. Beaucoup de fichiers portent des suffixes `-1`, `-2` sans qu'on sache ce qui les
+  distingue — Patrice a commencé à les renommer explicitement (`El Abbassi Morad - pass RTE 2025`).
+
 ## Règles de prudence
+- **PIÈGE D'ENCODAGE — ne JAMAIS relire un fichier accentué avec `Get-Content` sans `-Encoding
+  UTF8`.** En PowerShell 5.1, `Get-Content -Raw` lit en ANSI (Windows-1252). Enchaîné avec
+  `Set-Content -Encoding UTF8`, cela **double l'encodage de tout le fichier** : « scindée »
+  devient « scindÃ©e ». Commis le 25/08/26 sur `suivi_chantiers_205.html` pour un simple bump de
+  `SEED_VERSION` — 4 202 séquences abîmées, plus un seul accent correct, et **le fichier a été
+  committé et poussé dans cet état**. Si Patrice l'avait envoyé par Teams entre-temps, ses
+  collègues l'auraient reçu illisible.
+  - **À utiliser à la place** : `[IO.File]::ReadAllText($f, [Text.Encoding]::UTF8)` puis
+    `[IO.File]::WriteAllText($f, $t, (New-Object Text.UTF8Encoding $false))`, ou `sed` via Bash,
+    ou l'outil Edit. Ces trois voies ont été utilisées toute la journée sans incident.
+  - **Réparation si ça se reproduit** : le double encodage s'inverse exactement —
+    `[Text.Encoding]::UTF8.GetString([Text.Encoding]::GetEncoding(1252).GetBytes($t))`. Vérifier
+    ensuite `Ã` = 0 ET `�` = 0, puis comparer fiche par fiche avec le dernier commit sain.
+  - **Contrôle systématique après toute écriture sur un fichier accentué** : compter les `Ã` et
+    les `�`. C'est une seule commande et ça aurait évité le commit fautif.
 - Toujours montrer le résumé des changements à Patrice AVANT de committer/pousser, sauf demande explicite contraire.
 - En cas de nom de chantier ambigu ou de dossier Dropbox introuvable/multiple, ne jamais deviner —
   poser la question à Patrice.
