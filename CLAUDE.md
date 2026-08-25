@@ -197,10 +197,32 @@ Certains chantiers sont découpés en plusieurs lots attribués à des sous-trai
   si applicable, son propre "Photos terrain" + File Request + `depotTerrain`), mais le PDP et le
   PGO qui y figurent sont une copie du même document partagé entre les sous-chantiers du même
   parent — pas deux versions indépendantes qui pourraient diverger.
-- Renommage Dropbox pas encore fait pour Chaineau-Cordy-Lamotte au 21/08/26 (dossiers encore
-  "LOT 1 RODA"/"LOT 2 SELT") — Patrice le fera progressivement, ne pas renommer à sa place sans
-  demande explicite. Cette règle de structuration (numérotation, PDP/PGO commun, NDS/IST/Brief
-  séparés) s'applique à ce cas ET à tout futur chantier multi-lots similaire.
+**APPLIQUÉ le 25/08/26** sur Chaineau-Cordy-Lamotte, une affectation étant possible la semaine
+suivante. Convention de nommage Dropbox de Patrice, à reprendre pour les futurs cas :
+- Dossier parent = **les deux numéros** : `Chaineau-Cordy-Lamotte 26-036-1-2`
+- Un sous-dossier par lot = **son numéro** : `LOT 1 RODA 26-036-1`, `LOT 2 SELT 26-036-2`
+- Le PDP et le PGO communs restent à la racine du parent (`PDP et  PGO`), les documents propres
+  au lot dans le sous-dossier du lot.
+
+Ce qui a été fait, à refaire à l'identique pour un futur multi-lots :
+- La fiche unique `26-036` a été **scindée en `26-036-1` et `26-036-2`**. Les données communes
+  (PDP, PGO, fenêtres, consignations, NIP, géo, base de vie) sont dupliquées telles quelles : même
+  ouvrage, mêmes contraintes. Les tâches, elles, étaient déjà étiquetées par lot dans leur
+  description (`[Lot Lamotte-Cordy-222]` = lot 1, `[Lot2 pyl222-poste Chaineau]` = lot 2) et ont
+  été réparties exactement : 8 et 5.
+- **L'identifiant `c_e5849v6z` a été conservé pour le lot 1**, pas régénéré : `TECH_RANGES` et
+  `REAL_DAYS` le référencent, et créer deux nouveaux identifiants aurait fait disparaître
+  silencieusement les affectations déjà enregistrées. **Conséquence à connaître : la présence
+  technicien de la S34 est donc rattachée au lot 1** — à corriger si ces techniciens étaient en
+  réalité sur le lot 2, ce que seul Patrice sait.
+- Un dossier App Tech complet par lot (brief du lot, MO et NDS du lot, PGO ind.6 commun,
+  `Photos terrain` + File Request + `depotTerrain`), et un `client` distinct par fiche
+  (RODA / SELT France).
+
+**Piège de lecture des noms de dossiers multi-lots** : `26-036-1-2` désigne le PARENT, pas le
+lot 1. Deux suffixes ou plus = parent, un seul suffixe = ce lot (`NumeroDeDossier` dans
+`scripts/veille-documents.ps1`). Sans ce cas particulier, l'extraction s'arrêtait au premier
+suffixe et rattachait tout le chantier au lot 1.
 
 ## Contenu standard d'un dossier "App Tech" — RÈGLE SYSTÉMATIQUE (à appliquer TOUJOURS)
 Chaque fois qu'un dossier "App Tech" est créé ou complété pour un chantier (nouveau chantier,
