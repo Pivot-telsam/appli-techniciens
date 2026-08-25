@@ -406,6 +406,21 @@ Deux champs par fiche, dans **les deux dépôts** :
 changent. `pdpBadge()` fait passer le badge à « PDP incomplet » (rouge) dans ce cas. Sur une fiche
 sans `perimetre`, tout le comportement est **inchangé** : les 67 autres fiches ne bougent pas.
 
+**EXCEPTION — les audits multi-postes ne se contrôlent pas ainsi** (règle de Patrice, 25/08/26).
+Sur ces chantiers (ex. `26-061` AUDIT MULTI POSTES : Bruges, Cubnezais, Garies, Marquis,
+Mérignac, Pessac, Saucats), **le PDP n'est pas obtenu à l'avance : les techniciens l'établissent
+sur place le matin, directement avec RTE, poste par poste.** C'est le fonctionnement normal, pas
+un manque. Ne PAS renseigner de `perimetre.postes` pour réclamer un PDP par poste — ou alors
+poser `perimetre.pdpSurPlace: true`, qui coupe le contrôle. Une fausse alerte permanente finit
+par faire ignorer les vraies.
+
+**RÈGLE — ce contrôle vit uniquement dans `suivi-chantiers`, PAS dans l'appli technicien**
+(décision de Patrice, 25/08/26). Il avait été mis dans les deux, puis retiré de l'appli le jour
+même : aucun technicien n'est envoyé sans que les documents soient en règle, c'est Patrice qui
+décide des départs. L'alerte a donc sa place dans son outil de pilotage, pas sur le terrain où
+elle inquiéterait sans action possible. Ne pas la réintroduire dans `appli-techniciens` sans
+demande explicite (une note dans le code, à l'endroit où elle se trouvait, le rappelle).
+
 **Piège de comparaison des noms de postes** : `normNom()` réduit accents, séparateurs et préfixes
 (`petit-bois` = `Petit Bois`, `PS ISSEL` = `Issel`, `Poste de Portet` = `PORTET`). Sans ça le
 contrôle signalait des postes non couverts qui l'étaient — et un contrôle qui crie au loup est
