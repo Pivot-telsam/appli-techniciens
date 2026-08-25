@@ -481,10 +481,19 @@ On n'a donc besoin d'aucun connecteur ni d'aucune permission cloud. Ne pas re-te
 cloud : elle n'apporterait rien de plus et rencontrerait les mêmes blocages.
 
 Points de conception à connaître avant de le modifier :
-- Il tient un **index de référence** (`veille\etat.json`) de TOUS les documents de sécurité
-  (~1 320), pas seulement des récents — sinon chaque passage rapporterait tout l'existant comme
-  nouveau. Ne pas supprimer ce fichier sans raison ; s'il disparaît, le passage suivant repart en
+- Il tient un **index de référence** (`veille\etat.json`) de TOUS les documents de sécurité,
+  pas seulement des récents — sinon chaque passage rapporterait tout l'existant comme nouveau.
+  Ne pas supprimer ce fichier sans raison ; s'il disparaît, le passage suivant repart en
   « première passe » et ne liste que les 7 derniers jours.
+- **L'identité d'un document est `nom + taille + date`, JAMAIS son chemin** (corrigé le
+  25/08/26). Patrice renomme progressivement ses dossiers Dropbox avec les n° d'index : avec une
+  clé fondée sur le chemin, chaque dossier renommé faisait passer tout son contenu pour du neuf
+  — constaté sur « Chaineau-Cordy-Lamotte 26-036-1-2 », 10 faux nouveaux d'un coup. Vérifié sur
+  une arborescence d'essai : renommer un dossier ne rapporte rien, modifier réellement un
+  document rapporte toujours. Ne pas revenir à une clé par chemin.
+- `etat.json` porte un champ `format` (actuellement 2). **Si la forme des clés change, incrémenter
+  `$FORMAT_ETAT`** : le passage suivant reconstruit alors l'index en silence au lieu de lister
+  les ~1 700 documents comme nouveaux.
 - Extensions volontairement restreintes (`.pdf .doc .docx .xls .xlsx .xlsm .zip`) : les `.dwg`,
   `.bak`, `.dwl` sont des fichiers de travail AutoCAD qui bougent en permanence et noyaient le
   rapport.
@@ -532,6 +541,23 @@ qu'ils ne soient pas à jour n'a aucune conséquence — personne n'y va. Ce qui
 - Connus et acceptés au 25/08/26, sans action demandée : PDP de Verney - St Guillerme (Ind 7 au
   lieu de Ind 8), PDP de Lamativie - La Mole, NDS de Fibrage Feyriat. Patrice doit d'abord
   vérifier auprès des chargés de travaux et chargés d'affaires si ces chantiers sont terminés.
+
+**Le rapport applique cette règle lui-même** (25/08/26) : la section App Tech est coupée en
+« **A TRAITER** » (chantier avec des techniciens planifiés cette semaine ou après) et
+« **Pour information** » (aucun technicien planifié — une ligne par cas, sans détail). Un chantier
+n'est « prioritaire » que s'il a une présence à partir du lundi de la semaine en cours **et** n'est
+pas marqué terminé. Le `RIEN A SIGNALER` ne regarde que les prioritaires.
+
+**Rapprochement dossier Dropbox → fiche : deux stratégies, jamais d'à-peu-près.**
+1. Par **n° d'index dans le nom du dossier** (`26-055 - …`) — voie normale à mesure que Patrice
+   renomme ses dossiers.
+2. Sinon par le champ **`dossierDropbox`** de la fiche : le chemin exact relevé via
+   `get_shared_link_metadata`, pas déduit du libellé. Renseigné sur les 9 fiches qui ont un
+   dossier App Tech.
+**Ne jamais rapprocher approximativement sur le nom** : le chantier Fleyriat (26-055) a son
+dossier orthographié « Fibrage Feyriat », sans le L — un rapprochement au libellé se tromperait
+précisément là. Si un dossier n'est rapproché à aucune fiche, le rapport l'indique
+(« fiche non rapprochée ») : c'est le signal qu'il faut mettre à jour `dossierDropbox`.
 
 **Ce que la veille ne remplace pas — et pourquoi c'est délibéré.** Elle détecte et signale, elle
 ne met JAMAIS à jour App Tech toute seule. Question posée par Patrice le 25/08/26 ; la réponse
