@@ -444,12 +444,28 @@ désormais surveillés par la veille au même titre que PDP/PGO/IST.
 
 ## Veille documentaire automatique (mise en place le 25/08/2026)
 
-**RÈGLE — au début de toute session de mise à jour, lire le rapport de veille**
-`C:\Users\patrice.pivot\Desktop\TELSAM-apps\veille\RAPPORT.md` (version exploitable :
-`dernier.json` à côté). Il liste les PDP/PGO/IST nouveaux ou modifiés depuis le passage
-précédent, avec pour chacun le chantier concerné et s'il est déjà présent dans son dossier
-App Tech. Ne pas attendre que Patrice signale un document : le vrai point faible du circuit
-n'était pas la mise à jour elle-même mais le fait que tout reposait sur lui pour y penser.
+**Le rapport de veille est injecté automatiquement au démarrage de chaque session** — plus besoin
+d'y penser, ni pour Patrice ni pour moi. Il arrive dans le contexte avant le premier message, avec
+sa date de génération et les trois derniers passages de la tâche.
+
+Mise en place le 25/08/26, après une question de Patrice : « qu'est-ce que tu appelles début de
+session exactement ? ». La réponse honnête était que la consigne, écrite ici seulement, dépendait
+de ma mémoire — **exactement la faiblesse de la règle `SEED_VERSION`, oubliée deux fois malgré sa
+documentation.** D'où le même remède : un mécanisme exécuté par l'outil, pas par moi.
+- Hook `SessionStart` déclaré dans `TELSAM-apps/.claude/settings.json`, qui lance
+  `suivi-chantiers/scripts/hook-veille-session.ps1`.
+- Ce script émet `hookSpecificOutput.additionalContext` ; il **prévient si le rapport a plus de
+  48 h** (la tâche planifiée n'a pas tourné) et ne fait jamais échouer une session en cas de
+  problème — il sort silencieusement.
+- **`TELSAM-apps/.claude/settings.json` n'est dans aucun des deux dépôts** (il est dans le dossier
+  parent, qui n'est pas un dépôt Git) : il n'est donc pas sauvegardé par Git. S'il disparaît, le
+  recréer avec un hook `SessionStart` de type `command` appelant le script ci-dessus.
+
+Le rapport reste lisible à la main dans `veille\RAPPORT.md` (version exploitable : `dernier.json`).
+Il liste les PDP/PGO/IST/NDS/PPSPS nouveaux ou modifiés depuis le passage précédent, avec pour
+chacun le chantier concerné et s'il est déjà présent dans son dossier App Tech. Ne pas attendre que
+Patrice signale un document : le vrai point faible du circuit n'était pas la mise à jour elle-même
+mais le fait que tout reposait sur lui pour y penser.
 
 Le script est `suivi-chantiers/scripts/veille-documents.ps1`, lancé chaque jour à 07h30 par
 la tâche Windows **« TELSAM - Veille documents RTE »** (compte `patrice.pivot`, session ouverte
