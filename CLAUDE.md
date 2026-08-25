@@ -212,9 +212,11 @@ Ce qui a été fait, à refaire à l'identique pour un futur multi-lots :
   été réparties exactement : 8 et 5.
 - **L'identifiant `c_e5849v6z` a été conservé pour le lot 1**, pas régénéré : `TECH_RANGES` et
   `REAL_DAYS` le référencent, et créer deux nouveaux identifiants aurait fait disparaître
-  silencieusement les affectations déjà enregistrées. **Conséquence à connaître : la présence
-  technicien de la S34 est donc rattachée au lot 1** — à corriger si ces techniciens étaient en
-  réalité sur le lot 2, ce que seul Patrice sait.
+  silencieusement les affectations déjà enregistrées. La présence technicien de la S34 se retrouve
+  donc rattachée au lot 1 — **rattachement confirmé exact par Patrice le 25/08/26** : ces
+  techniciens étaient bien sur RODA. Point clos, ne pas le rouvrir. À retenir pour un futur
+  multi-lots : conserver l'identifiant existant sur l'un des lots est le bon réflexe, mais toujours
+  demander à Patrice à quel lot les affectations passées se rattachent au lieu de le supposer.
 - Un dossier App Tech complet par lot (brief du lot, MO et NDS du lot, PGO ind.6 commun,
   `Photos terrain` + File Request + `depotTerrain`), et un `client` distinct par fiche
   (RODA / SELT France).
