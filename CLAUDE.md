@@ -421,10 +421,40 @@ Points de conception à connaître avant de le modifier :
   il veut dire qu'une catégorie entière n'a pas été balayée (dossier renommé ou déplacé). À
   traiter, pas à ignorer.
 
-**Ce que la veille ne remplace pas.** Elle détecte et signale, elle ne met rien à jour. La lecture
-des documents, la mise à jour des fiches et la copie dans App Tech restent faites en session, sous
-le contrôle de Patrice. Et deux choses resteront toujours locales quoi qu'il arrive : les PGO/PDP
-au format `.xlsm` (Excel requis) et la génération des briefs techniciens (Word requis).
+**Second contrôle : la cohérence des dossiers App Tech.** Indépendant des nouveautés, il compare
+pour chaque chantier ayant un App Tech le document qui s'y trouve avec le plus récent disponible
+ailleurs dans le dossier du chantier, et signale les retards. Motivé par un cas réel : le PGO de
+Portet était resté en V37 dans App Tech alors que la V40 existait depuis le 10/08 — deux semaines
+de retard découvertes par hasard le 25/08. La veille des nouveautés ne peut pas attraper ça,
+puisqu'aucun fichier neuf n'arrive. Dès son premier passage, ce contrôle a trouvé le PDP de
+Verney - St Guillerme resté en **Ind 7 (22/05)** dans App Tech alors que l'**Ind 8 (25/06)** était
+disponible. Détails de conception :
+- **Les IST ne sont signalées que si leur nom contient `sign` ou `valid`.** Sans ce filtre, le
+  contrôle réclamerait la mise en ligne de brouillons — exactement l'inverse de la règle App Tech.
+- **Une archive est jugée sur son contenu, pas sur son nom** (`NomsDansArchive`). Les PGO/PDP
+  arrivent souvent en `.zip` transféré tel quel : comparer les noms faisait passer
+  « …PGO ind.5.zip » pour un retard alors qu'App Tech contenait déjà le PDF extrait de cette
+  archive. On ouvre donc le zip et on regarde si l'un de ses fichiers y figure déjà.
+- Ces deux règles ont fait tomber les faux positifs de 4 à 2 au premier essai. Ne pas les retirer
+  en "simplifiant".
+
+**Ce que la veille ne remplace pas — et pourquoi c'est délibéré.** Elle détecte et signale, elle
+ne met JAMAIS à jour App Tech toute seule. Question posée par Patrice le 25/08/26 ; la réponse
+tient à trois cas vécus le jour même :
+- Le PGO Fleyriat est arrivé en `.zip` contenant trois fichiers (deux PDF, un MS Project) — il
+  faut choisir lequel fait foi pour un technicien sur téléphone.
+- L'IST de Portet paraissait complète ; seule la lecture de la page 23 sur 24 montrait que le
+  tableau « Validation RTE » était vierge. Une copie automatique aurait laissé croire à Pascal
+  Bonaventure qu'il pouvait attaquer le poste 63 kV. **C'est le seul cas où une erreur
+  d'automatisation a une conséquence de sécurité, pas seulement de fichier.**
+- Les conventions d'indice n'ont rien de commun d'un projet à l'autre (`Ind.3`→`Ind.5`,
+  `V37`→`V40`, `indice A`, `V08`) : un script qui se trompe d'ancienne version supprime le
+  document en vigueur et laisse le périmé.
+Le déséquilibre est structurel : une détection ratée coûte une journée, une mise à jour
+automatique fausse met un document périmé ou non validé entre les mains d'un technicien. La
+lecture, la mise à jour des fiches et la copie dans App Tech restent donc faites en session. Deux
+choses resteront de toute façon locales : les PGO/PDP `.xlsm` (Excel requis) et la génération des
+briefs techniciens (Word requis).
 
 ## Accès Dropbox
 Dropbox est connecté et utilisable directement (create_folder, create_shared_link, create_file_request,
