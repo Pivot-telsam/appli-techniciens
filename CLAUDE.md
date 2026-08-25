@@ -367,6 +367,50 @@ les mauvaises cases sans prévenir. De plus Patrice y ajoute sa propre connaissa
 (un « Orléans, 35h » devient 21h sur Chaineau + 14h sur Dambron). Ne pas écrire de lecteur
 automatique pour ces fichiers : l'appli résout le problème à la source.
 
+## Veille documentaire automatique (mise en place le 25/08/2026)
+
+**RÈGLE — au début de toute session de mise à jour, lire le rapport de veille**
+`C:\Users\patrice.pivot\Desktop\TELSAM-apps\veille\RAPPORT.md` (version exploitable :
+`dernier.json` à côté). Il liste les PDP/PGO/IST nouveaux ou modifiés depuis le passage
+précédent, avec pour chacun le chantier concerné et s'il est déjà présent dans son dossier
+App Tech. Ne pas attendre que Patrice signale un document : le vrai point faible du circuit
+n'était pas la mise à jour elle-même mais le fait que tout reposait sur lui pour y penser.
+
+Le script est `suivi-chantiers/scripts/veille-documents.ps1`, lancé chaque jour à 07h30 par
+la tâche Windows **« TELSAM - Veille documents RTE »** (compte `patrice.pivot`, session ouverte
+requise, aucun mot de passe stocké, rattrapage automatique si le PC était éteint). Il est en
+**lecture seule** : il ne touche ni à Dropbox, ni aux dépôts, seulement à son dossier `veille\`.
+
+**Pourquoi en local et pas dans le cloud.** La tâche planifiée cloud avait échoué en août sur
+deux blocages (impossible d'attacher le connecteur Dropbox à une routine, compte GitHub non
+connecté pour les routines — cf. [[feedback_no_cloud_automation_pdp_pgo]]). Le raisonnement qui
+manquait : **tout le Dropbox est déjà synchronisé sur le disque**, entièrement, sans fichiers
+« en ligne seulement ». Un balayage complet de l'arborescence RTE (142 000 fichiers) prend 18 s.
+On n'a donc besoin d'aucun connecteur ni d'aucune permission cloud. Ne pas re-tenter la voie
+cloud : elle n'apporterait rien de plus et rencontrerait les mêmes blocages.
+
+Points de conception à connaître avant de le modifier :
+- Il tient un **index de référence** (`veille\etat.json`) de TOUS les documents de sécurité
+  (~1 320), pas seulement des récents — sinon chaque passage rapporterait tout l'existant comme
+  nouveau. Ne pas supprimer ce fichier sans raison ; s'il disparaît, le passage suivant repart en
+  « première passe » et ne liste que les 7 derniers jours.
+- Extensions volontairement restreintes (`.pdf .doc .docx .xls .xlsx .xlsm .zip`) : les `.dwg`,
+  `.bak`, `.dwl` sont des fichiers de travail AutoCAD qui bougent en permanence et noyaient le
+  rapport.
+- Le motif IST est borné (`(^|[^a-z])ist([^a-z]|$)`) pour ne pas matcher « Liste », « Existant ».
+- Dédoublonnage par nom+taille : un même document est souvent copié dans plusieurs dossiers
+  (PGO racine, PGO du sous-chantier, App Tech) — il est rapporté une fois, avec tous ses chemins.
+- Sous `Audit FO`, les chantiers sont rangés par direction interrégionale (`DI Marseille`,
+  `DI Toulouse`) : le dossier chantier est donc un niveau plus bas que dans les autres catégories.
+- `Fibrage` figure dans la liste des catégories de CLAUDE.md mais **n'existe pas** comme dossier
+  de premier niveau (les chantiers Fibrage sont sous `Ligne aérienne`) — le rapport le signale en
+  note de bas de page à chaque passage, c'est normal.
+
+**Ce que la veille ne remplace pas.** Elle détecte et signale, elle ne met rien à jour. La lecture
+des documents, la mise à jour des fiches et la copie dans App Tech restent faites en session, sous
+le contrôle de Patrice. Et deux choses resteront toujours locales quoi qu'il arrive : les PGO/PDP
+au format `.xlsm` (Excel requis) et la génération des briefs techniciens (Word requis).
+
 ## Accès Dropbox
 Dropbox est connecté et utilisable directement (create_folder, create_shared_link, create_file_request,
 search, list_folder, fetch). Toujours confirmer le plan exact avec Patrice avant toute création/modification
