@@ -21,7 +21,8 @@ Dans `appli-techniciens/index.html`, ces champs par chantier n'existent que là 
 - `client`
 - `baseVie` (adresse base de vie/dépôt, utilisée en priorité par le bouton Itinéraire ;
   sinon fallback sur `geo.points[0]`)
-- `documentsTerrain` (ancien système pdp/pgo/briefing, fallback pour chantiers non migrés)
+- `documentsTerrain` (ancien système pdp/pgo/briefing, fallback pour chantiers non migrés —
+  **en cours d'extinction, cf. règle ci-dessous**)
 
 ## Convention de nommage des chantiers — RÈGLE IMPORTANTE
 Un nom de chantier n'est fiable que s'il vient :
@@ -45,6 +46,21 @@ Sous-dossiers frères possibles directement sous le dossier du chantier (confirm
 Si je découvre un document par moi-même (recherche Dropbox pour une autre raison, pas signalé par
 Patrice), penser à regarder aussi dans `PDP`/`PGO`, pas seulement dans "Documents Telsam" ou
 "App Tech" — sinon une mise à jour peut être manquée.
+
+**PIÈGE — orthographe instable des noms de dossiers.** Le nom d'un dossier Dropbox n'est pas une
+source fiable pour identifier un chantier : la même affaire s'écrit différemment selon les
+dossiers. Cas confirmé par Patrice le 25/08/26 : le chantier **Fleyriat** (26-055) a son dossier
+racine orthographié `Fibrage Feyriat` (**sans le L**) alors que tous les documents RTE à
+l'intérieur disent bien FLEYRIAT. Conséquences pratiques :
+- Toujours chercher avec un motif tolérant (`fleyria|feyria`, jamais l'orthographe exacte seule),
+  sinon un document existant ressort comme absent.
+- Ne jamais conclure "chantier introuvable dans Dropbox" sur la base d'une seule graphie.
+- C'est précisément ce que le **n° d'index** (`26-0XX`) vient résoudre : une fois le dossier
+  renommé avec son préfixe, l'identification devient exacte et cette ambiguïté disparaît. Un
+  dossier déjà renommé doit être identifié par son numéro, pas par son libellé.
+- Ce chantier a aussi **deux dossiers `PGO` parallèles** (un au niveau racine `Fibrage Feyriat`,
+  un dans le sous-dossier `Brou - La Cluse - Feyriat Roda`) : les nouveaux indices arrivent dans
+  le second. Regarder les deux avant de conclure.
 
 ## Planning RTE 2026.xlsx — RÈGLE CRITIQUE (affectations technicien/chantier)
 Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1" :
@@ -195,6 +211,27 @@ avaient ce bouton opérationnel. Donc, à chaque création/complétion d'un doss
    les chantiers ayant une présence technicien réelle cette semaine ou les 2 prochaines
    (`TECH_RANGES`) et vérifier qu'aucun n'a `documentsAppTech` sans `depotTerrain` — traiter ce
    contrôle comme aussi obligatoire que le bump de `SEED_VERSION`.
+
+**RÈGLE — App Tech est le SEUL canal documentaire vers les techniciens (décision de Patrice,
+25/08/26).** Les boutons individuels « 📄 PDP » / « 📄 PGO » / « 📋 Briefing » (champ
+`documentsTerrain`) sont supprimés au fur et à mesure : un lien Dropbox pointe sur *un fichier*
+précis, donc dès qu'un indice change le bouton devient mort ou, pire, ouvre silencieusement une
+version périmée (constaté le 25/08/26 sur Portet : le bouton PGO pointait encore sur la V37 alors
+que la V40 datait du 10/08). Le bouton « 📁 Documents » ouvre le dossier App Tech, dont le contenu
+est tenu à jour — il n'a pas ce défaut. Donc :
+- Ne JAMAIS recréer d'entrée `documentsTerrain` pour un chantier qui a un `documentsAppTech`.
+- Avant de vider le `documentsTerrain` d'un chantier, vérifier deux choses : que les documents
+  concernés sont bien présents dans son dossier App Tech, et que le lien App Tech est réellement
+  `audience: "public"` (`get_shared_link_metadata`) — sinon on retire le seul accès qui marche.
+- Un chantier sans `documentsAppTech` garde ses boutons tant qu'il n'est pas migré : les vider
+  reviendrait à priver les techniciens de tout document.
+- État au 25/08/26 : vidés pour Portet (26-051) et Givors (26-060). **26-062 Audit Bollène — Ste
+  Cécile les Vignes — Carpentras** est le seul chantier restant sans dossier App Tech ni
+  `depotTerrain`. **Décision de Patrice (25/08/26) : on n'y touche pas** — l'audit est terminé
+  (intervention des 05-06/08/26), aucun retour sur site n'est prévu a priori. Ne pas proposer de
+  le migrer spontanément ; si un retour se présente, en reparler à ce moment-là et créer alors son
+  App Tech complet. Le code de rendu de `documentsTerrain` dans `appli-techniciens/index.html`
+  reste donc nécessaire pour cette seule fiche — ne pas le supprimer comme du code mort.
 
 **RÈGLE — tenir App Tech à jour dans la durée, pas seulement à la création.**
 Dès que je prends connaissance d'un PDP, PGO ou IST nouveau/mis à jour pour un chantier qui a
