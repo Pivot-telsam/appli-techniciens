@@ -32,9 +32,19 @@ Un nom issu uniquement d'une ligne du Planning_RTE_2026.xlsx brut est PROVISOIRE
 créer/renommer une fiche définitivement sur cette seule base sans demander confirmation à Patrice.
 
 ## Structure Dropbox (pour recherche de documents/adresses)
-Toujours : `telsamfibre > RTE > [Ligne aérienne | Ligne souterraine | Postes | Fibrage | Audit FO | Arteria]`
+Toujours : `telsamfibre > RTE > [Ligne aérienne | Ligne souterraine | Postes | Audit FO | ARTERIA]`
 puis dossier du chantier, puis sous-dossier `Documents Telsam` (contient les NDS).
 Ne jamais sortir de cette arborescence pour ce type de recherche.
+
+Précisions vérifiées le 25/08/26 (l'ancienne version de cette liste était inexacte) :
+- **Il n'y a PAS de catégorie `Fibrage`.** « Fibrage » est un préfixe de nom de chantier à
+  l'intérieur de `Ligne aérienne` : `Fibrage Bissy`, `Fibrage Feyriat`, `Fibrage FO DI Lyon`,
+  `Fibrage Pressy`. Ne pas chercher un dossier `RTE\Fibrage`, il n'a jamais existé.
+- Sous **`Audit FO`**, un niveau intermédiaire de direction interrégionale s'intercale avant le
+  chantier : `Audit FO > DI Marseille | DI Toulouse > <chantier>`.
+- `préparation documents sécurités` (premier niveau, hors arborescence chantier) sert de zone de
+  passage : des IST y transitent, parfois déjà signées par RTE, avant d'être classées dans le
+  dossier du chantier. À regarder si une IST attendue reste introuvable ailleurs.
 
 Sous-dossiers frères possibles directement sous le dossier du chantier (confirmé 21/08/26) :
 - `PDP` et `PGO` — c'est ICI que Patrice dépose les nouveaux PDP/PGO reçus, PAS dans "App Tech"
@@ -402,9 +412,14 @@ Points de conception à connaître avant de le modifier :
   (PGO racine, PGO du sous-chantier, App Tech) — il est rapporté une fois, avec tous ses chemins.
 - Sous `Audit FO`, les chantiers sont rangés par direction interrégionale (`DI Marseille`,
   `DI Toulouse`) : le dossier chantier est donc un niveau plus bas que dans les autres catégories.
-- `Fibrage` figure dans la liste des catégories de CLAUDE.md mais **n'existe pas** comme dossier
-  de premier niveau (les chantiers Fibrage sont sous `Ligne aérienne`) — le rapport le signale en
-  note de bas de page à chaque passage, c'est normal.
+- Le dossier `préparation documents sécurités` (premier niveau, hors arborescence chantier) est
+  balayé lui aussi : il contient des IST revenues signées par RTE avant classement. Un document
+  qui n'existe QUE là apparaît dans une section « hors dossier de chantier — à rattacher ». S'il
+  existe aussi dans un dossier de chantier, c'est cet exemplaire-là qui sert de référence, pour
+  garder le nom du chantier et le contrôle App Tech.
+- Un avertissement « dossiers attendus et introuvables » dans le rapport n'est PAS cosmétique :
+  il veut dire qu'une catégorie entière n'a pas été balayée (dossier renommé ou déplacé). À
+  traiter, pas à ignorer.
 
 **Ce que la veille ne remplace pas.** Elle détecte et signale, elle ne met rien à jour. La lecture
 des documents, la mise à jour des fiches et la copie dans App Tech restent faites en session, sous
