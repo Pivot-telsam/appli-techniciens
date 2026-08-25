@@ -377,6 +377,47 @@ les mauvaises cases sans prévenir. De plus Patrice y ajoute sa propre connaissa
 (un « Orléans, 35h » devient 21h sur Chaineau + 14h sur Dambron). Ne pas écrire de lecteur
 automatique pour ces fichiers : l'appli résout le problème à la source.
 
+## PDP : portée poste / ligne — RÈGLE CRITIQUE (posée par Patrice le 25/08/2026)
+
+**Un PDP autorise un périmètre précis. UN PDP LIGNE N'OUVRE PAS LA PORTE D'UN POSTE.** Dès qu'il
+y a une recette, il faut entrer dans le poste pour brancher les appareils : sans PDP couvrant ce
+poste, l'équipe est refoulée à l'entrée et la journée est perdue — alors que la fiche affichait
+« PDP OK » en vert. **Un vert mensonger est pire qu'un rouge**, parce que personne ne va vérifier
+derrière. Corollaires :
+- **Plusieurs PDP sur un chantier est NORMAL, pas une anomalie.** Une ligne qui traverse
+  plusieurs postes demande souvent un PDP ligne PLUS un PDP par poste. Cas réels relevés dans
+  Dropbox : Bagatelle-Issel (`LA ISSEL REVEL` + `PS AVIGNONET` + `PS ISSEL`),
+  Bédarieux-Espondeilhan (`LA BEDARIEUX` + `PS BEDARIEUX` + `PS ESPONDHEILAN`), Fibrage FO DI Lyon,
+  Sèvres-St Vallier, Givors. Marqueurs dans les noms de fichiers : `LA`/`Ligne` d'un côté,
+  `PS`/`PO`/`Poste` de l'autre (sur 473 PDP, 91 nomment un poste et 59 une ligne).
+- **Un PDP unique peut couvrir poste ET ligne** — dans ce cas il n'y a rien à faire, on le note
+  `portee: 'ligne+poste'`.
+- **Le devis dit ce dont on a besoin** : c'est lui qui indique s'il y a des recettes et depuis
+  quels points. Toujours le lire pour renseigner le périmètre (indication de Patrice).
+
+Deux champs par fiche, dans **les deux dépôts** :
+- `perimetre` : `{ ligne: bool, postes: [noms des postes où il faut ENTRER], source: "..." }`
+  = ce que le chantier EXIGE. `source` doit citer la preuve (article de devis, etc.).
+- `pdps` : `[{ portee: 'ligne'|'poste'|'ligne+poste', poste|postes, tousPostes, ref, indice,
+  statut, validFrom, validUntil, note }]` = ce qui est COUVERT.
+
+`computePdpAlerts(c)` croise les deux et lève une alerte `bad` par poste non couvert. Elle est
+**calculée à l'affichage, jamais stockée** — elle se corrige donc seule dès que les données
+changent. `pdpBadge()` fait passer le badge à « PDP incomplet » (rouge) dans ce cas. Sur une fiche
+sans `perimetre`, tout le comportement est **inchangé** : les 67 autres fiches ne bougent pas.
+
+**Piège de comparaison des noms de postes** : `normNom()` réduit accents, séparateurs et préfixes
+(`petit-bois` = `Petit Bois`, `PS ISSEL` = `Issel`, `Poste de Portet` = `PORTET`). Sans ça le
+contrôle signalait des postes non couverts qui l'étaient — et un contrôle qui crie au loup est
+abandonné en trois jours. Ne pas simplifier cette fonction.
+
+**NDS et PPSPS : même besoin, deux régimes** (précision de Patrice, 25/08/26). La NDS relève du
+**décret 92**, le PPSPS du **décret 94** quand le chantier est sous coordination SPS. Le PPSPS se
+traite donc exactement comme une NDS : il conditionne le démarrage et doit figurer dans App Tech.
+Cas vécu : la VIC DATA4 du 09/12/25 exige « aucune intervention ne pourra débuter sans
+présentation d'un PPSPS à jour, validé » — et aucun PPSPS n'existait. Les deux types sont
+désormais surveillés par la veille au même titre que PDP/PGO/IST.
+
 ## Veille documentaire automatique (mise en place le 25/08/2026)
 
 **RÈGLE — au début de toute session de mise à jour, lire le rapport de veille**
