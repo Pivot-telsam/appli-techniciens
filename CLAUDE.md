@@ -406,13 +406,22 @@ Deux champs par fiche, dans **les deux dépôts** :
 changent. `pdpBadge()` fait passer le badge à « PDP incomplet » (rouge) dans ce cas. Sur une fiche
 sans `perimetre`, tout le comportement est **inchangé** : les 67 autres fiches ne bougent pas.
 
-**EXCEPTION — les audits multi-postes ne se contrôlent pas ainsi** (règle de Patrice, 25/08/26).
-Sur ces chantiers (ex. `26-061` AUDIT MULTI POSTES : Bruges, Cubnezais, Garies, Marquis,
-Mérignac, Pessac, Saucats), **le PDP n'est pas obtenu à l'avance : les techniciens l'établissent
-sur place le matin, directement avec RTE, poste par poste.** C'est le fonctionnement normal, pas
-un manque. Ne PAS renseigner de `perimetre.postes` pour réclamer un PDP par poste — ou alors
-poser `perimetre.pdpSurPlace: true`, qui coupe le contrôle. Une fausse alerte permanente finit
-par faire ignorer les vraies.
+**`perimetre.pdpSurPlace` — marqueur au cas par cas, JAMAIS déduit.**
+Sur certains chantiers le PDP n'est pas obtenu à l'avance : les techniciens l'établissent sur
+place le matin, directement avec RTE, poste par poste. C'est le cas de **`26-061` AUDIT MULTI
+POSTES** (Bruges, Cubnezais, Garies, Marquis, Mérignac, Pessac, Saucats), confirmé par Patrice le
+25/08/26. Le marqueur `perimetre.pdpSurPlace: true` coupe alors le contrôle, sinon ce chantier
+porterait une fausse alerte permanente — et une fausse alerte permanente finit par faire ignorer
+les vraies.
+
+**Mais ce n'est PAS une règle générale, et surtout pas une propriété des audits.** Patrice a
+explicitement corrigé cette généralisation le 25/08/26 : « ça peut arriver de temps en temps mais
+ce n'est pas une règle ». Rien ne permet de déduire ce mode de fonctionnement du type de chantier
+ni du nombre de postes. Donc :
+- Ne JAMAIS poser `pdpSurPlace` de sa propre initiative. Il se pose uniquement quand Patrice
+  l'indique, chantier par chantier.
+- Ne pas non plus renseigner `perimetre.postes` sur un chantier dont on ignore le mode de
+  fonctionnement : demander plutôt que présumer, dans un sens comme dans l'autre.
 
 **RÈGLE — ce contrôle vit uniquement dans `suivi-chantiers`, PAS dans l'appli technicien**
 (décision de Patrice, 25/08/26). Il avait été mis dans les deux, puis retiré de l'appli le jour
