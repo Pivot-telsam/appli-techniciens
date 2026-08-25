@@ -519,6 +519,20 @@ disponible. Détails de conception :
 - Ces deux règles ont fait tomber les faux positifs de 4 à 2 au premier essai. Ne pas les retirer
   en "simplifiant".
 
+**RÈGLE DE LECTURE — un retard App Tech ne vaut que si des techniciens sont planifiés**
+(précision de Patrice, 25/08/26). Les premiers dossiers App Tech ont été montés il y a plusieurs
+semaines pendant les essais ; ces chantiers-là sont aujourd'hui **terminés ou en suspens**, et
+qu'ils ne soient pas à jour n'a aucune conséquence — personne n'y va. Ce qui compte, c'est
+**les chantiers des semaines à venir où des techniciens sont planifiés**. Donc :
+- Ne pas remonter spontanément un retard App Tech sur un chantier sans présence technicien
+  prévue. Le signaler une fois suffit ; y revenir chaque matin transforme le contrôle en bruit,
+  et un contrôle bruyant finit par être ignoré — c'est exactement ce qu'on cherche à éviter.
+- En revanche, un retard sur un chantier où des techniciens sont placés (ou le seront dans les
+  semaines qui viennent) est à traiter tout de suite : c'est le cas Portet V37/V40 du 25/08.
+- Connus et acceptés au 25/08/26, sans action demandée : PDP de Verney - St Guillerme (Ind 7 au
+  lieu de Ind 8), PDP de Lamativie - La Mole, NDS de Fibrage Feyriat. Patrice doit d'abord
+  vérifier auprès des chargés de travaux et chargés d'affaires si ces chantiers sont terminés.
+
 **Ce que la veille ne remplace pas — et pourquoi c'est délibéré.** Elle détecte et signale, elle
 ne met JAMAIS à jour App Tech toute seule. Question posée par Patrice le 25/08/26 ; la réponse
 tient à trois cas vécus le jour même :
