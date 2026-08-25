@@ -123,6 +123,29 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
   couverture PGO (teal) et la validité PDP (verte) restent indépendantes de `REAL_DAYS` — un
   PGO signé couvre une période même avant confirmation couleur, c'est une info complémentaire,
   pas redondante. Ne pas revenir à une logique basée sur le texte des fenêtres seul.
+- **`joursPresenceReels(id)` est la source UNIQUE de la présence technicien, pour la vue par
+  semaine ET pour le Gantt** (mis en place le 25/08/26). C'est l'**union de `REAL_DAYS` et de
+  `TECH_RANGES`** : les deux viennent du même code couleur du planning RTE mais ne sont pas
+  toujours mis à jour ensemble — constaté le 25/08/26, en S34 `TECH_RANGES` portait des
+  techniciens sur 26-045/26-036/26-051/26-060 alors que `REAL_DAYS` ne contenait qu'Arudy
+  (terminé), et en S33 `TECH_RANGES` portait six chantiers pour un `REAL_DAYS` vide. Lire l'un
+  sans l'autre fait donc disparaître des présences réelles. Ne jamais réintroduire d'accès
+  direct à `REAL_DAYS[c.id]` dans une vue : passer par cette fonction, sinon les deux vues
+  redivergent.
+- **La vue par semaine liste les chantiers par présence confirmée, pas par texte de fenêtre**
+  (demande de Patrice, 25/08/26). Avant, `buildWeekBuckets` bucketait chaque `fenetres` datée :
+  la S35 affichait 9 chantiers (Arnage, Cantegrit, Chaineau, Fleyriat, Lisieux, Joncquiere,
+  Lannemezan en plus) alors que 3 seulement avaient des techniciens sur place — une fenêtre est
+  souvent une plage large écrite une fois, elle ne prouve aucune présence. Même piège que celui
+  corrigé sur le Gantt le 21/08/26. **Repli assumé et nécessaire :** la présence confirmée
+  s'arrête à la dernière semaine saisie au planning ; pour toute semaine sans AUCUNE donnée
+  couleur, la vue retombe sur les fenêtres et marque le bloc `PRÉVISIONNEL`. Sans ce repli
+  toutes les semaines à venir seraient vides et la vue perdrait son utilité de planification.
+  Une semaine ayant au moins un jour confirmé n'est jamais mélangée avec du prévisionnel.
+  Attention en modifiant le rendu : un chantier confirmé peut n'avoir AUCUNE fenêtre
+  correspondante (cas d'Audit Multi Postes, sans champ `fenetres`) — le test « ligne de mesure
+  de touret » doit donc vérifier `labels.length > 0` avant le `.every()`, sinon un tableau vide
+  renvoie `true` et le chantier s'affiche à tort comme une mesure de touret.
 - **Tri du Gantt (`chronoSortKey`) : la présence technicien réelle prime toujours sur PGO/
   consignation/NIP** (corrigé le 21/08/26). Avant, un chantier seulement couvert par un PGO en
   cours (sans technicien placé, ex. Cantegrit) pouvait remonter au même niveau qu'un chantier
