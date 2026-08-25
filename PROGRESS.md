@@ -266,8 +266,8 @@ Dans l'ordre où ça se fait :
 2. **Remettre à blanc les blocs S34 et S35** du récap RH, sauvegarde d'abord. Claude le fait sur
    signal de Patrice. Objectif : galop d'essai grandeur nature, les 13 saisissent ces deux
    semaines. Patrice garde les feuilles papier de la S34, tout est rattrapable.
-3. **Sortir les deux PDF de test** (`S35-HAMOUCH_Ahmed.pdf`, `S35-BONAVENTURE_Pascal.pdf`) du
-   dossier `feuille d'heures/dépôts appli/`, sinon ils seront réintégrés au prochain passage.
+3. ~~Sortir les deux PDF de test du dossier `dépôts appli`~~ — **FAIT le 25/08/26.** Patrice les a supprimés : il avait reçu par ailleurs les feuilles Excel habituelles et les a rangées dans son dossier `feuille d'heures/S34`. Le dossier de dépôt ne contient plus que son `_LISEZ-MOI.txt`, ce qui est l'état correct. Les données de ces deux PDF n'avaient été écrites que dans `recap_FH-TEST.xlsx`, jamais dans le vrai fichier : rien n'est perdu.
+   **À retenir pour le galop d'essai** : Patrice détient **11 feuilles Excel de la S34** (S34-BENZAMERA, BONAVENTURE, DENIS, DIRAT, EL ABBASSI, HAMOUCH Bilal, MOUSSA, PERRIN Didier/François/Vincent, Viry). Elles servent de référence pour vérifier que les techniciens ressaisissent bien la même chose dans l'appli après la remise à blanc.
 4. **Demander à Ahmed Hamouch et Pascal Bonaventure d'effacer leur semaine d'essai** sur leur
    téléphone (bouton « Effacer et recommencer cette semaine »). Personne ne peut le faire à leur
    place : la saisie vit dans leur navigateur.
