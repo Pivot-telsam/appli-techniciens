@@ -4,6 +4,29 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Sur le terrain — TELSAM</title>
+<script>
+/* ===================== VERSION DE L'APPLI =====================================
+   À INCRÉMENTER À CHAQUE MISE EN LIGNE (format AAAA-MM-JJ-n).
+   C'est ce qui déclenche l'écran d'ouverture animé chez le technicien, et c'est
+   aussi la date affichée dessous — un seul endroit à modifier, pas deux.
+   Ce bloc est volontairement dans le <head> et sans dépendance : il doit
+   décider AVANT le premier affichage, sinon l'écran clignote.              */
+var APP_VERSION = '2026-08-26-1';
+(function(){
+  try{
+    var vue = localStorage.getItem('telsam_version_vue');
+    if(vue === APP_VERSION){
+      document.documentElement.className += ' maj-vue';      // rien à montrer
+    } else if(!vue){
+      document.documentElement.className += ' premiere-visite';
+    }
+  }catch(e){
+    /* Stockage indisponible : on n'affiche rien plutôt que de le rejouer à
+       chaque ouverture, ce qui serait vite insupportable. */
+    document.documentElement.className += ' maj-vue';
+  }
+})();
+</script>
 <style>
 :root{
   --bg:#0C1012;
@@ -327,9 +350,202 @@ footer.legend{
   border-radius:12px; padding:14px; font-size:15.5px; font-weight:800; cursor:pointer; margin-top:12px;
 }
 .gate-error{ color:var(--red); font-size:13px; margin-top:10px; display:none; }
+
+/* ================= écran d'ouverture animé =================================
+   Ne s'affiche qu'UNE FOIS par version (cf. APP_VERSION dans le <head>) :
+   à la première ouverture, puis après chaque mise en ligne. Les fois suivantes
+   le technicien tombe directement sur ses chantiers.
+   Il sert aussi de preuve visuelle qu'il a bien reçu la nouvelle version et
+   non l'ancienne restée en cache.
+
+   Le tracé du « s » est un RELEVÉ AU PIXEL du logo lui-même : il vit dans le
+   même repère que l'image (viewBox 0 0 550 291), donc en revenant à l'échelle 1
+   il se pose exactement sur le « s » du logo qui apparaît dessous.
+
+   PIÈGE À NE PAS RÉINTRODUIRE : la taille se pose sur `.sp-holder`, et l'image
+   la remplit en `width:100%`. L'inverse (`width:240px;max-width:70vw` sur
+   l'image) fait que le porteur garde 240px pendant que l'image rétrécit : le
+   calque du tracé suit alors le porteur et le « s » retombe entre le « a » et
+   le « m ». C'est arrivé, ça ne se voit qu'à l'œil, aucun test ne l'attrape.  */
+html.maj-vue #splashLogo{display:none;}
+
+#splashLogo{
+  position:fixed; inset:0; z-index:9999;
+  background:var(--bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  opacity:1; transition:opacity .45s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+#splashLogo.sortie{opacity:0; pointer-events:none;}
+
+.sp-net{position:absolute; inset:0; z-index:1; pointer-events:none;
+  animation:spNet .85s cubic-bezier(.5,0,.3,1) .70s forwards;}
+.sp-site{fill:var(--cyan); opacity:0; animation:spSite .42s ease-out forwards;}
+.sp-link{stroke:rgba(47,216,203,0.42); stroke-width:1; fill:none;
+  stroke-dasharray:400; stroke-dashoffset:400;
+  animation:spLink .60s ease-out forwards;}
+
+.sp-ring{position:absolute; left:50%; top:50%; width:220px; height:220px;
+  border-radius:50%; border:1.5px solid rgba(255,176,0,0.55); z-index:2; opacity:0;
+  transform:translate(-50%,-50%) scale(.35);
+  animation:spRing .88s cubic-bezier(.2,.7,.25,1) 1.90s forwards;}
+
+/* `aspect-ratio` + les attributs width/height sur l'image réservent la hauteur
+   AVANT que le logo soit chargé. Sans ça le cadre a une hauteur nulle au début,
+   le calque du tracé aussi, et le « s » se dessine décalé puis saute en place
+   quand l'image arrive — visible surtout ici, où le logo est injecté par le
+   script principal, tout à la fin d'un fichier de 300 Ko. */
+.sp-holder{position:relative; z-index:3; line-height:0; width:240px; max-width:70vw;
+  aspect-ratio:550/291;}
+.sp-plate{display:block; width:100%; height:auto; border-radius:13px;
+  opacity:0; transform:scale(1.05);
+  box-shadow:0 14px 36px -16px #000, 0 0 0 1px rgba(255,176,0,0.20);
+  animation:spPlate .54s ease-out 1.96s forwards;}
+.sp-draw{position:absolute; inset:0; width:100%; height:100%; overflow:visible;
+  /* origine = le centre du « s » dans le logo (287/550 ; 152.5/291) */
+  transform-origin:52.18% 52.41%; transform:scale(4.2);
+  animation:spSettle .62s cubic-bezier(.55,.02,.25,1) 1.86s forwards,
+            spFade   .28s ease-out 2.50s forwards;}
+.sp-line{fill:none; stroke:#FCFFFF; stroke-width:8.5;
+  stroke-linecap:butt; stroke-linejoin:round;
+  stroke-dasharray:100; stroke-dashoffset:100;
+  filter:drop-shadow(0 0 5px rgba(47,216,203,0.60));
+  animation:spDraw .88s cubic-bezier(.45,.05,.30,1) .88s forwards;}
+.sp-arrow{opacity:0; transform-box:fill-box; transform-origin:center;}
+.sp-cyan{fill:#1A9AD9; animation:spArrow .28s cubic-bezier(.2,.9,.3,1) .76s forwards;}
+.sp-red{fill:#CE0D12; animation:spArrow .30s cubic-bezier(.2,1.1,.3,1) 1.66s forwards;}
+
+.sp-tag{font-size:11px; letter-spacing:0.30em; text-transform:uppercase;
+  font-weight:700; color:var(--amber); margin-top:18px; z-index:3; opacity:0;
+  animation:spUp .50s ease-out 2.52s forwards;}
+.sp-maj{font-size:12.5px; color:var(--text-muted); margin-top:10px; z-index:3;
+  text-align:center; padding:0 24px; opacity:0;
+  animation:spUp .50s ease-out 2.70s forwards;}
+.sp-maj b{color:var(--cyan); font-weight:700;}
+
+@keyframes spSite{0%{opacity:0; transform:scale(.2);} 100%{opacity:.95; transform:scale(1);}}
+@keyframes spLink{to{stroke-dashoffset:0;}}
+@keyframes spNet{0%{opacity:1; transform:scale(1);} 100%{opacity:0; transform:scale(.72);}}
+@keyframes spRing{0%{opacity:0; transform:translate(-50%,-50%) scale(.35);}
+  25%{opacity:1;} 100%{opacity:0; transform:translate(-50%,-50%) scale(1.5);}}
+@keyframes spDraw{to{stroke-dashoffset:0;}}
+@keyframes spArrow{0%{opacity:0; transform:scale(.35);} 100%{opacity:1; transform:scale(1);}}
+/* le « s » agrandi revient à sa taille réelle et se pose sur le logo, */
+@keyframes spSettle{to{transform:scale(1);}}
+/* puis s'efface : c'est le « s » du logo qui prend le relais, sinon son halo
+   cyan alourdirait la lettre sur l'image finale. */
+@keyframes spFade{to{opacity:0;}}
+@keyframes spPlate{0%{opacity:0; transform:scale(1.05);} 100%{opacity:1; transform:scale(1);}}
+@keyframes spUp{0%{opacity:0; transform:translateY(7px);} 100%{opacity:1; transform:translateY(0);}}
+
+/* Téléphone réglé sur « réduire les animations » : logo fixe, pas d'effets. */
+@media (prefers-reduced-motion: reduce){
+  #splashLogo *{animation:none !important;}
+  #splashLogo .sp-net, #splashLogo .sp-draw, #splashLogo .sp-ring{display:none;}
+  #splashLogo .sp-plate{opacity:1; transform:none;}
+  #splashLogo .sp-tag, #splashLogo .sp-maj{opacity:1;}
+}
 </style>
 </head>
 <body>
+
+<!-- Écran d'ouverture animé — une fois par version. Placé en tête de <body>
+     pour couvrir l'écran dès le premier affichage ; l'animation démarre seule,
+     sans attendre le script principal. Le src du logo est injecté avec les
+     autres via la classe js-logo. -->
+<div id="splashLogo" role="presentation">
+  <svg class="sp-net" viewBox="0 0 340 352" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <g>
+          <line class="sp-link" x1="52" y1="62" x2="112" y2="38" style="animation-delay:0.200s"/>
+          <line class="sp-link" x1="112" y1="38" x2="188" y2="55" style="animation-delay:0.226s"/>
+          <line class="sp-link" x1="188" y1="55" x2="268" y2="44" style="animation-delay:0.252s"/>
+          <line class="sp-link" x1="268" y1="44" x2="300" y2="108" style="animation-delay:0.278s"/>
+          <line class="sp-link" x1="34" y1="132" x2="96" y2="118" style="animation-delay:0.304s"/>
+          <line class="sp-link" x1="96" y1="118" x2="166" y2="104" style="animation-delay:0.330s"/>
+          <line class="sp-link" x1="166" y1="104" x2="240" y2="120" style="animation-delay:0.356s"/>
+          <line class="sp-link" x1="240" y1="120" x2="292" y2="186" style="animation-delay:0.382s"/>
+          <line class="sp-link" x1="46" y1="206" x2="118" y2="196" style="animation-delay:0.408s"/>
+          <line class="sp-link" x1="118" y1="196" x2="196" y2="214" style="animation-delay:0.434s"/>
+          <line class="sp-link" x1="196" y1="214" x2="262" y2="266" style="animation-delay:0.460s"/>
+          <line class="sp-link" x1="84" y1="272" x2="152" y2="300" style="animation-delay:0.486s"/>
+          <line class="sp-link" x1="152" y1="300" x2="228" y2="318" style="animation-delay:0.512s"/>
+          <line class="sp-link" x1="52" y1="62" x2="34" y2="132" style="animation-delay:0.538s"/>
+          <line class="sp-link" x1="188" y1="55" x2="166" y2="104" style="animation-delay:0.564s"/>
+          <line class="sp-link" x1="300" y1="108" x2="292" y2="186" style="animation-delay:0.590s"/>
+          <line class="sp-link" x1="118" y1="196" x2="84" y2="272" style="animation-delay:0.616s"/>
+          <line class="sp-link" x1="262" y1="266" x2="228" y2="318" style="animation-delay:0.642s"/>
+          <line class="sp-link" x1="22" y1="44" x2="52" y2="62" style="animation-delay:0.668s"/>
+        </g>
+        <g>
+          <circle class="sp-site" cx="52" cy="62" r="3.1" style="animation-delay:0.040s"/>
+          <circle class="sp-site" cx="112" cy="38" r="2.1" style="animation-delay:0.070s"/>
+          <circle class="sp-site" cx="188" cy="55" r="2.1" style="animation-delay:0.100s"/>
+          <circle class="sp-site" cx="268" cy="44" r="2.1" style="animation-delay:0.130s"/>
+          <circle class="sp-site" cx="300" cy="108" r="3.1" style="animation-delay:0.160s"/>
+          <circle class="sp-site" cx="34" cy="132" r="2.1" style="animation-delay:0.190s"/>
+          <circle class="sp-site" cx="96" cy="118" r="2.1" style="animation-delay:0.220s"/>
+          <circle class="sp-site" cx="166" cy="104" r="2.1" style="animation-delay:0.250s"/>
+          <circle class="sp-site" cx="240" cy="120" r="3.1" style="animation-delay:0.280s"/>
+          <circle class="sp-site" cx="292" cy="186" r="2.1" style="animation-delay:0.310s"/>
+          <circle class="sp-site" cx="46" cy="206" r="2.1" style="animation-delay:0.340s"/>
+          <circle class="sp-site" cx="118" cy="196" r="2.1" style="animation-delay:0.370s"/>
+          <circle class="sp-site" cx="196" cy="214" r="3.1" style="animation-delay:0.400s"/>
+          <circle class="sp-site" cx="262" cy="266" r="2.1" style="animation-delay:0.430s"/>
+          <circle class="sp-site" cx="84" cy="272" r="2.1" style="animation-delay:0.460s"/>
+          <circle class="sp-site" cx="152" cy="300" r="2.1" style="animation-delay:0.490s"/>
+          <circle class="sp-site" cx="228" cy="318" r="3.1" style="animation-delay:0.520s"/>
+          <circle class="sp-site" cx="22" cy="44" r="2.1" style="animation-delay:0.550s"/>
+        </g>
+  </svg>
+  <div class="sp-ring"></div>
+  <div class="sp-holder">
+    <img class="sp-plate js-logo" alt="TELSAM" width="550" height="291">
+    <svg class="sp-draw" viewBox="0 0 550 291" aria-hidden="true">
+      <path class="sp-line" pathLength="100"
+        d="M273.5,177.5 C291,177.5 305.5,177.5 305.5,166
+           C305.5,158 296,155 287,151.5
+           C278,148 269,146 269,138
+           C269,130 278,127.6 286,127.6
+           L297.6,127.8"/>
+      <polygon class="sp-arrow sp-cyan" points="273,171.5 264.5,178 273,184.5"/>
+      <polygon class="sp-arrow sp-red"  points="298,121.5 305.5,128 298,134.5"/>
+    </svg>
+  </div>
+  <div class="sp-tag">Sur le terrain</div>
+  <div class="sp-maj" id="spMaj"></div>
+</div>
+<script>
+(function(){
+  var el = document.getElementById('splashLogo');
+  if(!el) return;
+  var racine = document.documentElement;
+  if(racine.className.indexOf('maj-vue') >= 0){ el.remove(); return; }
+
+  /* On note la version comme vue TOUT DE SUITE : si le technicien ferme
+     l'onglet pendant l'animation, il ne la revoit pas à la réouverture. */
+  try{ localStorage.setItem('telsam_version_vue', APP_VERSION); }catch(e){}
+
+  var p = APP_VERSION.slice(0,10).split('-');
+  var leJour = p[2]+'/'+p[1]+'/'+p[0];
+  document.getElementById('spMaj').innerHTML =
+    (racine.className.indexOf('premiere-visite') >= 0)
+      ? 'Bienvenue — version du <b>'+leJour+'</b>'
+      : 'Mise à jour installée — <b>'+leJour+'</b>';
+
+  var reduit = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fini = false;
+  function fermer(){
+    if(fini) return;
+    fini = true;
+    el.classList.add('sortie');
+    setTimeout(function(){ if(el.parentNode) el.remove(); }, 500);
+  }
+  var minuteur = setTimeout(fermer, reduit ? 1100 : 3250);
+  /* Un technicien pressé passe l'animation d'une simple tape. */
+  el.addEventListener('click', function(){ clearTimeout(minuteur); fermer(); });
+})();
+</script>
 
 <div id="gateScreen" style="min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:48px 20px 24px;">
   <div class="brand">

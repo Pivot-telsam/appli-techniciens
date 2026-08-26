@@ -653,6 +653,55 @@ les liens publics — c'est uniquement l'outil qui les crée restreints). Consé
 - Semaine 35 (24-28/08) mise à jour dans les deux dépôts : Poste de Portet, DATA4-Marcoussis,
   Audit Multi Postes — voir règle Planning RTE 2026.xlsx ci-dessus.
 
+## Écran d'ouverture animé (appli-techniciens, mis en place le 26/08/2026)
+
+Au lancement de l'appli, le logo TELSAM s'anime : des points s'allument comme des sites sur une
+carte et se relient, puis le **« s » du logo se trace tout seul** entre sa flèche cyan (en bas à
+gauche) et sa flèche rouge (en haut à droite), avant de reprendre sa taille réelle pendant que le
+logo complet apparaît exactement autour de lui. Environ 3 s, une tape sur l'écran la passe.
+
+**`APP_VERSION` (`appli-techniciens/index.html`, dans le `<head>`, format `AAAA-MM-JJ-n`) —
+À INCRÉMENTER À CHAQUE MISE EN LIGNE.** C'est le même type de piège que `SEED_VERSION` :
+- L'animation ne se joue qu'une fois par valeur d'`APP_VERSION`, mémorisée dans le
+  `localStorage` du téléphone (clé `telsam_version_vue`). Sans bump, le technicien qui a déjà
+  ouvert l'appli ne voit rien — et surtout il perd le seul signal lui disant qu'il a bien reçu la
+  nouvelle version et non l'ancienne restée en cache (cf. la règle sur le cache navigateur, plus
+  haut). C'est la raison d'être de cet écran autant que l'effet visuel.
+- La **date affichée en dessous est déduite d'`APP_VERSION`** : un seul endroit à modifier, pas
+  deux. Ne pas réintroduire de date écrite en dur.
+- Première ouverture (rien en mémoire) → « Bienvenue — version du … » ; version différente →
+  « Mise à jour installée — … ». La version est notée comme vue **dès le début** de l'animation,
+  pour qu'un technicien qui ferme l'onglet en cours de route ne la revoie pas.
+- Si le `localStorage` est indisponible, on n'affiche RIEN plutôt que de rejouer l'animation à
+  chaque ouverture : une animation subie à chaque lancement serait vite insupportable.
+
+**Le tracé du « s » est un relevé au pixel du logo, pas un dessin à main levée.** Il vit dans le
+même repère que l'image (`viewBox 0 0 550 291`) et son agrandissement est centré sur le centre du
+« s » (52.18 % ; 52.41 %). En revenant à l'échelle 1 il se pose donc exactement sur le « s » du
+logo — écart mesuré : 0 pixel. Les coordonnées (corps du « s » x 265→309, y 124→181 ; flèche
+rouge tip (305.5,128) ; flèche cyan tip (264.5,178) ; épaisseur du trait 8.5) viennent d'un
+balayage des pixels de `TELSAM_LOGO_B64`. **Si le logo change un jour, il faut refaire ce relevé**,
+pas ajuster à l'œil.
+
+**Deux pièges qui ne se voient qu'à l'écran, aucun test automatique ne les attrape :**
+1. **La taille se pose sur `.sp-holder`, l'image la remplit en `width:100%`.** L'inverse
+   (`width:240px; max-width:70vw` sur l'image) fait que le porteur garde 240 px pendant que
+   l'image rétrécit : le calque du tracé, en `width:100%`, suit le porteur et le « s » retombe
+   **entre le « a » et le « m »**. Vécu le 26/08/26, repéré par Patrice à l'œil alors que mon
+   contrôle chiffré disait « 0,2 pixel » — parce que je comparais le tracé au logo **dans le même
+   repère**, ce qui était vrai d'avance, au lieu de vérifier que le calque se superposait à
+   l'image. Toujours mesurer en **coordonnées d'écran** (`getBoundingClientRect`), jamais dans le
+   repère du dessin.
+2. **`aspect-ratio:550/291` sur le porteur + `width="550" height="291"` sur l'image** réservent la
+   hauteur AVANT que le logo soit chargé. Sans ça le porteur a une hauteur nulle au démarrage,
+   le calque aussi, et le « s » se dessine décalé puis saute en place quand l'image arrive. Très
+   visible ici : le logo est injecté par le script principal, tout à la fin d'un fichier de
+   300 Ko. Ne pas retirer ces deux garde-fous.
+
+Le reste est sans surprise : tout est en local (aucune police ni image à télécharger, ça marche
+sans réseau), les classes sont préfixées `sp-` pour ne rien heurter dans l'appli, et un téléphone
+réglé sur « réduire les animations » voit le logo fixe pendant une seconde, sans effets.
+
 ## Habilitations des techniciens
 Le bouton « 📁 Ouvrir mes habilitations » de l'appli pointe sur **un dossier** :
 `Telsam Fibre/HABILITATIONS/HABILITATIONS 2026 signées` (`HABILITATIONS_LINK` dans
@@ -702,3 +751,7 @@ Le bouton « 📁 Ouvrir mes habilitations » de l'appli pointe sur **un dossier
   `cp scripts/check-seed-version.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
   (les hooks ne sont pas versionnés par Git lui-même). Toujours annoncer explicitement dans le
   résumé de commit "SEED_VERSION bumpé : oui/non" quand `SEED_DATA` est modifié.
+- **Avant de committer un changement à `appli-techniciens/index.html`, incrémenter `APP_VERSION`.**
+  Même logique que `SEED_VERSION`, côté technicien : sans bump, l'écran d'ouverture ne se rejoue
+  pas et le technicien n'a aucun signe qu'il a bien reçu la nouvelle version. Cf. la section
+  « Écran d'ouverture animé ».

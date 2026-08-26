@@ -257,6 +257,37 @@ Journée dense. Le détail des règles est dans `CLAUDE.md` — ne pas le dupliq
   L'ancien `Appli_TELSAM_Mode_emploi` a été supprimé du Bureau pour éviter d'envoyer la mauvaise
   version.
 
+### Session du 26/08/26 — écran d'ouverture animé (appli-techniciens)
+
+Demande de Patrice : un logo animé à l'ouverture, rejoué à chaque mise à jour. Trois propositions
+lui ont été montrées sur maquette (Fibre / Sobre / Réseau) ; il a retenu **Réseau**, puis a eu
+l'idée qui a fait la version finale : **les deux petites flèches du « s » du logo ne sont pas
+décoratives, ce sont le début et la fin du trait.** L'animation trace donc le « s » entre elles
+avant de faire apparaître le logo complet autour.
+
+Détail des règles dans `CLAUDE.md`, section « Écran d'ouverture animé » — ne pas le dupliquer ici.
+Ce qu'il faut retenir :
+- **`APP_VERSION` est à incrémenter à chaque mise en ligne**, au même titre que `SEED_VERSION`
+  côté suivi. C'est ce qui rejoue l'animation, et l'animation est le seul signal qui dit au
+  technicien qu'il a bien reçu la nouvelle version et non l'ancienne restée en cache.
+- Le tracé du « s » est un **relevé au pixel du logo** : si le logo change, refaire le relevé.
+
+**Deux erreurs commises, toutes deux invisibles à un test automatique.**
+- Le « s » retombait **entre le « a » et le « m »** au lieu de sa place. Repéré par Patrice à
+  l'œil, alors que mon contrôle chiffré affichait « 0,2 pixel d'écart ». Le contrôle était faux :
+  je comparais le tracé au logo **dans le même repère**, ce qui était vrai d'avance, au lieu de
+  vérifier que le calque du tracé se superposait à l'image. Leçon à garder : **mesurer en
+  coordonnées d'écran, et se demander si le contrôle peut seulement échouer.** Un test qui ne
+  peut pas échouer ne prouve rien.
+- Le porteur du logo avait une hauteur nulle tant que l'image n'était pas chargée, donc le « s »
+  se dessinait décalé en début d'animation. Corrigé par `aspect-ratio` + les attributs
+  `width`/`height` sur l'image.
+
+Vérifié dans l'appli réelle, servie en local, à 375×812 : première ouverture (« Bienvenue »),
+deuxième ouverture (pas d'animation), changement de version (« Mise à jour installée »), tape
+pour passer, lien personnel `?tech=` qui arrive bien sur la fiche du technicien, zéro erreur
+console, alignement du « s » à 0 pixel.
+
 ## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
 
 Dans l'ordre où ça se fait :
