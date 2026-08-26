@@ -555,10 +555,22 @@ l'onglet « À vérifier », avec les autres points en attente d'arbitrage. Cinq
 pylône 91 manquant chez Lannemezan INEO ; pylône 55 compté dans les deux lots Lannemezan ;
 portiques de Chaineau lot 1 selon devis ou CCTP).
 
-**État au 26/08/2026** : 17 fiches renseignées, 144 boîtiers WTC2 et 4 boîtiers OPPC restant à
-poser, 29 déjà posés, nacelle documentée sur 7 chantiers, 28 chantiers actifs encore à compléter.
-Ces 17 fiches viennent de la lecture de 19 devis ; le détail est dans
-`Boites_WTC2_Reste_A_Poser.xlsx` sur le Bureau de Patrice.
+**Trois types, pas deux.** Un troisième est apparu en lisant les devis des liaisons souterraines :
+**CHAMBRE**, pour les boîtiers de jonction posés en chambre. Ce ne sont pas des WTC2 et le prix n'a
+rien à voir (275 € contre 1 175 €) : les compter à part évite de fausser la commande de WTC2.
+Attention aussi au WTC1,5 de Rion des Landes, qui n'est pas un WTC2.
+
+**PIÈGE — « le devis mentionne un boîtier » ne veut pas dire « il y a un boîtier à acheter ».**
+Quatorze devis sur les 28 relus le 26/08/2026 parlaient de boîtiers ; la moitié ne portait que sur
+du raccordement de boîtiers DÉJÀ EXISTANTS (Cantegrit, Argia-Hernani, Manoire, Arteria Pessac,
+Chafauds-Chaingy). Seule la ligne « **Fourniture** et pose » compte. De même, « hors fourniture
+matériel » (Donuts de Blavozy et d'Asasp) veut dire que le client fournit : zéro à acheter, mais la
+nacelle reste à prévoir. Et une ligne « Option : fourniture et pose… » ne se compte pas tant qu'elle
+n'est pas commandée (St-Guillerme).
+
+**État au 26/08/2026** : 44 fiches renseignées sur 45 chantiers actifs, **167 boîtiers WTC2**,
+4 boîtiers OPPC et 5 boîtiers en chambre restant à poser, 29 déjà posés. Reste une seule fiche à
+compléter, 26-021 Gampaloup-Valence, parce qu'aucun devis n'est encore arrivé dessus.
 
 ## PDP : portée poste / ligne — RÈGLE CRITIQUE (posée par Patrice le 25/08/2026)
 

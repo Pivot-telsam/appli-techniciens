@@ -425,6 +425,20 @@ aller-retour texte → objets → texte sans perte sur Fleyriat (le cas à deux 
 cycle complet saisie → enregistrement → total recalculé (144 → 142 après avoir marqué 2 boîtes
 posées sur DATA4), et les 5 points visibles dans « À vérifier ».
 
+
+**Suite le 26/08/26 — les 28 devis restants lus, l'encart « À compléter » vidé.** Patrice a fait
+remarquer, à juste titre, qu'un chantier MTFO n'a rien à faire dans un écran qui sert à commander
+des boîtes : cet encart n'était pas sa liste de commande mais ma liste de travail, affichée sur son
+écran au lieu d'être traitée. Les 28 devis ont donc été ouverts un par un.
+
+Résultat : **+23 boîtiers WTC2** découverts (St Christol-St Césaire 9, Givors Bans 6, Masquet 3,
+Chafauds-Courelles 3, Bordières-Loudenvielle 2), soit **167 au total**. Cinq boîtiers en chambre
+sur trois liaisons souterraines, d'où un troisième type `CHAMBRE`. Dix-sept chantiers confirmés à
+zéro. Il ne reste que 26-021 Gampaloup-Valence, faute de devis reçu.
+
+Deux pièges rencontrés, documentés dans `CLAUDE.md` : un devis qui *mentionne* un boîtier ne veut
+pas dire qu'il y en a un à acheter (la moitié des mentions portaient sur du raccordement de
+boîtiers existants), et « hors fourniture matériel » ou « Option » ne se comptent pas.
 ## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
 
 Dans l'ordre où ça se fait :
