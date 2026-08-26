@@ -435,8 +435,13 @@ les blocs de semaine repérés par leur en-tête `S17`, `S18`… en ligne 1.
 **RÈGLE — des heures sans chantier ne s'attribuent pas au jugé.** En mai, Ahmed Hamouch a 112 h
 sur quatre semaines sans aucun chantier renseigné, et deux devis (Perche - La Tour de Carol, Postes
 de La Perche et La Tour de Carol) n'ont aucune fiche dans le suivi. Ces heures sont laissées de
-côté et **signalées à Patrice**, jamais rattachées à la fiche qui paraît la plus proche. Restent à
-intégrer si Patrice les envoie : janvier, février, mars, avril.
+côté et **signalées à Patrice**, jamais rattachées à la fiche qui paraît la plus proche.
+
+**L'historique des heures commence à MAI 2026. Décision de Patrice le 26/08/2026 : ne pas
+remonter plus loin.** Avant mai, les chantiers n'étaient pas renseignés sur le récap — les
+fichiers de janvier à avril existent bien dans `feuille d'heures/recap FH/`, mais il n'y a rien à
+en tirer par chantier. Ne pas proposer de les intégrer, ne pas s'étonner qu'un chantier démarré en
+début d'année paraisse sous-chargé : ses heures d'avant mai n'existent nulle part.
 
 **PIÈGE — « le mois » est une période de paie, pas un mois calendaire.** Vérifié le 26/08/2026 en
 lisant les en-têtes de semaine de l'onglet `Recap` :

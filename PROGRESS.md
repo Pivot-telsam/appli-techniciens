@@ -197,6 +197,10 @@ ils seront réintégrés lors de la prochaine commande sur la S35.
 - Les adresses issues de NDS sous-traitant (EDEA pour Curbans-Sisteron, EQOS pour Bruges-Galus)
   sont valides, pas besoin de NDS TELSAM propre.
 - Les ICP (visites préalables) ne justifient jamais la création d'une fiche chantier.
+- **Le cumul des heures par chantier démarre à mai 2026** (26/08/26). Avant mai, les chantiers
+  n'étaient pas renseignés sur le récap FH : janvier à avril ne seront pas intégrés, et il ne faut
+  pas les reproposer. Conséquence à garder en tête : un chantier ouvert en début d'année paraîtra
+  sous-chargé, ce n'est pas une anomalie.
 
 ### Session du 25/08/26 — surveillance automatique, portée des PDP, chantiers multi-lots
 
