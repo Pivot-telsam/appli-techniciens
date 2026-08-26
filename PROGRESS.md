@@ -1,9 +1,10 @@
 # État d'avancement — sessions des 20, 21, 24, 25 et 26/08/2026
 
-Dernier commit au 26/08/2026 : `appli-techniciens` `57642ff`, `suivi-chantiers` `8fd3a0f`.
-Version en ligne de l'appli technicien : `APP_VERSION = 2026-08-26-2`.
-Ces trois valeurs vieillissent vite — les relire avec `git log --oneline -1` dans chaque dépôt
-et `grep '^var APP_VERSION' appli-techniciens/index.html` plutôt que de s'y fier.
+**Ne pas noter ici de numéro de commit ni de version** : ces valeurs sont fausses dès le commit
+suivant, et un fichier de reprise qui se trompe dès sa troisième ligne est pire qu'un fichier
+muet. Pour connaître l'état réel :
+- derniers commits : `git log --oneline -1` dans chaque dépôt ;
+- version en ligne de l'appli : `grep '^var APP_VERSION' appli-techniciens/index.html`.
 
 Ce fichier récapitule une longue session de travail sur les deux dépôts. Objectif : pouvoir
 reprendre le fil après compactage de la conversation, sans perdre le contexte.
