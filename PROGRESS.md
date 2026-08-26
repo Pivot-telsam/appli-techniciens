@@ -432,8 +432,8 @@ des boîtes : cet encart n'était pas sa liste de commande mais ma liste de trav
 écran au lieu d'être traitée. Les 28 devis ont donc été ouverts un par un.
 
 Résultat : **+23 boîtiers WTC2** découverts (St Christol-St Césaire 9, Givors Bans 6, Masquet 3,
-Chafauds-Courelles 3, Bordières-Loudenvielle 2), soit **167 au total**. Cinq boîtiers en chambre
-sur trois liaisons souterraines, d'où un troisième type `CHAMBRE`. Dix-sept chantiers confirmés à
+Chafauds-Courelles 3, Bordières-Loudenvielle 2), soit **167 au total**. Quatre boîtiers en chambre à acheter
+sur deux liaisons souterraines, d'où un troisième type `CHAMBRE`. Dix-sept chantiers confirmés à
 zéro. Il ne reste que 26-021 Gampaloup-Valence, faute de devis reçu.
 
 Deux pièges rencontrés, documentés dans `CLAUDE.md` : un devis qui *mentionne* un boîtier ne veut

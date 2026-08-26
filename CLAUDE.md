@@ -558,7 +558,8 @@ portiques de Chaineau lot 1 selon devis ou CCTP).
 **Trois types, pas deux.** Un troisième est apparu en lisant les devis des liaisons souterraines :
 **CHAMBRE**, pour les boîtiers de jonction posés en chambre. Ce ne sont pas des WTC2 et le prix n'a
 rien à voir (275 € contre 1 175 €) : les compter à part évite de fausser la commande de WTC2.
-Attention aussi au WTC1,5 de Rion des Landes, qui n'est pas un WTC2.
+Attention aussi au WTC1,5 de Rion des Landes, qui n'est pas un WTC2 — et dont le devis exclut la
+fourniture : 1 boîtier à poser, 0 à acheter.
 
 **PIÈGE — « le devis mentionne un boîtier » ne veut pas dire « il y a un boîtier à acheter ».**
 Quatorze devis sur les 28 relus le 26/08/2026 parlaient de boîtiers ; la moitié ne portait que sur
@@ -569,7 +570,7 @@ nacelle reste à prévoir. Et une ligne « Option : fourniture et pose… » ne 
 n'est pas commandée (St-Guillerme).
 
 **État au 26/08/2026** : 44 fiches renseignées sur 45 chantiers actifs, **167 boîtiers WTC2**,
-4 boîtiers OPPC et 5 boîtiers en chambre restant à poser, 29 déjà posés. Reste une seule fiche à
+4 boîtiers OPPC et 4 boîtiers en chambre restant à poser, 29 déjà posés. Reste une seule fiche à
 compléter, 26-021 Gampaloup-Valence, parce qu'aucun devis n'est encore arrivé dessus.
 
 ## PDP : portée poste / ligne — RÈGLE CRITIQUE (posée par Patrice le 25/08/2026)
