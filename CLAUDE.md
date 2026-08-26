@@ -755,3 +755,12 @@ Le bouton « 📁 Ouvrir mes habilitations » de l'appli pointe sur **un dossier
   Même logique que `SEED_VERSION`, côté technicien : sans bump, l'écran d'ouverture ne se rejoue
   pas et le technicien n'a aucun signe qu'il a bien reçu la nouvelle version. Cf. la section
   « Écran d'ouverture animé ».
+  Un hook git local (`scripts/check-app-version.sh`, installé dans `.git/hooks/pre-commit` le
+  26/08/26) bloque tout commit qui touche `index.html` sans incrémenter `APP_VERSION`. Il vérifie
+  aussi le **format `AAAA-MM-JJ-n`** : la date montrée au technicien sous le logo en est déduite,
+  donc un format cassé lui afficherait une date fausse sans erreur nulle part ailleurs. Les trois
+  cas (oubli / format cassé / bump correct) ont été testés en conditions réelles.
+  À réinstaller après un nouveau clone du dépôt, comme celui de `suivi-chantiers` :
+  `cp scripts/check-app-version.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+  (les hooks ne sont pas versionnés par Git lui-même — ce garde-fou ne protège que la machine où
+  il est installé).
