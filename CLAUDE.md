@@ -416,7 +416,27 @@ Le fichier de la période **en cours** vit à la racine de `feuille d'heures/`, 
 sont rangées dans le sous-dossier `recap FH/`. Trois colonnes : Chantier, N° Devis, Total heures.
 Le rapprochement avec les fiches se fait sur le **numéro de devis**, pas sur le libellé (les noms
 du récap ne sont pas ceux du suivi : « FIBRAGE FEYRIAT » pour Fleyriat, « LA VERNEY - ST
-GUILLERMME » pour St-Guillerme).
+GUILLERMME » pour St-Guillerme). Le moyen le plus sûr de trancher un devis inconnu : chercher son
+numéro dans `Telsam Fibre\RTE` — le dossier qui le contient porte souvent l'index du chantier
+(`Ligne aérienne\Livière - Mas Nou 26-025\Devis_TELSAM_CC_26019_…pdf` ⇒ fiche 26-025).
+
+**PIÈGE — les récaps antérieurs à juin 2026 sont à un AUTRE format.** Constaté le 26/08/2026 en
+intégrant mai. Les fichiers de janvier à mai n'ont qu'un onglet (`Feuil1`), **pas d'onglet
+`Chantiers` tout prêt**, et **une seule colonne « heures travaillées » par semaine**, partagée
+entre `chantier 1` et `chantier 2`. Quand un technicien a fait deux chantiers dans la semaine, la
+répartition est écrite **dans la cellule Devis, entre parenthèses** :
+`TELSAMCC26036V3 (14h)` d'un côté, `TELSAMCC26012 (7h)` de l'autre.
+`scripts/skill-recap-feuilles-heures/recalc.py` **ne sait pas les lire** : il cherche une colonne
+`heures Devis N travaillées` juste après chaque colonne de devis, colonne qui n'apparaît qu'à
+partir de juin. Sur un fichier ancien il ne trouve aucune paire et rend **zéro chantier, sans
+lever d'erreur** — donc ne pas se fier à sa sortie. Ces mois-là se dépouillent à part, en lisant
+les blocs de semaine repérés par leur en-tête `S17`, `S18`… en ligne 1.
+
+**RÈGLE — des heures sans chantier ne s'attribuent pas au jugé.** En mai, Ahmed Hamouch a 112 h
+sur quatre semaines sans aucun chantier renseigné, et deux devis (Perche - La Tour de Carol, Postes
+de La Perche et La Tour de Carol) n'ont aucune fiche dans le suivi. Ces heures sont laissées de
+côté et **signalées à Patrice**, jamais rattachées à la fiche qui paraît la plus proche. Restent à
+intégrer si Patrice les envoie : janvier, février, mars, avril.
 
 **PIÈGE — « le mois » est une période de paie, pas un mois calendaire.** Vérifié le 26/08/2026 en
 lisant les en-têtes de semaine de l'onglet `Recap` :
@@ -461,7 +481,8 @@ jamais égal au « TOTAL GÉNÉRAL » du récap. Comparer mois par mois, agence 
 **Contrôle après intégration — c'est lui qui a trouvé les deux erreurs.** Additionner
 `heuresTelsam` par mois sur toutes les fiches et comparer à la somme de l'onglet `Chantiers` du
 récap correspondant, agence déduite. Écart attendu : **zéro**. État vérifié au 26/08/2026 :
-juin 1905, juillet 1417, août 1335, septembre 374 (période en cours, chiffre partiel).
+mai 1229 (7 chantiers sur 9, voir ci-dessus), juin 1905, juillet 1417, août 1335,
+septembre 374 (période en cours, chiffre partiel).
 Vérifier aussi que le `total` de chaque fiche est bien la somme de ses `parMois`.
 
 **Ne pas oublier `SEED_VERSION`.** Sans incrément, un collègue qui a déjà ouvert le fichier garde
