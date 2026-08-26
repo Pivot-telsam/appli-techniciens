@@ -439,6 +439,19 @@ zéro. Il ne reste que 26-021 Gampaloup-Valence, faute de devis reçu.
 Deux pièges rencontrés, documentés dans `CLAUDE.md` : un devis qui *mentionne* un boîtier ne veut
 pas dire qu'il y en a un à acheter (la moitié des mentions portaient sur du raccordement de
 boîtiers existants), et « hors fourniture matériel » ou « Option » ne se comptent pas.
+
+**Vérification demandée par Patrice le 26/08/26, après la découverte sur Rion des Landes.** Deux
+contrôles passés sur l'ensemble des devis lus dans la journée :
+1. *Clause générale d'exclusion de fourniture* : une seule, sur Rion. Les autres mentions de « hors
+   fourniture » portent sur un article précis (TI AFL, nacelle) et étaient déjà traitées.
+2. *Chaque quantité saisie vient-elle d'une ligne « Fourniture » ?* Sur 26 lots chiffrés, 24
+   concordent exactement. Hospitalet vérifié à part (24 confirmés). **Une erreur trouvée :
+   Jonquières-St Césaire**, où j'avais compté 2 Donuts alors que le devis ne contient aucune ligne
+   de fourniture de boîtier — tout y est raccordement ou mise en place de matériel existant, seule
+   la nacelle 51 m est facturée. Remis à 0. Bradascou reste le seul écart connu et assumé (article
+   « Pose » sans « Fourniture »), déjà signalé dans À vérifier.
+
+Totaux après vérification : **167 WTC2, 2 OPPC (Fleyriat seulement), 4 en chambre.**
 ## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
 
 Dans l'ordre où ça se fait :

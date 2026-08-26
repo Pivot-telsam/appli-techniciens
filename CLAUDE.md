@@ -567,10 +567,20 @@ du raccordement de boîtiers DÉJÀ EXISTANTS (Cantegrit, Argia-Hernani, Manoire
 Chafauds-Chaingy). Seule la ligne « **Fourniture** et pose » compte. De même, « hors fourniture
 matériel » (Donuts de Blavozy et d'Asasp) veut dire que le client fournit : zéro à acheter, mais la
 nacelle reste à prévoir. Et une ligne « Option : fourniture et pose… » ne se compte pas tant qu'elle
-n'est pas commandée (St-Guillerme).
+n'est pas commandée (St-Guillerme). Enfin, un devis peut ne contenir AUCUNE ligne de fourniture :
+Jonquières-St Césaire ne fait que raccorder ou mettre en place du matériel existant ou fourni, seule
+la nacelle y est facturée — zéro boîte à acheter.
+
+**Contrôle systématique après chaque saisie.** Pour chaque quantité enregistrée, retrouver dans le
+devis la ligne qui contient à la fois « fournitur » et « boît », et comparer le nombre qui suit la
+cellule d'unité. Fait le 26/08/2026 sur les 26 lots chiffrés : 24 concordent, Hospitalet vérifié à
+part, et Bradascou reste le seul écart connu (article « Pose » sans « Fourniture », déjà dans
+À vérifier). Piège technique de ce contrôle : Word termine chaque cellule de tableau par CR + BEL
+(caractère 7), donc découper le texte sur les seuls retours à la ligne laisse un caractère invisible
+en tête de chaque ligne et plus rien ne correspond. Il faut découper en incluant le caractère 7.
 
 **État au 26/08/2026** : 44 fiches renseignées sur 45 chantiers actifs, **167 boîtiers WTC2**,
-4 boîtiers OPPC et 4 boîtiers en chambre restant à poser, 29 déjà posés. Reste une seule fiche à
+2 boîtiers OPPC (Fleyriat) et 4 boîtiers en chambre restant à poser, 29 déjà posés. Reste une seule fiche à
 compléter, 26-021 Gampaloup-Valence, parce qu'aucun devis n'est encore arrivé dessus.
 
 ## PDP : portée poste / ligne — RÈGLE CRITIQUE (posée par Patrice le 25/08/2026)
