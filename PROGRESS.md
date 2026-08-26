@@ -324,6 +324,64 @@ conservée, sauvegarde de la version précédente faite avant. Piège rencontré
 la puce « • » fait partie du texte, pas du format — remplacer un paragraphe entier la fait
 disparaître.
 
+### Session du 26/08/26 (suite) — heures par chantier : le cumul ne se faisait pas
+
+Patrice a demandé confirmation que les heures des récaps FH mensuels étaient bien cumulées
+chantier par chantier. **Elles ne l'étaient pas.** Les trois récaps (juin, juillet, août) avaient
+été chargés en une seule fois le 19/08/2026, à la création de `suivi_chantiers_205.html`, et rien
+n'avait bougé depuis — l'historique Git le confirme (aucun commit ne touche `heuresTelsam` en
+dehors de la scission de Chaineau). Aucune règle n'existait pour dire « à chaque envoi, mettre à
+jour ». Elle existe maintenant : `CLAUDE.md`, section « Heures cumulées par chantier ».
+
+**Deux erreurs trouvées en vérifiant** (en comparant le suivi aux onglets `Chantiers` des récaps,
+ligne à ligne) :
+- **Chaineau comptait double, 70 h fantômes.** Le récap distingue les lots : 42 h en juin sur le
+  lot 2, 28 h en août sur le lot 1. La scission du 25/08/26 avait recopié les deux montants sur
+  les deux fiches. Corrigé : lot 1 = 28 h (août), lot 2 = 42 h (juin) + 63 h (septembre).
+- **Poste de Portet : 819 h enregistrées contre 817 h au récap.** Deux heures de trop, sans
+  explication. Aligné sur le récap.
+
+**Récap de septembre intégré** (374 h sur 6 chantiers) — c'est la période **en cours** (S34-S38),
+donc un chiffre partiel qui sera réécrit aux prochains envois. Dambron - Voves n'avait aucune
+ligne d'heures : elle a été créée. `SEED_VERSION` passée de `v97-2026-08-25i` à `v98-2026-08-26`.
+
+**Contrôle final, écart zéro sur les quatre périodes** : juin 1905, juillet 1417, août 1335,
+septembre 374 — chaque total égal à la somme de l'onglet `Chantiers` du récap correspondant,
+lignes « Agence » déduites (14 h en juin, 63 h en juillet, non rattachables à un chantier).
+
+**Découverte à retenir : les récaps FH sont des périodes de paie, pas des mois calendaires.**
+Juin = S21-S25, juillet = S26-S29, août = S30-S33 (soit 20/07 → 16/08), septembre = S34-S38.
+D'où Anneyron - St Vallier, terminé le 28/07, qui porte 112 h « en août ». Détail et tableau dans
+`CLAUDE.md`.
+
+### Session du 26/08/26 (suite) — quantités de boîtes WTC2 relevées dans les devis
+
+Patrice préparait ses achats de boîtiers WC2 et sa location de nacelles. Le suivi ne chiffrait
+que 5 chantiers ; les quantités réelles sont dans les devis, article par article. **19 devis lus**
+(`Telsam Fibre\RTE`, dossiers `DEVIS` de chaque chantier).
+
+Résultat : **173 boîtiers WTC2 chiffrés**, dont 29 déjà posés (phases 2025 de Lannemezan, 9
+d'Arcomie en juillet) → **144 restent à poser**, plus **2 boîtiers de jonction OPPC** à Fleyriat
+(pylônes 125 et 135). Export livré : `Boites_WTC2_Reste_A_Poser.xlsx` sur le Bureau, deux onglets
+(reste à poser / points à trancher). Page de synthèse publiée en Artifact.
+
+**Règle métier confirmée par les devis : les boîtiers WTC2 se posent en pied de pylône, donc sans
+nacelle.** La nacelle sert pour l'OPPC, les tores PMC, les transitions isolantes et les LOP ADSS.
+Elle est chiffrée sur Fleyriat (4x4, à notre charge), Jonquières-St Césaire (51 m), Arcomie et
+Bruges-Galus ; elle est explicitement **exclue** du devis Colayrac-Gupie.
+
+**Sept écarts entre documents signalés et non arbitrés** (dans l'onglet 2 de l'export) : Bradascou
+7 ou 10, qui commande les boîtes OPPC de Fleyriat, le pylône 91 manquant chez Lannemezan INEO, le
+pylône 55 compté deux fois entre les deux lots Lannemezan, les portiques de Chaineau lot 1, le
+devis complément Colayrac déjà absorbé par le V5.
+
+**Outil découvert : lire un PDF sans poppler.** `pdftoppm` n'est pas installé, donc l'outil Read
+ne peut pas ouvrir les PDF. La parade qui marche : `Documents.Open($pdf)` en COM Word (conversion
+PDF → texte intégrée à Word), puis `Content.Text`. Attention, `Content.Text` sur le `.doc`
+d'origine ne suffit pas : le tableau du devis est un objet Excel incorporé, invisible pour lui —
+il faut passer par le PDF.
+
+
 ## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
 
 Dans l'ordre où ça se fait :

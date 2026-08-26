@@ -401,6 +401,59 @@ les mauvaises cases sans prévenir. De plus Patrice y ajoute sa propre connaissa
 (un « Orléans, 35h » devient 21h sur Chaineau + 14h sur Dambron). Ne pas écrire de lecteur
 automatique pour ces fichiers : l'appli résout le problème à la source.
 
+## Heures cumulées par chantier — RÈGLE (posée par Patrice le 26/08/2026)
+
+**À chaque nouveau récap FH reçu, mettre à jour `heuresTelsam` dans `SEED_DATA`.** C'est le seul
+endroit où le temps réellement passé s'accumule chantier par chantier, et il ne se remplit pas
+tout seul : jusqu'au 26/08/2026 les trois premiers récaps avaient été chargés en une fois à la
+création du fichier (19/08/2026) et plus rien n'avait bougé depuis. Patrice l'a demandé
+explicitement : « dès qu'un nouveau fichier est ajouté, on met à jour la durée cumulée des
+chantiers ».
+
+**Où lire.** Onglet **`Chantiers`** de
+`TELSAM TEAM Dropbox/Patrice PIVOT/feuille d'heures/recap FH/recap_FH-<mois>.xlsx`.
+Le fichier de la période **en cours** vit à la racine de `feuille d'heures/`, les périodes closes
+sont rangées dans le sous-dossier `recap FH/`. Trois colonnes : Chantier, N° Devis, Total heures.
+Le rapprochement avec les fiches se fait sur le **numéro de devis**, pas sur le libellé (les noms
+du récap ne sont pas ceux du suivi : « FIBRAGE FEYRIAT » pour Fleyriat, « LA VERNEY - ST
+GUILLERMME » pour St-Guillerme).
+
+**PIÈGE — « le mois » est une période de paie, pas un mois calendaire.** Vérifié le 26/08/2026 en
+lisant les en-têtes de semaine de l'onglet `Recap` :
+
+| fichier | semaines | période réelle |
+| --- | --- | --- |
+| juin | S21-S25 | 18/05 → 21/06 |
+| juillet | S26-S29 | 22/06 → 19/07 |
+| août | S30-S33 | 20/07 → 16/08 |
+| septembre | S34-S38 | 17/08 → 20/09 |
+
+On garde quand même l'étiquette du fichier (`"mois":"2026-08"`), c'est celle que Patrice emploie.
+Mais **ne jamais en déduire une date de travaux** : c'est ce qui fait qu'Anneyron - St Vallier,
+chantier terminé le 28/07/26, porte 112 h « en août ». Ce sont ses heures de fin juillet.
+
+**RÈGLE — on REMPLACE la valeur du mois, on ne l'additionne pas.** Le fichier de la période en
+cours est réécrit semaine après semaine. Additionner au lieu de remplacer doublerait les heures à
+chaque envoi.
+
+**RÈGLE — un lot = ses propres heures.** Le récap distingue les lots (« LA CHAINEAU-CORDY-LAMOTTE
+LOT 1 » et « LOT 2 » sont deux lignes, avec deux numéros de devis). Ne jamais recopier le même
+montant sur les deux fiches. Erreur commise le 25/08/26 en scindant Chaineau : 42 h de juin et
+28 h d'août recopiées sur les deux lots, soit 70 h fantômes, corrigées le 26/08/26.
+
+**Les lignes « Agence » / « contribution agence » ne se rattachent à aucun chantier** : les
+laisser de côté (14 h en juin, 63 h en juillet). Conséquence : le total de `heuresTelsam` ne sera
+jamais égal au « TOTAL GÉNÉRAL » du récap. Comparer mois par mois, agence déduite.
+
+**Contrôle après intégration — c'est lui qui a trouvé les deux erreurs.** Additionner
+`heuresTelsam` par mois sur toutes les fiches et comparer à la somme de l'onglet `Chantiers` du
+récap correspondant, agence déduite. Écart attendu : **zéro**. État vérifié au 26/08/2026 :
+juin 1905, juillet 1417, août 1335, septembre 374 (période en cours, chiffre partiel).
+Vérifier aussi que le `total` de chaque fiche est bien la somme de ses `parMois`.
+
+**Ne pas oublier `SEED_VERSION`.** Sans incrément, un collègue qui a déjà ouvert le fichier garde
+les anciennes heures et la mise à jour est invisible. Le hook pre-commit le vérifie.
+
 ## PDP : portée poste / ligne — RÈGLE CRITIQUE (posée par Patrice le 25/08/2026)
 
 **Un PDP autorise un périmètre précis. UN PDP LIGNE N'OUVRE PAS LA PORTE D'UN POSTE.** Dès qu'il
