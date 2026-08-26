@@ -114,6 +114,19 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
   coup). À l'inverse, changer la version efface tout état local resté seulement dans l'UI et
   jamais reporté dans `SEED_DATA`. **Réflexe : incrémenter `SEED_VERSION` à la fin de CHAQUE
   session de modifications de `SEED_DATA`, juste avant de committer.**
+- **CE QUE PATRICE SAISIT DANS L'APPLI NE VA PAS DANS LE FICHIER — à lui redire, jamais l'oublier.**
+  `saveEdit()` → `saveChantier()` → `storeSet()` écrit dans **IndexedDB**, c'est-à-dire dans le
+  navigateur de la machine où il travaille. Le fichier `suivi_chantiers_205.html`, celui qu'il
+  renvoie à ses collègues, n'en sait rien. Trois conséquences, dans l'ordre de gravité :
+  1. ses modifications **sont effacées** au prochain bump de `SEED_VERSION`, parce que
+     `ensureSeeded()` fait `chantiers = {}` puis recharge tout depuis `SEED_DATA` ;
+  2. ses collègues ne les voient jamais ;
+  3. elles n'existent pas sur une autre machine ni dans un autre navigateur.
+  Le formulaire de modification sert donc à **essayer**, pas à tenir des comptes. Signalé à Patrice
+  le 26/08/2026, le jour où le champ `boites` a été ajouté avec sa saisie — il avait justement
+  demandé « je pourrai modifier au fur et à mesure et ça s'enregistrera ? ». La réponse est non.
+  **La seule voie durable : Patrice dit le chiffre, Claude l'écrit dans `SEED_DATA`, bump, commit.**
+  Ne jamais lui proposer de saisir lui-même quelque chose qui doit durer ou être partagé.
 - Le PGO peut afficher un statut global "ok" tout en ayant un trou de couverture précis sur une
   semaine où une équipe est présente (cas réel Fleyriat/Lisieux, 18/08/26) — toujours croiser
   `pgo.statut` ET les dates précises de `pgo.couverture`, jamais se fier au seul statut global.
