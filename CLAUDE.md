@@ -505,6 +505,61 @@ Vérifier aussi que le `total` de chaque fiche est bien la somme de ses `parMois
 **Ne pas oublier `SEED_VERSION`.** Sans incrément, un collègue qui a déjà ouvert le fichier garde
 les anciennes heures et la mise à jour est invisible. Le hook pre-commit le vérifie.
 
+## Boîtes WTC2 et nacelle — onglet du suivi (mis en place le 26/08/2026)
+
+Onglet **« Boîtes & nacelle »** de `suivi_chantiers_205.html`, demandé par Patrice pour préparer
+ses achats de boîtiers et ses locations de nacelle. **Il n'existe que dans le suivi ; l'appli des
+techniciens n'est pas concernée et ne doit pas l'être.**
+
+**RÈGLE — à chaque nouveau chantier, renseigner les boîtes.** C'est la raison d'être de l'onglet.
+Un chantier actif sans boîtes renseignées apparaît dans l'encart « À compléter » en haut de la vue,
+et y reste jusqu'à ce qu'on le remplisse. **Un chantier sans aucune boîte à poser se renseigne
+avec 0** — c'est ce qui le fait sortir de la liste. Laisser le champ vide n'est pas une réponse :
+ça veut dire « pas encore regardé ».
+
+**Où se trouve le chiffre.** Dans le **devis** du chantier (dossier `DEVIS` de son dossier
+Dropbox), article « Fourniture et pose boîtier type WTC2 avec son support et ses brides ». La
+quantité y est explicite et la liste des pylônes avec. **Ne jamais l'estimer** : la relever.
+Stocker la référence du devis dans le champ prévu, pour pouvoir revérifier sans refaire la
+recherche.
+
+**Structure du champ** (`boites` sur chaque fiche) :
+```
+boites: {
+  lots: [ { type, auDevis, posees, pylones, periode, devis, libelle } ],
+  nacelle: "",   // ce que dit le devis, vide si aucune nacelle prévue
+  remarque: ""
+}
+```
+`lots` est un tableau : un chantier peut en avoir plusieurs. Fleyriat (26-055) a un lot THYM et un
+lot OPPC ; Bérat-Portet (26-034) a le lot Bouygues et le lot Lebag ; Lannemezan (26-066) a INEO et
+OMEXOM. Le champ `libelle` sert à les distinguer dans la vue.
+
+**Les deux types, à ne pas confondre — c'est ce qui commande le budget nacelle :**
+- **THYM** : boîtier WTC2, posé **en pied** de pylône ou de portique. **Pas de nacelle.**
+- **OPPC** : boîtier posé **sur le conducteur** (CBJ, Donuts). **Nacelle obligatoire**, et le prix
+  n'a rien à voir : 4 750 € la boîte OPPC nacelle comprise à Fleyriat, contre 1 175 € le WTC2.
+
+Le nombre de boîtes ne dit donc rien du besoin en nacelle. Ce sont deux lectures différentes, d'où
+la section « Nacelle » séparée dans la vue.
+
+**Saisie.** Formulaire de modification d'une fiche, trois champs en bas : un textarea (une ligne
+par lot, champs séparés par `|` dans l'ordre *type | au devis | posées | pylônes | période | devis
+| libellé*), puis nacelle et remarque. Le parseur est volontairement tolérant : champ manquant =
+vide, quantité non numérique = 0, type non reconnu = THYM. Mieux vaut une ligne imparfaite
+enregistrée qu'une saisie refusée, la vue montre de toute façon ce qui a été compris.
+
+**Les écarts entre documents ne vont PAS dans cet onglet** mais dans `aVerifier`, donc dans
+l'onglet « À vérifier », avec les autres points en attente d'arbitrage. Cinq y ont été versés le
+26/08/2026 (Bradascou 10 boîtes « pose » sans « fourniture » ; qui commande les OPPC de Fleyriat ;
+pylône 91 manquant chez Lannemezan INEO ; pylône 55 compté dans les deux lots Lannemezan ;
+portiques de Chaineau lot 1 selon devis ou CCTP).
+
+**État au 26/08/2026** : 17 fiches renseignées, 144 boîtiers WTC2 et 4 boîtiers OPPC restant à
+poser, 29 déjà posés, nacelle documentée sur 7 chantiers, 28 chantiers actifs encore à compléter.
+Ces 17 fiches viennent de la lecture de 19 devis ; le détail est dans
+`Boites_WTC2_Reste_A_Poser.xlsx` sur le Bureau de Patrice.
+
 ## PDP : portée poste / ligne — RÈGLE CRITIQUE (posée par Patrice le 25/08/2026)
 
 **Un PDP autorise un périmètre précis. UN PDP LIGNE N'OUVRE PAS LA PORTE D'UN POSTE.** Dès qu'il

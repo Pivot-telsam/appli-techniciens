@@ -391,6 +391,40 @@ d'origine ne suffit pas : le tableau du devis est un objet Excel incorporé, inv
 il faut passer par le PDF.
 
 
+
+### Session du 26/08/26 (suite) — onglet « Boîtes & nacelle » dans le suivi
+
+Demande de Patrice : un onglet dans le suivi reprenant le contenu de l'artifact des boîtes WTC2,
+« pour que nous le mettions à jour systématiquement, à chaque nouveau chantier ».
+
+**Choix de conception : les données vivent dans chaque fiche chantier** (champ `boites`), pas dans
+une table à part. Conséquence voulue : un chantier neuf arrive avec `boites.lots` vide, donc
+remonte tout seul dans l'encart « À compléter » de la vue. C'est le rappel demandé, sans qu'aucune
+liste séparée n'ait à être tenue à jour. Détail de la structure et des règles dans `CLAUDE.md`,
+section « Boîtes WTC2 et nacelle ».
+
+Ajouté au suivi : le bouton d'onglet, la vue `renderBoitesView()`, trois champs dans le formulaire
+de modification (textarea des lots, nacelle, remarque) avec leur parseur tolérant, et le champ
+`boites` dans `defaultChantier()`. 17 fiches renseignées à partir des 19 devis lus plus tôt dans la
+journée. `SEED_VERSION` passée à `v100-2026-08-26`.
+
+**Les 5 écarts entre documents n'ont pas été mis dans le nouvel onglet** mais versés dans
+`aVerifier`, donc dans l'onglet « À vérifier » qui existe déjà pour ça — plutôt que de créer une
+deuxième liste de points en attente que personne ne regarderait.
+
+**Bug ANTÉRIEUR trouvé en testant : le bouton « Modifier » d'une fiche ne fonctionnait pas.**
+`editCardHtml()` appelle `feText()` pour afficher les fenêtres, fonction **utilisée mais jamais
+définie** — vérifié dans `git show HEAD` : une seule occurrence, l'appel, aucune définition. Ouvrir
+le formulaire levait donc `feText is not defined` et la fiche ne s'ouvrait pas du tout. Trouvé
+seulement parce que je testais la saisie des boîtes à l'écran ; aucun contrôle sur le fichier ne
+l'aurait révélé. Corrigé par une fonction tolérante (chaîne renvoyée telle quelle, variante objet
+gardée par prudence pour d'anciennes données en cache navigateur).
+
+**Vérifications faites à l'écran, pas sur le papier** : onglet affiché sans erreur console,
+aller-retour texte → objets → texte sans perte sur Fleyriat (le cas à deux lots THYM + OPPC),
+cycle complet saisie → enregistrement → total recalculé (144 → 142 après avoir marqué 2 boîtes
+posées sur DATA4), et les 5 points visibles dans « À vérifier ».
+
 ## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
 
 Dans l'ordre où ça se fait :
