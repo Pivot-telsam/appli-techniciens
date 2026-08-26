@@ -579,6 +579,25 @@ part, et Bradascou reste le seul écart connu (article « Pose » sans « Fourni
 (caractère 7), donc découper le texte sur les seuls retours à la ligne laisse un caractère invisible
 en tête de chaque ligne et plus rien ne correspond. Il faut découper en incluant le caractère 7.
 
+**Mettre à jour les boîtes posées — accord passé avec Patrice le 26/08/2026.** Quand il le demande,
+lire les dossiers **« Suivi »** / « suivi de chantier » des chantiers concernés dans le Dropbox, et :
+- **écrire seul** ce qui est dit explicitement. Exemple qui se suffit à lui-même, Givors Ban du
+  10/08/26 : « installation wtc2 portique et pylône 1 » ⇒ 2 posées, aucune interprétation.
+- **soumettre à Patrice** tout ce qui demande de traduire. « BE au pylônes 63 et 55 fait »
+  (St Christol) suppose que BE = boîte d'épissure ; « raccordement : pyl65 pyl66… » (Arcomie) ne dit
+  pas que la boîte a été posée. Montrer ce qu'on a compris, laisser Patrice trancher.
+- ce que les fichiers ne disent pas, **Patrice le complète lui-même** : ne pas le déduire.
+
+**Attention à la couverture, elle est faible.** Au 26/08/2026 : 12 chantiers ont un dossier
+« Suivi », et sur ceux qui ont des boîtes à poser, **3 seulement** contiennent un texte exploitable.
+Bissy - Grand Île (8 boîtes) et Fleyriat (11 + 2) ont un dossier **vide**. Les fichiers sont aussi
+souvent en retard : celui de Givors datait du 10/08 et ne couvrait pas les poses du 17 au 23/08.
+Ne jamais conclure « rien n'a été posé » de l'absence d'écrit.
+
+**À revoir quand le fichier normé existera.** Patrice prévoit de mettre en place un fichier de suivi
+de chantier normalisé. Le jour où il est en place, cette règle est à réécrire : la lecture pourra
+devenir automatique et la part « soumettre à Patrice » disparaîtra en grande partie.
+
 **État au 26/08/2026** : 44 fiches renseignées sur 45 chantiers actifs, **167 boîtiers WTC2**,
 2 boîtiers OPPC (Fleyriat) et 4 boîtiers en chambre restant à poser, 29 déjà posés. Reste une seule fiche à
 compléter, 26-021 Gampaloup-Valence, parce qu'aucun devis n'est encore arrivé dessus.
