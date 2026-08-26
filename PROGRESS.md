@@ -288,6 +288,29 @@ deuxième ouverture (pas d'animation), changement de version (« Mise à jour in
 pour passer, lien personnel `?tech=` qui arrive bien sur la fiche du technicien, zéro erreur
 console, alignement du « s » à 0 pixel.
 
+**Mis en ligne** : `appli-techniciens` `d410ddd` puis `926153c`, `suivi-chantiers` `b21176e` puis
+`c872195`. `APP_VERSION` en ligne = `2026-08-26-1`.
+
+**Garde-fou ajouté** (`scripts/check-app-version.sh`, installé en `.git/hooks/pre-commit`) :
+bloque un commit qui touche `index.html` sans incrémenter `APP_VERSION`, et vérifie le format
+`AAAA-MM-JJ-n` puisque la date montrée au technicien en est déduite. Les trois cas testés :
+oubli bloqué, format cassé bloqué, bump correct accepté. Même remède que pour `SEED_VERSION`,
+où la consigne écrite seule n'avait pas suffi.
+
+**Question de Patrice en fin de matinée, à ne pas oublier :** il rechargeait la page avec la
+flèche du navigateur et ne revoyait pas l'animation. **C'est le comportement voulu**, pas un
+défaut — recharger n'est pas une mise à jour. Refait devant lui les trois étapes d'affilée pour
+le prouver plutôt que l'affirmer. Règle écrite dans `CLAUDE.md` avec la mention explicite de ne
+jamais « réparer » ça.
+
+**Consigne technicien mise à jour** (`Appli_TELSAM_Consigne_Technicien.docx` + `.pdf` sur le
+Bureau, celle qui part avec le mail aux 13) : la puce sur le cache a été remplacée par une puce
+qui explique l'animation et en fait le signal — *« si tu ne vois PAS l'animation après une mise à
+jour annoncée, tu as encore l'ancienne version »*. Document modifié en place, mise en forme
+conservée, sauvegarde de la version précédente faite avant. Piège rencontré : dans ce document
+la puce « • » fait partie du texte, pas du format — remplacer un paragraphe entier la fait
+disparaître.
+
 ## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
 
 Dans l'ordre où ça se fait :

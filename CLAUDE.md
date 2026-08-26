@@ -675,6 +675,26 @@ logo complet apparaît exactement autour de lui. Environ 3 s, une tape sur l'éc
 - Si le `localStorage` est indisponible, on n'affiche RIEN plutôt que de rejouer l'animation à
   chaque ouverture : une animation subie à chaque lancement serait vite insupportable.
 
+**RECHARGER LA PAGE N'EST PAS UNE MISE À JOUR — et l'animation ne doit PAS s'y rejouer.**
+C'est voulu, ce n'est pas un défaut à corriger. Patrice l'a signalé le 26/08/26 : il ouvrait
+`index.html` en local, appuyait sur la flèche de rechargement du navigateur et ne revoyait pas
+l'animation. Comportement correct : la version du fichier n'a pas changé, donc rien à annoncer.
+Sans cette règle, un technicien se prendrait l'animation à chaque retour sur l'appli dans la
+journée — insupportable en trois jours, et le signal perdrait tout son sens à force d'être vu.
+Vérifié en conditions réelles le 26/08/26, les trois étapes d'affilée : première ouverture →
+animation ; rechargement → rien ; changement réel d'`APP_VERSION` dans le fichier → animation
+avec « Mise à jour installée ». **Ne jamais "réparer" l'absence de rejeu au rechargement.**
+
+**Conséquence pratique pour Patrice, à lui redire si besoin :** si un technicien ne voit PAS
+l'animation après une mise à jour annoncée, ce n'est pas que ça ne marche pas — c'est qu'il a
+encore l'ancienne version en cache. Il ferme complètement l'onglet et rouvre son lien. Constaté
+sur le site en ligne le 26/08/26 : la première ouverture, dix minutes après le push, servait
+encore la version précédente.
+
+**Les mémoires sont séparées par origine.** Le fichier ouvert en local (`file://`) et le site
+`pivot-telsam.github.io` ont chacun leur `localStorage` : un essai de Patrice sur son PC
+n'influence en rien ce que voient les techniciens, et inversement.
+
 **Le tracé du « s » est un relevé au pixel du logo, pas un dessin à main levée.** Il vit dans le
 même repère que l'image (`viewBox 0 0 550 291`) et son agrandissement est centré sur le centre du
 « s » (52.18 % ; 52.41 %). En revenant à l'échelle 1 il se pose donc exactement sur le « s » du
