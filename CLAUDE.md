@@ -432,9 +432,22 @@ On garde quand même l'étiquette du fichier (`"mois":"2026-08"`), c'est celle q
 Mais **ne jamais en déduire une date de travaux** : c'est ce qui fait qu'Anneyron - St Vallier,
 chantier terminé le 28/07/26, porte 112 h « en août ». Ce sont ses heures de fin juillet.
 
-**RÈGLE — on REMPLACE la valeur du mois, on ne l'additionne pas.** Le fichier de la période en
-cours est réécrit semaine après semaine. Additionner au lieu de remplacer doublerait les heures à
-chaque envoi.
+**RÈGLE — on REMPLACE la valeur d'une période, et on additionne les périodes entre elles.**
+Formulée trop vite le 26/08/2026, cette règle était incompréhensible ; Patrice a demandé qu'elle
+soit réécrite. L'exemple qui la rend claire, Dambron - Voves :
+
+| moment | ce que dit le récap de septembre | ce qu'on écrit |
+| --- | --- | --- |
+| 26/08/26 | Dambron - Voves — 42 h | `{"mois":"2026-09","heures":42}` |
+| une semaine plus tard, même fichier complété | Dambron - Voves — **105 h** | `{"mois":"2026-09","heures":105}` |
+
+Le chiffre du récap **est déjà le cumul de la période** : le classeur fait l'addition lui-même,
+semaine après semaine, dans le même fichier. Écrire `42 + 105 = 147` compterait donc les 42
+premières heures deux fois — une fois seules, une fois incluses dans les 105.
+
+Le cumul demandé par Patrice se fait **entre** les périodes, pas à l'intérieur de l'une d'elles :
+Chaineau lot 2 = 42 h (juin, figée) + 63 h (septembre, encore mouvante) = 105 h, et ce total
+grandira à chaque nouvelle période.
 
 **RÈGLE — un lot = ses propres heures.** Le récap distingue les lots (« LA CHAINEAU-CORDY-LAMOTTE
 LOT 1 » et « LOT 2 » sont deux lignes, avec deux numéros de devis). Ne jamais recopier le même
