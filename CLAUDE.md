@@ -432,10 +432,22 @@ partir de juin. Sur un fichier ancien il ne trouve aucune paire et rend **zéro 
 lever d'erreur** — donc ne pas se fier à sa sortie. Ces mois-là se dépouillent à part, en lisant
 les blocs de semaine repérés par leur en-tête `S17`, `S18`… en ligne 1.
 
-**RÈGLE — des heures sans chantier ne s'attribuent pas au jugé.** En mai, Ahmed Hamouch a 112 h
-sur quatre semaines sans aucun chantier renseigné, et deux devis (Perche - La Tour de Carol, Postes
-de La Perche et La Tour de Carol) n'ont aucune fiche dans le suivi. Ces heures sont laissées de
-côté et **signalées à Patrice**, jamais rattachées à la fiche qui paraît la plus proche.
+**RÈGLE — des heures sans chantier ne s'attribuent pas au jugé.** Elles sont laissées de côté et
+**signalées à Patrice**, jamais rattachées à la fiche qui paraît la plus proche. Les deux cas
+rencontrés en mai ont été tranchés par Patrice le 26/08/2026 et sont **clos — ne pas les
+rouvrir** :
+
+- **Ahmed HAMOUCH : ses heures ne vont jamais sur un chantier.** Il est chargé d'affaires, pas
+  technicien de chantier — c'est le seul nom de `TECHS_SANS_CHANTIER` (cf. « Cas particuliers de
+  techniciens » plus haut). Vérifié sur les cinq récaps de mai à septembre : aucun numéro de devis
+  sur sa ligne, donc rien ne lui a jamais été attribué à tort. Ses heures vivent au récap RH, pas
+  dans `heuresTelsam`. Ne pas reposer la question à chaque mois.
+- **Perche - La Tour de Carol et Postes de La Perche et La Tour de Carol : hors périmètre.** Ces
+  deux devis (`TELSAMCC24172` et `TELSAMCC25009`, 273 h en mai) n'ont pas de fiche dans le suivi et
+  n'en auront pas. Surtout, **ne pas les rattacher à Hospitalet - La Tour de Carol (26-027)** : le
+  nom se ressemble mais c'est un autre chantier, avec son propre dossier Dropbox.
+
+Pour tout **nouveau** cas d'heures sans chantier, la règle tient : signaler, ne pas décider seul.
 
 **L'historique des heures commence à MAI 2026. Décision de Patrice le 26/08/2026 : ne pas
 remonter plus loin.** Avant mai, les chantiers n'étaient pas renseignés sur le récap — les

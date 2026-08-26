@@ -197,6 +197,11 @@ ils seront réintégrés lors de la prochaine commande sur la S35.
 - Les adresses issues de NDS sous-traitant (EDEA pour Curbans-Sisteron, EQOS pour Bruges-Galus)
   sont valides, pas besoin de NDS TELSAM propre.
 - Les ICP (visites préalables) ne justifient jamais la création d'une fiche chantier.
+- **Les heures d'Ahmed Hamouch ne vont jamais sur un chantier** (26/08/26). Il est chargé
+  d'affaires. Ses heures restent au récap RH, jamais dans `heuresTelsam`.
+- **Perche - La Tour de Carol et Postes de La Perche et La Tour de Carol sont hors périmètre**
+  (26/08/26). Pas de fiche à créer, et surtout pas de rattachement à Hospitalet - La Tour de Carol
+  (26-027), qui est un autre chantier.
 - **Le cumul des heures par chantier démarre à mai 2026** (26/08/26). Avant mai, les chantiers
   n'étaient pas renseignés sur le récap FH : janvier à avril ne seront pas intégrés, et il ne faut
   pas les reproposer. Conséquence à garder en tête : un chantier ouvert en début d'année paraîtra
