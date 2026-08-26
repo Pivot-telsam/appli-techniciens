@@ -38,6 +38,23 @@ if [ -z "$NOUVELLE" ] || [ "$ANCIENNE" = "$NOUVELLE" ]; then
   exit 1
 fi
 
+# Une nouvelle version doit dire ce qu'elle change, sinon le technicien relit la
+# phrase de la fois precedente — pire que pas de phrase du tout, parce qu'elle a
+# l'air a jour.
+NOUVEAUTE_CHANGEE=$(printf '%s\n' "$DIFF" | grep -cE "^\+var APP_NOUVEAUTE")
+
+if [ "$NOUVEAUTE_CHANGEE" -eq 0 ]; then
+  echo ""
+  echo "ERREUR pre-commit : APP_VERSION passe a '$NOUVELLE' mais APP_NOUVEAUTE n'a pas change."
+  echo "Le technicien lirait le message de la mise a jour precedente, en croyant"
+  echo "qu'il decrit celle-ci."
+  echo "-> Reecris APP_NOUVEAUTE : une phrase, de son point de vue, honnete meme"
+  echo "   quand la reponse est 'rien qui te concerne cette fois'."
+  echo "   (ou 'git commit --no-verify' pour forcer, deconseille)"
+  echo ""
+  exit 1
+fi
+
 # La date affichee sous le logo est deduite de APP_VERSION : un format casse
 # donnerait une date absurde au technicien, sans erreur visible ailleurs.
 if ! printf '%s' "$NOUVELLE" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]+$'; then

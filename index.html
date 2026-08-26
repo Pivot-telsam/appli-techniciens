@@ -11,7 +11,17 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-08-26-1';
+var APP_VERSION = '2026-08-26-2';
+
+/* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
+   son point de vue. Affichee sous la date, uniquement quand c'est une mise a
+   jour (pas a la premiere ouverture, ou elle n'aurait pas de sens).
+   A REECRIRE A CHAQUE MISE EN LIGNE, en meme temps qu'APP_VERSION : le hook
+   pre-commit refuse un bump sans phrase nouvelle, sinon le technicien lirait
+   le message de la fois precedente. Une phrase honnete a chaque fois, y compris
+   « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
+   trois semaines. Garder court, une ligne ou deux au maximum.              */
+var APP_NOUVEAUTE = "Nouveau : à chaque mise à jour, cet écran te dira en une phrase ce qui change pour toi.";
 (function(){
   try{
     var vue = localStorage.getItem('telsam_version_vue');
@@ -422,6 +432,21 @@ html.maj-vue #splashLogo{display:none;}
   text-align:center; padding:0 24px; opacity:0;
   animation:spUp .50s ease-out 2.70s forwards;}
 .sp-maj b{color:var(--cyan); font-weight:700;}
+/* La phrase « ce qui change » : plus lisible que la date, c'est elle qu'on veut
+   faire lire. Elle n'apparait qu'apres l'animation, avec le bouton. */
+.sp-nouveau{font-size:14px; line-height:1.5; color:var(--text); margin-top:15px;
+  z-index:3; text-align:center; padding:0 26px; max-width:34ch; opacity:0;
+  animation:spUp .50s ease-out 2.86s forwards;}
+/* L'ecran ne part QUE par ce bouton (decision de Patrice, 26/08/26) : sans lui,
+   la phrase ne resterait affichee qu'une demi-seconde. Il n'apparait qu'a la fin,
+   donc une tape reflexe pendant l'animation ne saute rien. */
+.sp-btn{margin-top:22px; z-index:3; opacity:0;
+  background:var(--amber); color:#1A1200; border:none; border-radius:12px;
+  padding:13px 34px; font-size:15.5px; font-weight:800; cursor:pointer;
+  font-family:inherit;
+  animation:spUp .50s ease-out 3.02s forwards;}
+.sp-btn:active{transform:translateY(1px);}
+.sp-btn:focus-visible{outline:2px solid var(--cyan); outline-offset:3px;}
 
 @keyframes spSite{0%{opacity:0; transform:scale(.2);} 100%{opacity:.95; transform:scale(1);}}
 @keyframes spLink{to{stroke-dashoffset:0;}}
@@ -443,7 +468,8 @@ html.maj-vue #splashLogo{display:none;}
   #splashLogo *{animation:none !important;}
   #splashLogo .sp-net, #splashLogo .sp-draw, #splashLogo .sp-ring{display:none;}
   #splashLogo .sp-plate{opacity:1; transform:none;}
-  #splashLogo .sp-tag, #splashLogo .sp-maj{opacity:1;}
+  #splashLogo .sp-tag, #splashLogo .sp-maj,
+  #splashLogo .sp-nouveau, #splashLogo .sp-btn{opacity:1;}
 }
 </style>
 </head>
@@ -513,6 +539,8 @@ html.maj-vue #splashLogo{display:none;}
   </div>
   <div class="sp-tag">Sur le terrain</div>
   <div class="sp-maj" id="spMaj"></div>
+  <div class="sp-nouveau" id="spNouveau"></div>
+  <button class="sp-btn" id="spBtn" type="button">Continuer</button>
 </div>
 <script>
 (function(){
@@ -527,13 +555,17 @@ html.maj-vue #splashLogo{display:none;}
 
   var p = APP_VERSION.slice(0,10).split('-');
   var leJour = p[2]+'/'+p[1]+'/'+p[0];
-  document.getElementById('spMaj').innerHTML =
-    (racine.className.indexOf('premiere-visite') >= 0)
+  var premiereVisite = racine.className.indexOf('premiere-visite') >= 0;
+  document.getElementById('spMaj').innerHTML = premiereVisite
       ? 'Bienvenue — version du <b>'+leJour+'</b>'
       : 'Mise à jour installée — <b>'+leJour+'</b>';
 
-  var reduit = window.matchMedia
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* La phrase « ce qui change » n'a de sens que sur une mise à jour : à la
+     première ouverture, il n'y a pas d'« avant » à comparer. */
+  if(!premiereVisite && typeof APP_NOUVEAUTE === 'string' && APP_NOUVEAUTE){
+    document.getElementById('spNouveau').textContent = APP_NOUVEAUTE;
+  }
+
   var fini = false;
   function fermer(){
     if(fini) return;
@@ -541,9 +573,16 @@ html.maj-vue #splashLogo{display:none;}
     el.classList.add('sortie');
     setTimeout(function(){ if(el.parentNode) el.remove(); }, 500);
   }
-  var minuteur = setTimeout(fermer, reduit ? 1100 : 3250);
-  /* Un technicien pressé passe l'animation d'une simple tape. */
-  el.addEventListener('click', function(){ clearTimeout(minuteur); fermer(); });
+
+  /* L'écran ne se ferme QUE par le bouton : l'animation ne peut pas être
+     coupée, et la phrase reste affichée le temps qu'il faut pour la lire
+     (décision de Patrice, 26/08/26). */
+  document.getElementById('spBtn').addEventListener('click', fermer);
+
+  /* Filet de sécurité : si le bouton ne répondait pas pour une raison
+     quelconque, l'écran s'efface seul au bout de 30 s. Personne ne doit
+     pouvoir se retrouver bloqué devant un logo sur un chantier. */
+  setTimeout(fermer, 30000);
 })();
 </script>
 

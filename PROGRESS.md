@@ -303,6 +303,16 @@ défaut — recharger n'est pas une mise à jour. Refait devant lui les trois é
 le prouver plutôt que l'affirmer. Règle écrite dans `CLAUDE.md` avec la mention explicite de ne
 jamais « réparer » ça.
 
+**Deuxième demande de Patrice, en fin de matinée :** l'animation dit « quelque chose a changé »
+sans dire quoi. Une vraie notification de téléphone est impossible — l'appli n'a aucun serveur,
+zéro appel réseau, c'est ce qui la rend increvable hors couverture. Retenu à la place : une
+phrase `APP_NOUVEAUTE` affichée sous la date, réécrite à chaque mise en ligne. **Patrice a
+tranché deux points** : plus de tape pour passer l'animation, et rien d'autre que l'écran
+d'ouverture (pas de bandeau qui reste sur les chantiers). Comme la phrase n'aurait alors été
+lisible qu'une demi-seconde, l'écran se termine désormais par un bouton **« Continuer »** :
+il lit à son rythme et décide quand passer. Filet de sécurité de 30 s pour que personne ne
+puisse rester bloqué. Le garde-fou refuse un bump d'`APP_VERSION` sans phrase nouvelle.
+
 **Consigne technicien mise à jour** (`Appli_TELSAM_Consigne_Technicien.docx` + `.pdf` sur le
 Bureau, celle qui part avec le mail aux 13) : la puce sur le cache a été remplacée par une puce
 qui explique l'animation et en fait le signal — *« si tu ne vois PAS l'animation après une mise à

@@ -675,6 +675,36 @@ logo complet apparaît exactement autour de lui. Environ 3 s, une tape sur l'éc
 - Si le `localStorage` est indisponible, on n'affiche RIEN plutôt que de rejouer l'animation à
   chaque ouverture : une animation subie à chaque lancement serait vite insupportable.
 
+**`APP_NOUVEAUTE` — la phrase qui dit CE QUI CHANGE, à réécrire à chaque mise en ligne**
+(demandé par Patrice le 26/08/26 : « s'il voit une animation sans savoir, il va se demander
+pourquoi »). Elle s'affiche sous la date, **uniquement sur une mise à jour** — à la première
+ouverture il n'y a pas d'« avant » à comparer, donc rien à annoncer.
+- **C'est Claude qui l'écrit, jamais Patrice.** Point confirmé par lui le 26/08/26 : il ne doit
+  pas avoir à la dicter. C'est moi qui fais les modifications, donc je sais ce qui change — je
+  rédige la phrase et je la fais figurer **dans le résumé montré avant de pousser**, au même
+  titre que le reste. Patrice n'intervient que s'il veut la reformuler. **Ne jamais la lui
+  réclamer comme un préalable** : ce serait lui rendre une corvée dont l'automatisation était
+  justement le but.
+- Écrite **de son point de vue**, pas du mien : « Tes chantiers de la semaine sont à jour »,
+  « Nouveau PGO sur Portet — vérifie tes documents avant de partir », et non « refonte de
+  `buildWeekBuckets` ». Une ligne ou deux, pas plus : c'est lu debout sur un parking.
+- **Honnête à chaque fois, y compris « rien qui te concerne cette semaine ».** Une formule creuse
+  répétée cesse d'être lue en trois semaines — même mécanique que les alertes qui crient au loup,
+  déjà constatée sur le suivi.
+- Le hook pre-commit **refuse un bump d'`APP_VERSION` sans changement d'`APP_NOUVEAUTE`** : sinon
+  le technicien relirait le message de la fois précédente en le croyant à jour, ce qui est pire
+  que pas de message du tout.
+
+**L'écran ne peut PAS être sauté, et il ne se ferme que par le bouton « Continuer »**
+(décision de Patrice, 26/08/26). La tape pour passer a été retirée : c'était exactement le geste
+d'un technicien pressé, et elle effaçait la phrase avant qu'il l'ait lue. Le bouton n'apparaît
+qu'à la fin de l'animation, donc une tape réflexe pendant celle-ci ne fait rien. Conséquence à
+garder en tête si on retouche les délais : **la phrase doit rester affichée le temps qu'il
+faut** — c'est le technicien qui décide quand passer, pas un minuteur.
+**Filet de sécurité : un `setTimeout` de 30 s ferme l'écran quoi qu'il arrive.** Si le bouton ne
+répondait pas, personne ne doit se retrouver bloqué devant un logo sur un chantier. Ne pas le
+retirer en « simplifiant ».
+
 **RECHARGER LA PAGE N'EST PAS UNE MISE À JOUR — et l'animation ne doit PAS s'y rejouer.**
 C'est voulu, ce n'est pas un défaut à corriger. Patrice l'a signalé le 26/08/26 : il ouvrait
 `index.html` en local, appuyait sur la flèche de rechargement du navigateur et ne revoyait pas
