@@ -11,7 +11,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-08-26-2';
+var APP_VERSION = '2026-08-27-1';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -21,7 +21,7 @@ var APP_VERSION = '2026-08-26-2';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Nouveau : à chaque mise à jour, cet écran te dira en une phrase ce qui change pour toi.";
+var APP_NOUVEAUTE = "Nouveau : tu entres maintenant avec ton propre mot de passe. Tape-le une fois, l'appli te reconnaît et affiche tes chantiers.";
 (function(){
   try{
     var vue = localStorage.getItem('telsam_version_vue');
@@ -591,11 +591,11 @@ html.maj-vue #splashLogo{display:none;}
     <img class="brand-logo js-logo" alt="TELSAM">
     <span class="brand-title">Sur le terrain</span>
   </div>
-  <div class="pick-title">Accès protégé</div>
-  <div class="pick-sub">Entre le code fourni par Patrice</div>
-  <input type="password" id="gateInput" class="gate-input" placeholder="Code d'accès" autocomplete="off">
-  <button id="gateBtn" class="gate-btn">Valider</button>
-  <div id="gateError" class="gate-error">Code incorrect, réessaie.</div>
+  <div class="pick-title">Ton accès</div>
+  <div class="pick-sub">Entre ton mot de passe personnel</div>
+  <input type="password" id="gateInput" class="gate-input" placeholder="Mot de passe" autocomplete="off">
+  <button id="gateBtn" class="gate-btn">Entrer</button>
+  <div id="gateError" class="gate-error">Mot de passe incorrect, réessaie.</div>
 </div>
 
 <div id="pickScreen" style="display:none;">
@@ -920,11 +920,19 @@ function render(){
 document.getElementById('prevWeek').onclick=()=>{currentOffset--; render(); if(currentTab==='heures') loadAndRenderHours();};
 document.getElementById('nextWeek').onclick=()=>{currentOffset++; render(); if(currentTab==='heures') loadAndRenderHours();};
 document.getElementById('switchBtn').onclick=async ()=>{
-  await kvSet('technicien', null);
-  currentTech=null;
-  hoursEntry=null; hoursKeyCurrent=null; currentTab='chantiers'; addingChantier=false; addingAbsence=false;
-  document.getElementById('appScreen').style.display='none';
-  document.getElementById('pickScreen').style.display='flex';
+  if(accessMode === 'admin'){
+    // Accès atelier : retour à la liste des noms, la session reste ouverte.
+    await kvSet('technicien', null);
+    currentTech=null;
+    hoursEntry=null; hoursKeyCurrent=null; currentTab='chantiers'; addingChantier=false; addingAbsence=false;
+    document.getElementById('appScreen').style.display='none';
+    document.getElementById('pickScreen').style.display='flex';
+  } else {
+    // Accès technicien : « Changer » déconnecte et redemande un mot de passe.
+    await kvSet('technicien', null);
+    await kvSet('gate_ok', null);
+    location.reload();
+  }
 };
 
 /* =====================================================================
@@ -1785,59 +1793,106 @@ document.getElementById('legend').innerHTML =
   await initGate();
 })();
 
-/* ---------- code d'accès partagé (couche supplémentaire, pas une vraie sécurité) ---------- */
-// Hash SHA-256 du code (pas le code en clair) — à remplacer si le code change.
-const GATE_CODE_HASH = '09e5e98efcf3ead8c8b753703dc576ee78f9db7825683fdb15e35071c23bf00a';
+/* ---------- portail d'accès par technicien (mis en place le 27/08/2026) ----------
+   Chaque technicien a SON mot de passe. Il ouvre l'appli, tape son mot de passe,
+   et l'appli le reconnaît et le connecte directement — plus de lien personnel à
+   envoyer, plus de code partagé. Un mot de passe « atelier » (ADMIN, celui de
+   Patrice) ouvre à la place la liste des noms, pour dépanner un technicien qui a
+   oublié le sien.
 
-async function hashText(text){
-  const enc = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+   ATTENTION — ce portail protège l'ENTRÉE de l'appli, PAS les documents Dropbox.
+   Les liens Dropbox sont écrits dans cette page, qui est téléchargée AVANT l'écran
+   d'accès : quelqu'un de technique peut les lire sans mot de passe. La seule vraie
+   protection des documents, c'est le mot de passe posé sur chaque lien côté Dropbox.
+   Ne jamais présenter ce portail comme une protection des documents. Cf. CLAUDE.md.
+
+   On ne stocke JAMAIS le mot de passe en clair, seulement son empreinte PBKDF2
+   (SHA-256, 150000 tours, sel fixe — volontairement lent pour rendre l'essai en
+   masse coûteux). Pour changer/ajouter un mot de passe : recalculer l'empreinte
+   avec EXACTEMENT le même algorithme (même sel, mêmes tours, même normalisation
+   normPw), remplacer la valeur ci-dessous, puis bumper APP_VERSION. La procédure
+   de calcul est notée dans CLAUDE.md. */
+const ACCESS_SALT = 'telsam-app-tech-2026';
+const ACCESS_ITER = 150000;
+const ACCESS_HASHES = {
+  "Anthony DENIS":       "9fff883051b76e810e5d9c60cc65bfa5ef5522ab571a58c10bb41a00cbe9ece4",
+  "Benjamin DIRAT":      "87c0dcd87ffe1bd70a26d33b367a1402d8b812652aba2e0c4b410650f63b5047",
+  "Benjamin SOUPA":      "8ddc224b2bf33cae54da8d306ec527fbfed17efb1226e0b504016da1e3ffc6b3",
+  "Bilal HAMOUCH":       "1bd39440f83c90939ec8fde85f32863532ce0fa04d3f794cad2f22726efa3f87",
+  "Didier PERRIN":       "0fa4be275f853d4d766cd32ffdcc9d4adc68567925d326efda2fa6a7b56d887d",
+  "François PERRIN":     "a84338dac946172de4e233e8a49b3a1865f660284d44b49bdbc4c1cbfda8213c",
+  "Hugues VIRY":         "c2879086746b80837b8b48a4a339aca215c0d2f4b88766a1afd633ac0d6d0047",
+  "Morad EL ABBASSI":    "d331821f4cf91db11b9ad7b95863f00f5273896f5ddc205470b4a578924eb5e7",
+  "Pascal BONAVENTURE":  "dc4132980eb95fcfda254adc1642928522b8e3ebdd44ccdcd56afd99435768b4",
+  "Sid Ahmed BENZAMERA": "bb4d1b0df2f2aecbeca4ea8373b453a8f74b1df062dcc3043c747dcf210920aa",
+  "Vincent PERRIN":      "449244df95ba571efd7433fc811e4970c43d5a4ec3980037c115d00e507921b0",
+  "Younes MOUSSA":       "35d65504a5b6d9eab19ef0795fb68aecaf3f4e7794b14ecc05655e6930f5014e",
+  "Ahmed HAMOUCH":       "e8eaaf471474cc062589c1b95c3ea69900b7ac88953b44c721602403a9dc40c8"
+};
+const ADMIN_HASH = "6dda950c77e9251444ca338f7d419ae344367ce6f16711c96f5bdbe3bcec4348";
+let accessMode = null; // 'tech' | 'admin'
+
+// Normalisation tolérante : « Velo Tuile Orage », « velo-tuile-orage » et
+// « velo tuile orage  » donnent tous la même clé.
+function normPw(s){
+  return String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+async function deriveAccess(pw){
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(normPw(pw)), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    {name:'PBKDF2', hash:'SHA-256', salt:enc.encode(ACCESS_SALT), iterations:ACCESS_ITER}, key, 256);
+  return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
 async function initGate(){
-  const alreadyOk = await kvGet('gate_ok');
-  if(alreadyOk){
+  const who = await kvGet('gate_ok');
+  // Session déjà ouverte sur ce téléphone : on ne redemande pas le mot de passe.
+  if(who === '__ADMIN__'){
+    accessMode = 'admin';
     document.getElementById('gateScreen').style.display='none';
-    await continueInitAfterGate();
+    document.getElementById('pickScreen').style.display='flex';
     return;
   }
+  if(who && TECHS.indexOf(who) !== -1){
+    accessMode = 'tech';
+    document.getElementById('gateScreen').style.display='none';
+    await selectTech(who);
+    return;
+  }
+  // Sinon : demander le mot de passe.
   document.getElementById('gateScreen').style.display='flex';
   const input = document.getElementById('gateInput');
   const btn = document.getElementById('gateBtn');
   const err = document.getElementById('gateError');
   const tryValidate = async ()=>{
-    const hash = await hashText(input.value.trim().toLowerCase());
-    if(hash === GATE_CODE_HASH){
+    if(!input.value.trim()) return;
+    btn.disabled = true;
+    const h = await deriveAccess(input.value);
+    let matched = null;
+    for(const name in ACCESS_HASHES){ if(ACCESS_HASHES[name] === h){ matched = name; break; } }
+    if(matched){
       err.style.display='none';
-      await kvSet('gate_ok', true);
+      accessMode = 'tech';
+      await kvSet('gate_ok', matched);
       document.getElementById('gateScreen').style.display='none';
-      await continueInitAfterGate();
+      await selectTech(matched);
+    } else if(h === ADMIN_HASH){
+      err.style.display='none';
+      accessMode = 'admin';
+      await kvSet('gate_ok', '__ADMIN__');
+      document.getElementById('gateScreen').style.display='none';
+      document.getElementById('pickScreen').style.display='flex';
     } else {
       err.style.display='block';
       input.value='';
       input.focus();
     }
+    btn.disabled = false;
   };
   btn.onclick = tryValidate;
   input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryValidate(); });
   input.focus();
-}
-
-async function continueInitAfterGate(){
-  const params = new URLSearchParams(window.location.search);
-  const raw = params.get('tech');
-  if(raw){
-    const match = TECH_SLUGS[slugify(raw)];
-    if(match){
-      lockedByUrl = true;
-      await selectTech(match);
-      return;
-    }
-  }
-  // Pas de lien personnel valide : comportement habituel (écran de sélection),
-  // qu'il faut ici explicitement rendre visible (masqué pendant l'écran du code d'accès).
-  document.getElementById('pickScreen').style.display='flex';
 }
 </script>
 </body>
