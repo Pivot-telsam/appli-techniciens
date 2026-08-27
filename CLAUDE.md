@@ -104,6 +104,16 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
   source colorée disponible" pour cette période.
 - Modèle sous-jacent : un technicien n'a qu'une seule couleur (= un seul chantier) par jour dans
   le planning. Ne jamais lui affecter deux chantiers le même jour dans `TECH_RANGES`.
+- **PIÈGE WEEK-END** : les colonnes samedi/dimanche ont un fond gris uniforme sur toutes les
+  lignes, que la lecture couleur confond avec un chantier (« tout le monde le même chantier le
+  S/D », y compris les encadrants). **Ne lire les affectations que sur les jours ouvrés (L-V).**
+- **`Nassime EL GARTILI` ne fait PLUS partie de l'effectif** (dit par Patrice le 27/08/2026) —
+  **mais il reste coloré sur le planning RTE**, Patrice ne l'en retirera pas. C'est donc à moi de
+  **l'exclure systématiquement** de toute lecture d'affectation : ne jamais l'ajouter à
+  `TECH_RANGES`/`REAL_DAYS` ni à la liste des techniciens. Vu sur Portet (S35) et Fleyriat (S36) :
+  ignoré. De même, **`Pierre Brillou` et `François VIDAL` sont des encadrants, pas des
+  techniciens** — ne pas les traiter comme des techniciens (comme Christian Cazenave, Patrice,
+  Ahmed Hamouch).
 
 ## Pièges connus dans le code (à ne pas "corriger" par erreur)
 - **`SEED_VERSION` (suivi-chantiers, ligne ~1033) — ÉTAPE OBLIGATOIRE À CHAQUE MODIF DE `SEED_DATA`.**
