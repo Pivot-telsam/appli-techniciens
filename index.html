@@ -11,7 +11,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-08-27-1';
+var APP_VERSION = '2026-08-27-2';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -21,7 +21,7 @@ var APP_VERSION = '2026-08-27-1';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Nouveau : tu entres maintenant avec ton propre mot de passe. Tape-le une fois, l'appli te reconnaît et affiche tes chantiers.";
+var APP_NOUVEAUTE = "Ton mot de passe marche avec ou sans tiret, avec ou sans espace, majuscules ou pas. Tape-le simplement, une seule fois.";
 (function(){
   try{
     var vue = localStorage.getItem('telsam_version_vue');
@@ -1815,27 +1815,29 @@ document.getElementById('legend').innerHTML =
 const ACCESS_SALT = 'telsam-app-tech-2026';
 const ACCESS_ITER = 150000;
 const ACCESS_HASHES = {
-  "Anthony DENIS":       "9fff883051b76e810e5d9c60cc65bfa5ef5522ab571a58c10bb41a00cbe9ece4",
-  "Benjamin DIRAT":      "87c0dcd87ffe1bd70a26d33b367a1402d8b812652aba2e0c4b410650f63b5047",
-  "Benjamin SOUPA":      "8ddc224b2bf33cae54da8d306ec527fbfed17efb1226e0b504016da1e3ffc6b3",
-  "Bilal HAMOUCH":       "1bd39440f83c90939ec8fde85f32863532ce0fa04d3f794cad2f22726efa3f87",
-  "Didier PERRIN":       "0fa4be275f853d4d766cd32ffdcc9d4adc68567925d326efda2fa6a7b56d887d",
-  "François PERRIN":     "a84338dac946172de4e233e8a49b3a1865f660284d44b49bdbc4c1cbfda8213c",
-  "Hugues VIRY":         "c2879086746b80837b8b48a4a339aca215c0d2f4b88766a1afd633ac0d6d0047",
-  "Morad EL ABBASSI":    "d331821f4cf91db11b9ad7b95863f00f5273896f5ddc205470b4a578924eb5e7",
-  "Pascal BONAVENTURE":  "dc4132980eb95fcfda254adc1642928522b8e3ebdd44ccdcd56afd99435768b4",
-  "Sid Ahmed BENZAMERA": "bb4d1b0df2f2aecbeca4ea8373b453a8f74b1df062dcc3043c747dcf210920aa",
-  "Vincent PERRIN":      "449244df95ba571efd7433fc811e4970c43d5a4ec3980037c115d00e507921b0",
-  "Younes MOUSSA":       "35d65504a5b6d9eab19ef0795fb68aecaf3f4e7794b14ecc05655e6930f5014e",
-  "Ahmed HAMOUCH":       "e8eaaf471474cc062589c1b95c3ea69900b7ac88953b44c721602403a9dc40c8"
+  "Anthony DENIS":       "5cc3203698bcdb65da76b68eaa838ab8ed629277715d63bf7c6382a02897c96b",
+  "Benjamin DIRAT":      "fce25325b0cb77825c7c7f4c418da80e5715353f6e86c1bc790de5ccce393205",
+  "Benjamin SOUPA":      "e5588b7833670ce9e282e9e4a3531e9e40af3f0132b06aa4588b3e1b5a1fffbf",
+  "Bilal HAMOUCH":       "d99ac08552c9345dd24f2371fdc8c69363ff13efe3b4952354d6da64edf53b97",
+  "Didier PERRIN":       "5ba8febac4559f7bee9fa8ab330541f9386e255251ebca8081ef0816ea18f3a0",
+  "François PERRIN":     "ed35be1d5e1b4835b5ce6068aa4477e8048716171133bda985d67d120c12e88f",
+  "Hugues VIRY":         "b66ef94c9fd4b5e1d75de61c0a8c99c3d02af3c364f2e6d9fa4459e67c4ee759",
+  "Morad EL ABBASSI":    "254a97cfc4e0a6ca13ccbae04cae435f650f7b313bdeae437c5f0ad382b5ff0e",
+  "Pascal BONAVENTURE":  "348f411b9e535ff54a853edf2ed41272b805b49df248af292361fdba29e30085",
+  "Sid Ahmed BENZAMERA": "a5b57eb46307899b387cc521c38524883679c7daad9519d60a08fc599a2bdda2",
+  "Vincent PERRIN":      "4d0c241232e24793f89f260aa969bfe664e496f31413e66db730c580b9d674bc",
+  "Younes MOUSSA":       "71938f918ef8e51f3dbf40aaea8c48077b046e2588c8a8b2ead83e30d01a922a",
+  "Ahmed HAMOUCH":       "e70e157808a074dcc1f38299bebfc91442b76e431f9e9bb32f015254da7f967f"
 };
-const ADMIN_HASH = "6dda950c77e9251444ca338f7d419ae344367ce6f16711c96f5bdbe3bcec4348";
+const ADMIN_HASH = "edc49e1201358091b8f564afa047fffb908632c4d0b6c21151df87c8094fdc9c";
 let accessMode = null; // 'tech' | 'admin'
 
-// Normalisation tolérante : « Velo Tuile Orage », « velo-tuile-orage » et
-// « velo tuile orage  » donnent tous la même clé.
+// Normalisation très tolérante : on retire TOUT ce qui n'est pas lettre/chiffre
+// (tirets, espaces, majuscules, ponctuation). Ainsi « biche-olive », « biche olive »,
+// « Biche Olive » et « bicheolive » donnent tous la même clé « bicheolive ».
+// Objectif : sur un téléphone, ne PAS obliger à taper le tiret (constaté le 27/08/2026).
 function normPw(s){
-  return String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'');
 }
 async function deriveAccess(pw){
   const enc = new TextEncoder();
