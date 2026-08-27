@@ -1,4 +1,4 @@
-# État d'avancement — sessions des 20, 21, 24, 25 et 26/08/2026
+# État d'avancement — sessions des 20, 21, 24, 25, 26 et 27/08/2026
 
 **Ne pas noter ici de numéro de commit ni de version** : ces valeurs sont fausses dès le commit
 suivant, et un fichier de reprise qui se trompe dès sa troisième ligne est pire qu'un fichier
@@ -452,6 +452,48 @@ contrôles passés sur l'ensemble des devis lus dans la journée :
    « Pose » sans « Fourniture »), déjà signalé dans À vérifier.
 
 Totaux après vérification : **167 WTC2, 2 OPPC (Fleyriat seulement), 4 en chambre.**
+
+### Session du 27/08/26 — IST d'un co-traitant, documents du Bureau, Bradascou
+
+**RÈGLE POSÉE PAR PATRICE : une IST qui n'est pas de TELSAM n'entre jamais dans App Tech, même
+signée par RTE.** Il a vu passer deux IST dans son rapport de veille et m'a arrêté : ce sont des
+exemples envoyés par un client. La règle qui existait ne parlait que de la signature RTE, et elle
+serait tombée dans le piège — la seconde IST s'appelle littéralement « …signée RTE.pdf ». Lecture
+du document : zéro occurrence de « TELSAM », une de « INEO », dossier `IST INEO`, n° de compte
+APS3T5108 (INEO). Le risque n'est pas un mauvais classement : une IST autorise le personnel de
+l'entreprise qui l'a rédigée. Écrit dans `CLAUDE.md` à deux endroits (contenu d'un dossier App
+Tech, et section veille — parce que le rapport titre « IST — … — signe » sans savoir qui a rédigé
+le document). Mémoire longue ajoutée.
+
+**Consigne technicien réécrite au nom de l'équipe.** Cinq mentions de « Patrice » remplacées par
+« nous », pour que Patrice puisse la diffuser au nom de TELSAM. L'écran d'ouverture y est
+maintenant expliqué en deux puces. **Erreur trouvée au passage** : la notice disait encore « une
+tape sur l'écran la passe », alors que cette possibilité a été retirée de l'appli le 26/08 à la
+demande de Patrice. Vérifié dans le code avant de corriger : il n'y a plus que le bouton
+« Continuer ». Cette phrase serait partie telle quelle aux 13 techniciens.
+
+**Mémo d'exploitation mis à jour** (il datait du 25/08) : deux sections ajoutées — « Chaque
+période de paie — les heures par chantier » et « Les boîtes WTC2 et les nacelles » — plus deux
+pièges dans les points de vigilance (ce que Patrice saisit dans l'appli ne part pas dans le
+fichier ; c'est Claude qui écrit la phrase de mise à jour). Une ligne retirée parce que déjà
+faite. 11 sections désormais.
+
+**Bradascou 26-054 : PDP indice 6 et PGO indice 15 lus.** Les deux fenêtres TELSAM sont
+inchangées, rien à replanifier. Deux alertes posées : le PDP indice 6 est arrivé **sans sa page de
+signature** (seule celle de l'indice 4 est au dossier), et les travaux d'octobre sont en régime
+**EN EXPLOITATION** avec **permis feu**, là où juillet était consigné. Un point à vérifier :
+« IST / MOP : OUI » au PGO alors que la fiche porte « IST non applicable ».
+
+**Trois pièges techniques ajoutés aux règles de prudence**, tous rencontrés dans la journée :
+- une fonction PowerShell qui affiche un message **pollue sa valeur de retour** — six « OK … »
+  injectés dans `SEED_DATA`, JSON cassé, fichier restauré par `git checkout --` ;
+- la limite Word de 255 caractères vaut aussi pour le **texte de remplacement** ;
+- insérer un paragraphe vide dans Word puis lui affecter son texte le fait **fusionner avec le
+  voisin** — 17 paragraphes collés dans le mémo, détecté en comptant les paragraphes.
+
+Le point commun des trois : le script annonçait « Ecrit. » sans erreur. Seul un contrôle
+indépendant les a révélés — reparser le JSON, compter les paragraphes.
+
 ## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
 
 Dans l'ordre où ça se fait :

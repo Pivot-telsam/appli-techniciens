@@ -1009,6 +1009,34 @@ Le bouton « 📁 Ouvrir mes habilitations » de l'appli pointe sur **un dossier
   l'évoque. Beaucoup de fichiers portent des suffixes `-1`, `-2` sans qu'on sache ce qui les
   distingue — Patrice a commencé à les renommer explicitement (`El Abbassi Morad - pass RTE 2025`).
 
+## Documents du Bureau destinés aux techniciens
+
+**`Appli_TELSAM_Consigne_Technicien.docx` / `.pdf`** — la notice qui part avec le mail de mise en
+service aux 13 techniciens.
+
+**RÈGLE — elle est écrite au nom de l'équipe, jamais au nom de Patrice.** Réécrite ainsi le
+27/08/2026 à sa demande, pour qu'il puisse la diffuser au nom de TELSAM : « le code d'accès que
+**nous** t'avons communiqué », « **que nous tenons** à jour », « toute précision utile **pour
+nous** », « **préviens-nous** ». Ne jamais réintroduire son prénom dans ce document.
+
+**Elle décrit l'écran d'ouverture animé**, en deux puces : ce qu'il affiche (date de la version,
+phrase de nouveauté, bouton « Continuer ») et ce qu'il signifie (seul repère qu'une mise à jour a
+bien été reçue). **Toute modification de cet écran dans `appli-techniciens/index.html` oblige à
+relire ces deux puces.** Cas réel : l'animation ne se passe plus d'une tape depuis le 26/08 — la
+notice a gardé la phrase « une tape sur l'écran la passe » jusqu'au 27/08, et elle serait partie
+telle quelle aux 13 techniciens.
+
+**Deux pièges de mise en forme dans ce fichier** : la puce « •  » fait partie du **texte**, pas du
+format — remplacer un paragraphe entier la fait disparaître ; et Word convertit en apostrophes
+typographiques (’) le texte que l'on insère, si bien qu'un motif de recherche écrit avec une
+apostrophe droite (') ne retrouve plus ce qu'on vient d'écrire. Préférer des motifs sans
+apostrophe. Régénérer le PDF après chaque modification (`SaveAs2($chemin, 17)`).
+
+**`Memo_Exploitation_TELSAM.docx`** — le « qui fait quoi » de Patrice, 11 sections depuis le
+27/08/2026. À tenir à jour dès qu'une tâche récurrente change de main : c'est le document qu'il
+relit pour savoir ce qu'il doit faire et ce que je fais. Il n'en existe pas de PDF, et Patrice
+n'en veut pas.
+
 ## Règles de prudence
 - **PIÈGE D'ENCODAGE — ne JAMAIS relire un fichier accentué avec `Get-Content` sans `-Encoding
   UTF8`.** En PowerShell 5.1, `Get-Content -Raw` lit en ANSI (Windows-1252). Enchaîné avec
@@ -1025,6 +1053,35 @@ Le bouton « 📁 Ouvrir mes habilitations » de l'appli pointe sur **un dossier
     ensuite `Ã` = 0 ET `�` = 0, puis comparer fiche par fiche avec le dernier commit sain.
   - **Contrôle systématique après toute écriture sur un fichier accentué** : compter les `Ã` et
     les `�`. C'est une seule commande et ça aurait évité le commit fautif.
+- **PIÈGE POWERSHELL — une fonction qui affiche un message POLLUE sa valeur de retour.** Tout ce
+  qu'une fonction émet part dans le flux de sortie : `"  OK  $libelle"` suivi de
+  `return $texte.Replace(...)` renvoie **les deux**, et `$fiche = MaFonction ...` reçoit un
+  tableau de 2 éléments, pas une chaîne. PowerShell 5.1 ne proteste pas : `.Replace()` sur un
+  tableau fait de l'énumération de membres et continue, puis la concaténation finale colle le
+  message dans les données. **Commis le 27/08/2026** sur `suivi_chantiers_205.html` : six « OK … »
+  injectés au milieu de `SEED_DATA`, JSON cassé, fichier restauré par `git checkout --`.
+  - **À faire** : les messages passent par `Write-Host` (qui n'écrit pas dans le flux de sortie),
+    jamais par une chaîne nue. Et vérifier le type avant de rendre :
+    `if ($sortie -isnot [string]) { throw ... }`.
+  - **Contrôle après écriture** : reparser `SEED_DATA` avec `ConvertFrom-Json`. Un fichier qui ne
+    parse plus est le seul signal fiable — le script, lui, avait affiché « Ecrit. » sans broncher.
+- **PIÈGE WORD — la limite de 255 caractères vaut aussi pour le TEXTE DE REMPLACEMENT.** Elle est
+  connue pour le motif recherché ; elle s'applique de la même façon à `Replacement.Text`, et Word
+  lève une `COMException` « Paramètre de la chaîne trop long ». Rencontré le 27/08/2026 en
+  ajoutant deux puces au mémo d'exploitation. **Parade** : découper en plusieurs remplacements
+  courts qui s'accrochent l'un à l'autre — insérer d'abord une phrase tronquée, puis la compléter
+  en cherchant sa fin.
+- **PIÈGE WORD — insérer un paragraphe vide puis lui affecter son texte NE MARCHE PAS.**
+  `InsertParagraphAfter()` puis `$p.Range.Text = "…"` remplace la marque de paragraphe : le texte
+  **fusionne avec le paragraphe voisin**. Résultat le 27/08/2026 sur le mémo d'exploitation :
+  17 paragraphes ajoutés, 17 paragraphes collés à leurs voisins, document illisible
+  (« 7. Chaque période de paie — les heures par chantier9. Ce que je ne fais pas tout seul »).
+  - **À faire** : insérer **tout le bloc d'un coup**, chaque ligne portant sa propre marque de
+    paragraphe — `$r = $doc.Paragraphs.Item($cible).Range; $r.Collapse(1); $r.InsertBefore($texte + "`r")` —
+    puis boucler sur les paragraphes créés pour leur appliquer la mise en forme, copiée depuis un
+    paragraphe existant du même rôle (`$p.Format = $ref.Format`, taille, gras, police).
+  - **Contrôle** : compter les paragraphes avant et après. C'est ce qui a révélé l'erreur
+    (72 au lieu de 87 attendus), pas la lecture du texte.
 - Toujours montrer le résumé des changements à Patrice AVANT de committer/pousser, sauf demande explicite contraire.
 - En cas de nom de chantier ambigu ou de dossier Dropbox introuvable/multiple, ne jamais deviner —
   poser la question à Patrice.
