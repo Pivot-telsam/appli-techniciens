@@ -494,6 +494,36 @@ signature** (seule celle de l'indice 4 est au dossier), et les travaux d'octobre
 Le point commun des trois : le script annonçait « Ecrit. » sans erreur. Seul un contrôle
 indépendant les a révélés — reparser le JSON, compter les paragraphes.
 
+### Session du 27/08/26 (suite) — sécurité d'accès : portail par technicien + liens Dropbox
+
+Point de départ : Patrice voulait « un accès par technicien » et « restreindre l'accès aux
+personnes qui n'y ont pas droit ». L'audit a montré la vraie situation — dépôt GitHub **public**
+(code, notes internes et 79 versions lisibles de tous), et surtout **14 liens Dropbox en accès
+public sans mot de passe** : un PDP RTE (avec les portables d'agents RTE) et les habilitations
+nominatives des 13 techniciens s'ouvraient sans aucun code. Vérifié à l'écran, pas supposé.
+
+**Deux serrures, décidées avec Patrice :**
+- **Serrure 2 (la vraie) — mot de passe sur chaque lien Dropbox.** Patrice les a posés lui-même
+  (l'outil MCP ne sait pas modifier un lien existant). Les 14 vérifiés `password_protected: true` ;
+  DATA4-Marcoussis avait été oublié au premier tour, rattrapé grâce au contrôle. L'URL ne change
+  pas, l'appli marche sans retouche.
+- **Serrure 1 — portail par technicien dans l'appli.** Remplace le code partagé. Mot de passe
+  personnel « mot + couleur » (deux mots), qui **identifie** le technicien et l'ouvre sur ses
+  chantiers ; mot de passe « atelier » pour Patrice. Empreintes PBKDF2-SHA-256 150000 tours,
+  jamais en clair. Testé à l'écran (bon/faux mot de passe, atelier, rechargement, normalisation).
+  Poussé, `APP_VERSION 2026-08-27-1`. Détail complet et procédure de changement dans `CLAUDE.md`.
+
+**Ce qui a été dit clairement à Patrice** : le portail protège l'entrée, **pas** les documents
+(les liens sont dans le code source de la page) — seule la serrure 2 protège les documents. Et
+GitHub Pages ne peut pas filtrer qui ouvre l'URL ; passer le dépôt en privé casserait Pages sur un
+compte gratuit. La vraie porte d'entrée (Cloudflare Access) est **repoussée après le déploiement**.
+
+**Consigne technicien** mise à jour en conséquence (section « Te connecter » → mot de passe ;
+photos « envoi et nommage » ; nacelle « par jour et par boîte » ; suppression d'une phrase). La
+première correction par Find/Replace a **corrompu une ligne** (piège des apostrophes typographiques
+de Word), refaite par remplacement de plage. Document de distribution des 14 mots de passe créé sur
+le Bureau (`Mots_de_passe_App_Techniciens_TELSAM.docx`, hors dépôt).
+
 ## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
 
 Dans l'ordre où ça se fait :
@@ -508,11 +538,14 @@ Dans l'ordre où ça se fait :
 4. **Demander à Ahmed Hamouch et Pascal Bonaventure d'effacer leur semaine d'essai** sur leur
    téléphone (bouton « Effacer et recommencer cette semaine »). Personne ne peut le faire à leur
    place : la saisie vit dans leur navigateur.
-5. **Envoyer le mail** aux 13, avec le lien personnel de chacun
-   (`Liens_App_Techniciens_TELSAM.docx`) et `Appli_TELSAM_Consigne_Technicien.pdf` en pièce
-   jointe. Le code d'accès se transmet par un autre canal, il n'est dans aucun des deux documents.
-   Prévenir que l'application Dropbox, si elle est installée, intercepte les liens et réclame une
-   connexion : appui long → « ouvrir dans le navigateur », ou la désinstaller (cas Pascal).
+5. **Envoyer le mail** aux 13, avec **le lien de l'appli** (le même pour tous, il n'y a plus de
+   lien personnel `?tech=`) et `Appli_TELSAM_Consigne_Technicien.pdf` en pièce jointe. **Le mot de
+   passe personnel de chacun se transmet à part** (il ne doit pas voyager avec la consigne) : la
+   liste est dans `Mots_de_passe_App_Techniciens_TELSAM.docx` sur le Bureau, chacun ne reçoit que
+   sa ligne. Prévenir que l'application Dropbox, si elle est installée, intercepte les liens et
+   réclame une connexion : appui long → « ouvrir dans le navigateur », ou la désinstaller (cas
+   Pascal). Prévenir aussi que **les documents demandent maintenant un mot de passe Dropbox**
+   (serrure 2) — à transmettre également, une fois, le même pour tous les documents.
 
 ## Points ouverts, sans urgence
 

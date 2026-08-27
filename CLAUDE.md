@@ -182,8 +182,10 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
   `documentsAppTech` renseigné (nouveau système) — un chantier encore sur l'ancien système
   (`documentsTerrain`) n'affiche jamais ces badges même si `pdp`/`pgo` sont remplis. Absence de
   badge = chantier non migré, pas forcément donnée manquante.
-- Le code d'accès partagé (`GATE_CODE_HASH`, hash SHA-256) est un confort d'accès, PAS une vraie
-  sécurité — ne jamais le présenter comme une protection réelle des données techniciens/PDP.
+- **Accès à l'appli : portail par mot de passe par technicien** (depuis le 27/08/2026, remplace
+  `GATE_CODE_HASH`). Il protège l'ENTRÉE de l'appli, PAS les documents Dropbox — voir la section
+  « Accès à l'appli — portail par technicien ». Ne jamais le présenter comme une protection des
+  documents techniciens/PDP.
 
 ## Système de numérotation (`numero`, format `26-0XX`)
 C'est le numéro de référence que Patrice utilise pour organiser Dropbox (il renomme progressivement
@@ -838,6 +840,44 @@ lecture, la mise à jour des fiches et la copie dans App Tech restent donc faite
 choses resteront de toute façon locales : les PGO/PDP `.xlsm` (Excel requis) et la génération des
 briefs techniciens (Word requis).
 
+## Accès à l'appli — portail par technicien (mis en place le 27/08/2026)
+
+Remplace l'ancien **code d'accès partagé** (`GATE_CODE_HASH`, supprimé). Chaque technicien a
+**son** mot de passe (deux mots : un mot + une couleur, ex. « nuage-emeraude ») : il ouvre l'appli,
+tape son mot de passe, et l'appli le reconnaît et le connecte directement — plus de lien `?tech=`
+transmissible, plus de code commun. Un mot de passe **« atelier »** (celui de Patrice) ouvre à la
+place la liste des 13 noms, pour dépanner un technicien qui a oublié le sien. Demandé une seule
+fois par téléphone (mémorisé en IndexedDB, clé `gate_ok` = nom du technicien ou `__ADMIN__`) ; le
+bouton « Changer » **déconnecte** un technicien et redemande le mot de passe, alors qu'en accès
+atelier il revient seulement à la liste des noms.
+
+**Ce portail protège l'ENTRÉE de l'appli, PAS les documents Dropbox.** Les liens Dropbox sont
+écrits dans `index.html`, page téléchargée AVANT l'écran d'accès : quelqu'un de technique les lit
+dans le code source sans mot de passe. La vraie protection des documents est le mot de passe posé
+sur chaque lien **côté Dropbox** (cf. section Accès Dropbox). Ne jamais présenter le portail comme
+une protection des documents — dit à Patrice le 27/08/2026, après avoir ouvert un PDP RTE (avec
+coordonnées personnelles d'agents RTE) sans aucun code.
+
+**Stockage** : jamais le mot de passe en clair, seulement son empreinte **PBKDF2-SHA-256,
+150000 tours, sel `telsam-app-tech-2026`** (`ACCESS_HASHES` indexé par nom exact de `TECHS`,
+`ADMIN_HASH` à part). Normalisation `normPw` : minuscules, `trim`, toute suite de caractères non
+`a-z0-9` ramenée à `-` (donc « Nuage Emeraude » = « nuage-emeraude »).
+
+**Changer ou ajouter un mot de passe** (procédure, à refaire à l'identique) :
+1. Choisir un mot de passe **ASCII uniquement** (a-z 0-9) — sinon `normPw` transforme les accents
+   en `-` et l'empreinte ne correspondra pas à ce que le technicien tape.
+2. Calculer l'empreinte avec EXACTEMENT le même algorithme (même sel, mêmes tours, même `normPw`).
+   Le plus sûr : dans un **contexte sécurisé** — `crypto.subtle` est absent d'une page `file://`
+   ou `data:`, présent en `https://` et sur `http://localhost` — exécuter `deriveAccess(pw)`. C'est
+   ainsi que les 14 empreintes ont été calculées le 27/08 (dans un onglet https, puis revérifiées
+   en servant l'appli sur `http://localhost`).
+3. Remplacer la valeur dans `ACCESS_HASHES` (ou `ADMIN_HASH`), **bumper `APP_VERSION`**, committer.
+4. Redonner le nouveau mot de passe au technicien : pas de « mot de passe oublié », c'est Patrice
+   qui le redit, et un changement suppose une republication de l'appli (pas faisable par lui seul).
+
+Les 14 mots de passe en clair vivent dans `Mots_de_passe_App_Techniciens_TELSAM.docx` sur le
+Bureau de Patrice (hors dépôt) — **jamais dans Git**. Chaque technicien ne reçoit que sa ligne.
+
 ## Accès Dropbox
 Dropbox est connecté et utilisable directement (create_folder, create_shared_link, create_file_request,
 search, list_folder, fetch). Toujours confirmer le plan exact avec Patrice avant toute création/modification
@@ -861,6 +901,31 @@ les liens publics — c'est uniquement l'outil qui les crée restreints). Consé
   (ex. dossier parent unique déjà public où tout hériterait automatiquement) — il préfère garder
   la structure actuelle et faire le clic manuel à chaque nouveau chantier plutôt que de sortir les
   docs techniciens de leur dossier de chantier respectif.
+
+**RÈGLE — les liens des documents sont protégés par mot de passe côté Dropbox (serrure 2, mise en
+place par Patrice le 27/08/2026).** C'est la **seule** protection réelle des documents : le portail
+de l'appli ne garde que l'entrée (cf. « Accès à l'appli — portail par technicien »). Les 14 liens
+de `appli-techniciens/index.html` — 12 dossiers « App Tech », le PDP et le brief de Bollène
+(26-062), et le dossier Habilitations — ont été passés en « personnes disposant du lien + mot de
+passe », vérifiés un à un avec `get_shared_link_metadata` (`password_protected: true`). Points à
+retenir :
+- **L'URL ne change pas** quand on ajoute un mot de passe (même `rlkey`) : l'appli continue de
+  fonctionner sans retouche. (Un changement d'URL n'arrive que si on supprime puis recrée le lien.)
+- **Vérifier chaque lien après coup, ne pas croire sur parole** : DATA4-Marcoussis (26-065) était
+  resté public au premier passage, repéré uniquement par le contrôle `password_protected`.
+- Le mot de passe est demandé **par lien, pas par document** : un dossier App Tech s'ouvre une
+  fois, puis tous ses fichiers se lisent sans le retaper ; un autre chantier = un autre lien = à
+  retaper (le même mot de passe partout). Dropbox le mémorise pour la session du navigateur.
+
+**Pourquoi il n'y a pas de vraie serrure à l'entrée de l'appli** (analyse du 27/08/2026). GitHub
+Pages sert le site à quiconque a l'URL — on ne peut pas y restreindre l'accès à une liste de
+personnes. Passer le dépôt en privé ne change rien au site servi, et **casserait Pages sur un
+compte GitHub gratuit** (Pages sur dépôt privé exige un plan payant). `Pivot-telsam` est un compte
+personnel, plan non vérifiable de l'extérieur : **ne jamais proposer de basculer le dépôt en privé
+sans avoir fait confirmer le plan par Patrice.** Une vraie porte d'entrée (Cloudflare Access :
+liste d'e-mails, code reçu par mail, gratuit ≤ 50 personnes) supposerait de déménager l'appli sur
+un domaine routé par Cloudflare — chantier d'une demi-journée étalé sur 1-2 jours à cause de
+l'attente DNS, **repoussé après le déploiement** (décision de Patrice, 27/08/2026).
 
 ## Workflow hebdomadaire
 1. Le lien personnalisé technicien (`?tech=slugifiedname`) est permanent — jamais régénéré à chaque semaine.
@@ -1032,6 +1097,15 @@ typographiques (’) le texte que l'on insère, si bien qu'un motif de recherche
 apostrophe droite (') ne retrouve plus ce qu'on vient d'écrire. Préférer des motifs sans
 apostrophe. Régénérer le PDF après chaque modification (`SaveAs2($chemin, 17)`).
 
+**Mise à jour du 27/08/2026** (à la demande de Patrice, en même temps que le portail par mot de
+passe) : section « 1. Te connecter » réécrite pour le nouvel accès (**mot de passe personnel**, il
+n'y a plus de lien perso ni de code partagé) ; dépôt photos devenu « **envoi et nommage** » avec
+l'exemple de nom (« Prénom Nom - lieu ») ; nacelle « une seule par jour **et par boîte** » ; phrase
+« Ne pars pas sur un chantier dont les documents ne sont pas en règle » **retirée**. La correction
+de la ligne du mot de passe a d'abord été tentée par Find/Replace et a **corrompu le paragraphe**
+(cf. le piège des apostrophes en « Règles de prudence ») — refaite par remplacement de la plage du
+paragraphe. Sauvegarde de l'original dans `Appli_TELSAM_Consigne_Technicien_backup_2708.docx`.
+
 **`Memo_Exploitation_TELSAM.docx`** — le « qui fait quoi » de Patrice, 11 sections depuis le
 27/08/2026. À tenir à jour dès qu'une tâche récurrente change de main : c'est le document qu'il
 relit pour savoir ce qu'il doit faire et ce que je fais. Il n'en existe pas de PDF, et Patrice
@@ -1082,6 +1156,19 @@ n'en veut pas.
     paragraphe existant du même rôle (`$p.Format = $ref.Format`, taille, gras, police).
   - **Contrôle** : compter les paragraphes avant et après. C'est ce qui a révélé l'erreur
     (72 au lieu de 87 attendus), pas la lecture du texte.
+- **PIÈGE WORD — Find/Replace bute sur les apostrophes typographiques.** Un `Find.Execute` dont
+  le texte recherché contient une apostrophe courbe (’, U+2019) peut ne remplacer qu'un fragment
+  et **corrompre le paragraphe**. Vécu le 27/08/2026 sur la consigne technicien : « Entre le code
+  d’accès… » est devenu « Accès’accès que nous… ». De plus, Word **convertit en apostrophe
+  courbe** toute apostrophe droite (') insérée par script — donc un contrôle qui recherche
+  `l'appli` (droite) ne retrouve pas `l’appli` (courbe) et croit à tort le remplacement raté.
+  - **À faire pour une ligne contenant des apostrophes** : éviter Find/Replace ; localiser le
+    paragraphe (`foreach ($p in $doc.Paragraphs)` sur un ancrage sans apostrophe, ex. un mot
+    unique comme « communiqué »), puis remplacer son texte via la plage en **excluant la marque
+    de paragraphe** — `$r = $p.Range; $r.End = $r.End - 1; $r.Text = "…"`. Insensible aux
+    apostrophes, et pas de fusion de paragraphes.
+  - **Contrôle** : réextraire le texte du `.docx` (dézipper `word/document.xml`) et vérifier que
+    le neuf est présent ET l'ancien absent, en tenant compte des DEUX formes d'apostrophe.
 - Toujours montrer le résumé des changements à Patrice AVANT de committer/pousser, sauf demande explicite contraire.
 - En cas de nom de chantier ambigu ou de dossier Dropbox introuvable/multiple, ne jamais deviner —
   poser la question à Patrice.
