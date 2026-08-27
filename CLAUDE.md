@@ -860,8 +860,11 @@ coordonnées personnelles d'agents RTE) sans aucun code.
 
 **Stockage** : jamais le mot de passe en clair, seulement son empreinte **PBKDF2-SHA-256,
 150000 tours, sel `telsam-app-tech-2026`** (`ACCESS_HASHES` indexé par nom exact de `TECHS`,
-`ADMIN_HASH` à part). Normalisation `normPw` : minuscules, `trim`, toute suite de caractères non
-`a-z0-9` ramenée à `-` (donc « Nuage Emeraude » = « nuage-emeraude »).
+`ADMIN_HASH` à part). Normalisation `normPw` : minuscules + **suppression de tout caractère non
+`a-z0-9`** (tirets, espaces, ponctuation) — donc « nuage-emeraude », « nuage emeraude »,
+« Nuage Emeraude » et « nuageemeraude » donnent tous la même clé `nuageemeraude`. Fait ainsi
+depuis le 27/08/2026 pour ne PAS obliger un technicien à taper le tiret sur son téléphone (première
+version qui remplaçait les séparateurs par `-` obligeait un séparateur, pénible au clavier mobile).
 
 **Changer ou ajouter un mot de passe** (procédure, à refaire à l'identique) :
 1. Choisir un mot de passe **ASCII uniquement** (a-z 0-9) — sinon `normPw` transforme les accents
