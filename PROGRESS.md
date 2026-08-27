@@ -524,6 +524,26 @@ première correction par Find/Replace a **corrompu une ligne** (piège des apost
 de Word), refaite par remplacement de plage. Document de distribution des 14 mots de passe créé sur
 le Bureau (`Mots_de_passe_App_Techniciens_TELSAM.docx`, hors dépôt).
 
+### Session du 27/08/26 (suite) — temps prévisionnel par chantier (onglet Heures)
+
+Demande de Patrice : reprendre tous les devis et afficher, dans l'onglet Heures, le temps
+**prévu** à côté du **réalisé**, avec une jauge qui se remplit au fur et à mesure. Double jauge
+construite (prévu vs réalisé, barre orange « — dépassé » au-delà de 100 %, note explicative). Champ
+`heuresPrevues` par fiche, note affichée sous le nom du chantier.
+
+Méthode (compétence `temps-previsionnel-chantier`, version financière v2) : `(montant HT du devis −
+matériel au prix d'achat) ÷ 90 €/h`. **34 chantiers sur 35 chiffrés** (tous ceux qui ont des heures
+réelles), le 35ᵉ — Chafauds-Courelles-Beaugency-Lestiou-Gribouzy (26-017) — laissé de côté à la
+demande de Patrice (devis à préciser). Détail complet et pièges dans `CLAUDE.md` (« Temps
+prévisionnel par chantier »).
+
+Trois bugs/pièges traités en cours de route : le résumé du skill décrivait une ancienne méthode
+(durées) alors que le `SKILL.md` installé est la méthode financière ; la barre de dépassement était
+**invisible** (couleurs `var(--orange)`/`var(--gray)` inexistantes dans le suivi → `--amber-border`/
+`--gray-border`) ; et la note par chantier n'était pas affichée (corrigé). Deux points laissés à
+Patrice : l'anomalie du bordereau (brides C.13 à 1500 € d'achat > 250 € de vente, non déduites) et
+le devis de 26-017.
+
 ## AVANT LA MISE EN SERVICE AUX 13 TECHNICIENS — reste à faire
 
 Dans l'ordre où ça se fait :

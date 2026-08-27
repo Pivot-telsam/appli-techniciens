@@ -633,6 +633,65 @@ devenir automatique et la part « soumettre à Patrice » disparaîtra en grande
 2 boîtiers OPPC (Fleyriat) et 4 boîtiers en chambre restant à poser, 29 déjà posés. Reste une seule fiche à
 compléter, 26-021 Gampaloup-Valence, parce qu'aucun devis n'est encore arrivé dessus.
 
+## Temps prévisionnel par chantier — onglet Heures (mis en place le 27/08/2026)
+
+L'onglet **Heures** de `suivi_chantiers_205.html` affiche, par chantier, **deux jauges** : le temps
+**prévu** (calculé depuis le devis) et le temps **réalisé** (heures cumulées des feuilles d'heures,
+champ `heuresTelsam`). But : voir d'un coup d'œil où en est chaque chantier par rapport à son budget
+temps, et se remplir au fur et à mesure que les techniciens rentrent leurs heures.
+
+**RÈGLE — à chaque chantier qui a (ou prend) des heures réelles, calculer son prévisionnel depuis
+le devis, avec la compétence `temps-previsionnel-chantier`.** Champ `heuresPrevues` sur la fiche :
+```
+heuresPrevues: { heures, jours, devis, montantHT, materielAchat, note }
+```
+`heures = 0` tant que ce n'est pas calculé → la jauge affiche « prévu à calculer ». La `note` est
+affichée en clair sous le nom du chantier (devis, jours, matériel déduit) : la renseigner utilement.
+
+**MÉTHODE (financière, v2, décidée par Patrice le 27/08/2026) — c'est le `SKILL.md` du skill qui
+fait foi, PAS la description courte.** Le résumé du skill parle encore d'une ancienne méthode « somme
+des durées » : **obsolète**. La vraie méthode :
+```
+heures prévues = (montant total HT du devis − matériel au prix d'ACHAT) ÷ 90 €/h ; jours = heures ÷ 8
+```
+- Le **matériel** se déduit au **prix d'achat** du fichier `reference/bordereau_materiel_achat.csv`
+  du skill (WTC2 D.01 = 800 €, boîtier chambre D.06 = 200 €, tore PMC C.16 = 1500 €, câbles COR/COSM
+  D.7/D.8 = 2 €/ML — au mètre, à multiplier par le métrage —, nacelles H.13-15, etc.), ligne de
+  devis par ligne de devis. Le reste (préparation, mesures, raccordement, recette, DOO/DOE) = main
+  d'œuvre convertie en heures.
+- Le script `build_previsionnel_financier.py` du skill exige **Python (absent de la machine)** :
+  calcul **à la main**. Extraction du texte des devis PDF via **Word COM** (`pdf2txt` : Open en
+  lecture seule puis `.Content.Text`) — le texte sort en un seul bloc, relever le total HT et les
+  lignes « Fourniture… ».
+
+**Pièges rencontrés le 27/08/2026, à connaître :**
+- **Le prévu et le réalisé ne mesurent pas la même chose.** `heuresTelsam` additionne les heures de
+  **chaque** technicien (2 techniciens un jour = 14 h) ; le prévu, non. Dépasser 100 % est donc
+  **normal** quand l'équipe est nombreuse — la jauge passe en **orange** (`var(--amber-border)`,
+  libellé « — dépassé »), ce n'est PAS une faute. Ne pas « corriger » ce dépassement.
+- **Couleurs : n'utiliser que des variables définies dans le suivi.** Bug vécu : `var(--orange)` et
+  `var(--gray)` **n'existent pas** ici → barre sans couleur, invisible (paraissait vide même à
+  192 %). Utiliser `--amber-border` / `--gray-border`. Vérifier `getComputedStyle` sur une vraie
+  barre, pas seulement le style écrit.
+- **Fourchette haute** : là où une fourniture du devis n'a **pas** d'article correspondant au
+  bordereau (surtout devis arteria/poste : tiroirs, cordons, pigtails, châssis), le skill la compte
+  en **main d'œuvre** (comportement voulu) → prévu surestimé. Le noter dans `note`.
+- **Anomalie du bordereau à faire corriger par Patrice** : l'article **brides C.13** y est à
+  **1500 €** d'achat alors que le devis le vend **250 €** (prix d'achat > prix de vente,
+  incohérent). **Non déduit** sur 26-019 et 26-041, signalé. Idem vérifier D.05 (350 € vs 275 €).
+- **Remises** : certains devis portent une remise de 5 % (Cantegrit 26-003, Arcomie 26-035, Lisieux
+  26-039) — prendre le **montant net** (après remise).
+- **26-054 Bradascou** : le devis dit « **Pose** » et non « Fourniture et pose » (même prix 1175 €) —
+  matériel supposé inclus et déduit, ambiguïté déjà notée dans « À vérifier ».
+- **26-017 Chafauds-Courelles-Beaugency-Lestiou-Gribouzy : laissé de côté** (27/08/2026, décision de
+  Patrice) — plusieurs devis possibles, lequel fait foi à confirmer avant de chiffrer.
+
+**Écriture dans `SEED_DATA`** : insertion ciblée par fiche (isoler la fiche via `"numero":"26-0XX"`
+puis `LastIndexOf('{"id":"c_')`, remplacer `"heuresTelsam":` par `"heuresPrevues":{…},"heuresTelsam":`
+DANS cette fiche seulement), lecture/écriture `[IO.File]` en UTF-8 sans BOM, **bump `SEED_VERSION`**,
+reparser le JSON en contrôle. État au 27/08/2026 : **34 fiches sur 35** chiffrées (toutes celles qui
+ont des heures réelles sauf 26-017).
+
 ## PDP : portée poste / ligne — RÈGLE CRITIQUE (posée par Patrice le 25/08/2026)
 
 **Un PDP autorise un périmètre précis. UN PDP LIGNE N'OUVRE PAS LA PORTE D'UN POSTE.** Dès qu'il
