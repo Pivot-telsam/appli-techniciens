@@ -253,10 +253,26 @@ ou chantier existant qui devient actif — cf. workflow hebdomadaire ci-dessous)
      `$doc.SaveAs2($path, 17)` (17 = wdFormatPDF) pour exporter directement en PDF.
 2. **MO et NDS TELSAM** (si présents dans Dropbox pour ce chantier).
 3. **PDP/PGO pertinents** (le plus récent indice / la version signée).
-4. **IST — uniquement si elle est signée/validée par RTE** (`ist.valideRTE == true`). Si une IST
-   existe pour ce chantier mais n'est PAS signée par RTE : NE PAS la mettre dans App Tech, et à
-   la place ajouter une alerte (niveau `warn`) dans `suivi-chantiers` signalant l'IST non signée
-   par RTE, avec `ist.valideRTE:false`.
+4. **IST — DEUX conditions, pas une : elle doit être une IST TELSAM *et* être signée/validée par
+   RTE** (`ist.valideRTE == true`). Si une IST existe pour ce chantier mais n'est PAS signée par
+   RTE : NE PAS la mettre dans App Tech, et à la place ajouter une alerte (niveau `warn`) dans
+   `suivi-chantiers` signalant l'IST non signée par RTE, avec `ist.valideRTE:false`.
+
+   **RÈGLE — une IST qui n'est pas de TELSAM n'entre JAMAIS dans App Tech, même signée par RTE.**
+   Posée par Patrice le 27/08/2026. Une IST autorise **le personnel de l'entreprise qui l'a
+   rédigée** pour une opération précise. Celle d'un co-traitant (INEO, Bouygues, Omexom, SELT,
+   RODA…) ne couvre pas nos techniciens : la déposer dans App Tech ferait croire à un technicien
+   qu'il est autorisé alors qu'il ne l'est pas. Les clients en envoient parfois **à titre
+   d'exemple**, et elles atterrissent dans le dossier du chantier comme les autres.
+
+   *Le cas qui a fait poser la règle* : le 27/08/2026 la veille signale deux IST sur Cantegrit
+   26-003, dont une nommée « …signée RTE.pdf ». La règle de signature seule aurait dit « à
+   déposer ». Lecture du document : **zéro occurrence de « TELSAM »**, une de « INEO », dossier
+   `IST INEO`, n° de compte APS3T5108 (celui d'INEO). Ce sont des exemples du client.
+
+   **Comment vérifier, dans l'ordre** : le nom du dossier et du fichier ; puis, toujours, ouvrir
+   le document et y chercher « TELSAM » — une IST TELSAM nomme TELSAM. **En cas de doute, demander
+   à Patrice. Ne jamais copier dans App Tech une IST dont l'auteur n'est pas identifié.**
 5. **Sous-dossier "Photos terrain" vide** — toujours créé, pour que les techniciens y déposent
    leurs photos de chantier directement depuis l'app.
 - Ne jamais inclure devis, contrats de sous-traitance, factures ou PV de réception commerciaux.
@@ -748,6 +764,13 @@ Points de conception à connaître avant de le modifier :
 - Un avertissement « dossiers attendus et introuvables » dans le rapport n'est PAS cosmétique :
   il veut dire qu'une catégorie entière n'a pas été balayée (dossier renommé ou déplacé). À
   traiter, pas à ignorer.
+- **Une IST signalée par la veille n'est pas forcément une IST TELSAM.** La veille rapporte tout
+  fichier du chantier dont le nom contient `ist` + `sign`/`valid` : elle ne sait pas qui l'a
+  rédigée, et elle affiche même « — signe » dans son titre de section. Ne jamais enchaîner du
+  rapport vers App Tech sans avoir ouvert le document et vérifié qu'il nomme TELSAM (cf. la règle
+  du 27/08/2026 en section « Contenu standard d'un dossier App Tech »). Cas réel du 27/08/2026 :
+  deux IST INEO sur Cantegrit, dont une nommée « signée RTE », envoyées par le client à titre
+  d'exemple.
 
 **Second contrôle : la cohérence des dossiers App Tech.** Indépendant des nouveautés, il compare
 pour chaque chantier ayant un App Tech le document qui s'y trouve avec le plus récent disponible
