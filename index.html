@@ -11,7 +11,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-08-28-2';
+var APP_VERSION = '2026-08-28-3';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -21,7 +21,12 @@ var APP_VERSION = '2026-08-28-2';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Bradascou : dossier documents et bouton Dépôt photos maintenant disponibles.";
+var APP_NOUVEAUTE = "Ta feuille d'heures part maintenant en un seul appui sur « Envoyer » — plus besoin de passer par le mail.";
+
+/* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
+   plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
+   Si vide, la feuille d'heures retombe sur l'ancien envoi (partage/mail). */
+var RELAY_URL = 'https://relais-telsam.patrice-pivot.workers.dev';
 (function(){
   try{
     var vue = localStorage.getItem('telsam_version_vue');
@@ -1748,36 +1753,49 @@ async function emailFeuille(){
   const originalLabel = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Génération...'; }
   try{
-    const {blob, filename, weekNum} = await generateFeuillePDF();
-    let shared=false;
-    let cancelled=false;
+    const {blob, filename} = await generateFeuillePDF();
+
+    // Envoi DIRECT vers Dropbox via le relais (plus de mail). Le PDF contient déjà
+    // les données cachées (TELSAMDATA) lues ensuite par le skill Recap ; il atterrit
+    // dans « feuille d'heures/dépôts appli », préfixé du nom du technicien par le relais.
+    if(RELAY_URL){
+      if(btn){ btn.textContent='Envoi en cours...'; }
+      const fd = new FormData();
+      fd.append('dest', 'heures');
+      fd.append('tech', currentTech);
+      fd.append('filename', filename);
+      fd.append('file', new File([blob], filename, {type: 'application/pdf'}));
+      let ok=false, errcode='';
+      try{
+        const resp = await fetch(RELAY_URL, {method:'POST', body:fd});
+        const data = await resp.json().catch(()=>null);
+        ok = !!(resp.ok && data && data.ok);
+        if(!ok) errcode = (data && data.error) ? data.error : ('http '+resp.status);
+      }catch(e){ errcode = 'connexion'; }
+      if(ok){
+        alert("✅ Ta feuille d'heures a bien été envoyée. Merci !");
+      }else{
+        // On ne perd rien : la saisie reste dans le navigateur du téléphone.
+        alert("⚠️ L'envoi n'a pas abouti ("+errcode+").\n\n"
+          + "Ta saisie est conservée sur ce téléphone. Vérifie ta connexion internet, "
+          + "puis réappuie sur « Envoyer ma feuille » un peu plus tard — rien n'est perdu.");
+      }
+      return;
+    }
+
+    // Repli si RELAY_URL n'est pas configuré : ancien envoi par partage/téléchargement.
+    let shared=false, cancelled=false;
     if(navigator.share){
       try{
         const file = new File([blob], filename, {type: blob.type});
-        // certains navigateurs n'exposent pas canShare correctement : on tente quand même
-        // le partage dans ce cas, plutôt que d'abandonner sans essayer.
         const canTry = navigator.canShare ? navigator.canShare({files:[file]}) : true;
         if(canTry){
           await navigator.share({files:[file], title: filename, text: "Feuille d'heures - "+currentTech});
           shared=true;
         }
-      }catch(e){
-        // AbortError = la personne a annulé volontairement le partage : on respecte son choix, pas de repli.
-        if(e && e.name==='AbortError') cancelled=true;
-      }
+      }catch(e){ if(e && e.name==='AbortError') cancelled=true; }
     }
-    if(!shared && !cancelled){
-      // Le partage automatique n'est pas possible sur ce téléphone : on télécharge le fichier.
-      // Étape clé : il faut l'OUVRIR (pas juste le laisser dans les téléchargements) pour que
-      // l'application qui s'ouvre propose son propre bouton Partager, fiable sur tous les téléphones.
-      downloadBlob(blob, filename);
-      const subject = 'Feuille d\'heures S'+weekNum+' - '+currentTech;
-      const body = 'Bonjour,\n\nLe fichier "'+filename+'" vient d\'être téléchargé sur ce téléphone.\n\nPour l\'envoyer avec la pièce jointe : ouvre d\'abord ce fichier (notification de téléchargement), puis utilise le bouton Partager de l\'application qui s\'affiche.\n\nCordialement,\n'+currentTech;
-      const mailto = 'mailto:equipefibretelsam@telsam.com'
-        + '?subject='+encodeURIComponent(subject)
-        + '&body='+encodeURIComponent(body);
-      setTimeout(()=>{ window.location.href = mailto; }, 300);
-    }
+    if(!shared && !cancelled){ downloadBlob(blob, filename); }
   }catch(err){
     alert('Erreur lors de la génération du fichier : '+(err && err.message ? err.message : err));
   }finally{
