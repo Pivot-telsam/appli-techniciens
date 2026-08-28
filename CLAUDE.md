@@ -116,6 +116,15 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
   Ahmed Hamouch).
 
 ## Pièges connus dans le code (à ne pas "corriger" par erreur)
+- **METTRE À JOUR UN PGO/PDP = METTRE À JOUR LES DATES STRUCTURÉES, PAS SEULEMENT LE TEXTE DE
+  L'INDICE.** Le Gantt dessine la couverture PGO à partir de `pgo.couverture` (tableau de
+  « JJ/MM/AA - JJ/MM/AA : libellé ») et les alertes PDP à partir des champs `pdp`/`perimetre`, PAS
+  à partir du texte `pgo.indice`. Vécu le 28/08/2026 : j'avais monté l'indice PGO de Bradascou de 15
+  à 16 dans le texte mais pas ajouté la fenêtre 31/08-04/09 dans `pgo.couverture` → le nouveau PGO
+  n'apparaissait pas sur le Gantt en S36, là où des techniciens sont planifiés (repéré par Patrice).
+  Donc à chaque changement d'indice : mettre à jour `pgo.couverture` (et `validFrom`/`validUntil`)
+  en cohérence avec les fenêtres réellement couvertes. Contrôle : ouvrir le Gantt et vérifier que la
+  couverture apparaît bien aux semaines concernées.
 - **`SEED_VERSION` (suivi-chantiers, ligne ~1033) — ÉTAPE OBLIGATOIRE À CHAQUE MODIF DE `SEED_DATA`.**
   Au chargement, si la version stockée en IndexedDB == `SEED_VERSION`, l'app ne touche à RIEN et
   garde les données déjà en cache — même si `SEED_DATA` a changé dans le fichier. Oublier de
@@ -815,6 +824,19 @@ Il liste les PDP/PGO/IST/NDS/PPSPS nouveaux ou modifiés depuis le passage préc
 chacun le chantier concerné et s'il est déjà présent dans son dossier App Tech. Ne pas attendre que
 Patrice signale un document : le vrai point faible du circuit n'était pas la mise à jour elle-même
 mais le fait que tout reposait sur lui pour y penser.
+
+**RÈGLE — TRAITER le rapport de veille dès le début de session, pas seulement le lire.** Manqué le
+28/08/2026, signalé fermement par Patrice (« tu es censé vérifier les PGO/PDP dès la discussion du
+matin »). Le rapport arrive dans le contexte au démarrage ; il faut alors, **sans attendre qu'il le
+demande** :
+1. Pour chaque PGO/PDP/IST **nouveau ou d'indice supérieur** : le lire (Excel via COM si `.xlsm`),
+   mettre à jour la fiche dans les DEUX dépôts — l'**indice texte ET la couverture structurée**
+   (`pgo.couverture` / `pdp` dates), cf. le piège Gantt ci-dessous — et le copier dans App Tech en
+   remplaçant l'ancien.
+2. Pour chaque chantier signalé « App Tech en retard » ou « techniciens planifiés sans App Tech » :
+   compléter/créer le dossier App Tech (cf. checklist nouveau chantier).
+Exemples manqués le 28/08 puis rattrapés : PGO Rion des Landes ind.12, PGO Bradascou ind.16, et le
+dossier App Tech de Bradascou (techniciens en S36 sans App Tech).
 
 Le script est `suivi-chantiers/scripts/veille-documents.ps1`, lancé chaque jour à 07h30 par
 la tâche Windows **« TELSAM - Veille documents RTE »** (compte `patrice.pivot`, session ouverte
