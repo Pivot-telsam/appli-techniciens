@@ -1224,6 +1224,45 @@ de la ligne du mot de passe a d'abord été tentée par Find/Replace et a **corr
 (cf. le piège des apostrophes en « Règles de prudence ») — refaite par remplacement de la plage du
 paragraphe. Sauvegarde de l'original dans `Appli_TELSAM_Consigne_Technicien_backup_2708.docx`.
 
+**Mise à jour du 28/08/2026 — version envoyée aux 13 techniciens.** Quatre changements :
+1. **Section 5 « Envoyer ta feuille » entièrement réécrite** : l'ancienne décrivait le partage du
+   PDF puis un mail à `equipefibretelsam@telsam.com`. Nouveau texte : un appui, l'appli fabrique
+   le PDF et l'envoie directement (relais Cloudflare → Dropbox), attendre le message de
+   confirmation, plus de mail ni de pièce jointe ; note italique sur l'échec réseau (« ta saisie
+   reste sur le téléphone, réappuie plus tard, rien n'est perdu »).
+2. **Les DEUX mots de passe sont maintenant expliqués** (section 1) : celui de l'appli (personnel)
+   et celui des documents (commun, demandé par Dropbox à la première ouverture d'un dossier de
+   chantier). Ajouté aussi que **le tiret n'est pas obligatoire** (`normPw`). La puce
+   « 📁 Documents » de la section 2 rappelle que Dropbox le demande une fois par chantier.
+3. **Puce « 📋 Suivi » ajoutée** en section 2, formulée « sur certains chantiers seulement » — le
+   bouton est en pilote sur DATA4-Marcoussis, un technicien qui le voit ne doit pas croire à un
+   bug, un technicien qui ne le voit pas ne doit pas le chercher.
+4. Section 6, première puce : « Tant que tu n'as pas **appuyé sur Envoyer** » (au lieu de « envoyé
+   le PDF »), cohérent avec l'envoi direct.
+
+**Méthode employée, à reprendre** : plutôt que Find/Replace dans Word (qui a corrompu un
+paragraphe le 27/08), le `document.xml` a été extrait, découpé en paragraphes, les paragraphes
+visés régénérés à l'identique du style voisin (`w:pPr`/`w:rPr` recopiés, runs emoji en
+`Segoe UI Emoji`), puis réinjecté dans le `.docx` avec
+`[System.IO.Compression.ZipFile]::Open(..., 'Update')` — pas de `zip` sur cette machine. Contrôles
+faits : `<w:p>`/`<w:r>` appariés, zéro `Ã` et zéro caractère de remplacement, ouverture Word OK
+(45 paragraphes, 1 page), puis `SaveAs2` docx + PDF. Sauvegarde `..._backup_2808.docx`.
+
+**Le document est une page A3 portrait sur DEUX colonnes** (`w:pgSz 16838×23811`, `w:cols w:num=2`)
+— pas un A4. Ne pas s'étonner d'un « 1 page » avec 800 mots, et ne pas ajouter de contenu sans
+vérifier que ça tient encore sur la page. **Le PDF pèse ~4,3 Mo** : c'est la police
+`SegoeUIEmoji` embarquée (un seul flux de 8 Mo avant compression, les emoji couleur ne se
+sous-ensemblent pas vraiment). Normal, pas une régression ; si un jour il faut l'alléger, la seule
+voie est de remplacer les emoji par du texte — au prix de la ressemblance avec l'écran du
+téléphone.
+
+**`Mail_general_mise_en_service_appli.txt`** (Bureau) — le mail de mise en service envoyé à tous
+les techniciens le 28/08/2026, rédigé au nom de l'équipe. Il reste volontairement court : le lien
+unique, la liste de ce qu'on trouve dans l'appli, le **principe des deux mots de passe** (personnel
+pour l'appli / commun pour les documents, envoyés dans un mail individuel), l'ajout à l'écran
+d'accueil, et le renvoi à la notice PDF pour tout le détail. Patrice envoie ensuite un mail
+individuel par technicien avec ses deux mots de passe.
+
 **`Memo_Exploitation_TELSAM.docx`** — le « qui fait quoi » de Patrice, 11 sections depuis le
 27/08/2026. À tenir à jour dès qu'une tâche récurrente change de main : c'est le document qu'il
 relit pour savoir ce qu'il doit faire et ce que je fais. Il n'en existe pas de PDF, et Patrice
