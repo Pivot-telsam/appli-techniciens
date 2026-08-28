@@ -183,8 +183,10 @@ test, pas dans le vrai récap. À déplacer dans `traité` ou à supprimer avant
 ils seront réintégrés lors de la prochaine commande sur la S35.
 
 **Documents Word remis à Patrice le 24/08** (sur son Bureau, régénérables à la demande) :
-- `Liens_App_Techniciens_TELSAM.docx` — les 13 techniciens et leur lien personnel cliquable, à
-  diffuser au moment du déploiement. Le code d'accès partagé n'y figure volontairement pas.
+- ~~`Liens_App_Techniciens_TELSAM.docx`~~ — **SUPPRIMÉ le 28/08/2026**, périmé et dangereux : il
+  listait un lien personnel `?tech=` par technicien et parlait d'un « code d'accès partagé ». Les
+  deux ont disparu avec le portail du 27/08 (un seul lien pour tous, le mot de passe identifie le
+  technicien). Ne pas le régénérer.
 - `Chantiers_Numeros_Index_TELSAM.docx` — les 68 chantiers avec leur n° d'index, groupés par
   priorité de renommage Dropbox (A : techniciens déjà placés, B : fenêtre à venir, C : sans date,
   D : terminés).

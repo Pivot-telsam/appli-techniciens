@@ -1228,7 +1228,7 @@ l'exemple de nom (« Prénom Nom - lieu ») ; nacelle « une seule par jour **et
 « Ne pars pas sur un chantier dont les documents ne sont pas en règle » **retirée**. La correction
 de la ligne du mot de passe a d'abord été tentée par Find/Replace et a **corrompu le paragraphe**
 (cf. le piège des apostrophes en « Règles de prudence ») — refaite par remplacement de la plage du
-paragraphe. Sauvegarde de l'original dans `Appli_TELSAM_Consigne_Technicien_backup_2708.docx`.
+paragraphe. (La sauvegarde `..._backup_2708.docx` a été supprimée le 28/08, cf. ci-dessous.)
 
 **Mise à jour du 28/08/2026 — version envoyée aux 13 techniciens.** Quatre changements :
 1. **Section 5 « Envoyer ta feuille » entièrement réécrite** : l'ancienne décrivait le partage du
@@ -1252,7 +1252,19 @@ visés régénérés à l'identique du style voisin (`w:pPr`/`w:rPr` recopiés, 
 `Segoe UI Emoji`), puis réinjecté dans le `.docx` avec
 `[System.IO.Compression.ZipFile]::Open(..., 'Update')` — pas de `zip` sur cette machine. Contrôles
 faits : `<w:p>`/`<w:r>` appariés, zéro `Ã` et zéro caractère de remplacement, ouverture Word OK
-(45 paragraphes, 1 page), puis `SaveAs2` docx + PDF. Sauvegarde `..._backup_2808.docx`.
+(45 paragraphes, 1 page), puis `SaveAs2` docx + PDF.
+
+**RÈGLE — pas de fichier `_backup_*.docx` qui traîne sur le Bureau.** Le 28/08/2026, juste avant
+d'envoyer l'appli aux 13 techniciens, Patrice a demandé de supprimer les documents Word périmés
+« pour éviter de me tromper » — le vrai risque du jour était d'ouvrir une vieille version et de
+joindre le mauvais PDF au mail. Envoyés à la corbeille (récupérables, jamais d'effacement
+définitif) : `Appli_TELSAM_Consigne_Technicien_backup_2708.docx`,
+`..._backup_2808.docx`, `Memo_Exploitation_TELSAM_backup_2708-2.docx`. Lui-même avait déjà
+supprimé `Liens_App_Techniciens_TELSAM.docx`. **Le Bureau ne doit garder que 4 documents Word** :
+`Appli_TELSAM_Consigne_Technicien.docx` (+ son PDF), `Mots_de_passe_App_Techniciens_TELSAM.docx`,
+`Memo_Exploitation_TELSAM.docx`, `Chantiers_Numeros_Index_TELSAM.docx`. Conséquence pour les
+prochaines modifications de ces documents : **la sauvegarde va dans le scratchpad de la session,
+pas sur le Bureau**, et on ne s'appuie plus sur un `_backup_` du Bureau comme filet.
 
 **Le document est une page A3 portrait sur DEUX colonnes** (`w:pgSz 16838×23811`, `w:cols w:num=2`)
 — pas un A4. Ne pas s'étonner d'un « 1 page » avec 800 mots, et ne pas ajouter de contenu sans
