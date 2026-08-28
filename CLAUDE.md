@@ -1046,7 +1046,13 @@ un domaine routé par Cloudflare — chantier d'une demi-journée étalé sur 1-
 l'attente DNS, **repoussé après le déploiement** (décision de Patrice, 27/08/2026).
 
 ## Workflow hebdomadaire
-1. Le lien personnalisé technicien (`?tech=slugifiedname`) est permanent — jamais régénéré à chaque semaine.
+1. **Un seul lien pour tout le monde** : `https://pivot-telsam.github.io/appli-techniciens/`. Il ne
+   change jamais. C'est le **mot de passe** qui identifie le technicien depuis le 27/08/2026, plus
+   l'adresse : le commit du portail a supprimé la lecture de `?tech=` (`URLSearchParams`), il n'en
+   reste rien dans le code. Les anciens liens personnels `?tech=slugifiedname` restent inoffensifs
+   (le paramètre est ignoré, on tombe sur l'écran du mot de passe) — inutile de les récupérer, mais
+   **ne plus jamais les diffuser ni les présenter comme personnels**. Question posée par Patrice le
+   28/08/2026 en relisant le mail de mise en service : cette ligne de doc disait encore l'inverse.
 2. Ce qui change chaque semaine : les affectations technicien/chantier (TECH_RANGES côté appli-techniciens,
    structure équivalente côté suivi-chantiers) — à mettre à jour dans les deux dépôts en cohérence.
 3. Les liens Documents/Dépôt photos/base de vie sont à créer/vérifier pour les NOUVEAUX chantiers
