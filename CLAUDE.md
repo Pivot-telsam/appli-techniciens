@@ -251,6 +251,30 @@ lot 1. Deux suffixes ou plus = parent, un seul suffixe = ce lot (`NumeroDeDossie
 `scripts/veille-documents.ps1`). Sans ce cas particulier, l'extraction s'arrêtait au premier
 suffixe et rattachait tout le chantier au lot 1.
 
+## Nouveau chantier — checklist systématique (rappelé par Patrice le 28/08/2026)
+
+**À faire À CHAQUE nouveau chantier, sans attendre qu'il le demande.** Patrice l'a redit le
+28/08/2026 (« note bien la règle pour le faire systématiquement »). L'ordre :
+1. **Attribuer le n° d'index** (prochain `26-0XX` libre) et le communiquer à Patrice.
+2. **Créer la fiche** dans les DEUX dépôts (suivi = fiche riche, appli = fiche allégée, même `id`),
+   avec `mesureTouret:true` si c'est une mesure de tourets.
+3. **Prévisionnel** : calculer `heuresPrevues` depuis le devis (cf. « Temps prévisionnel par
+   chantier ») et **relever les boîtes** (cf. « Boîtes WTC2 »).
+4. **Monter le dossier App Tech complet** (cf. section ci-dessous) : Brief + MO/NDS TELSAM +
+   PDP/PGO à jour + IST si TELSAM ET signée RTE + sous-dossier **Photos terrain**.
+5. **Demande de fichiers** Dropbox vers `Photos terrain` → câbler `depotTerrain` (bouton Dépôt
+   photos) dans l'appli. **Jamais reporté à plus tard.**
+6. **Lien de partage** du dossier App Tech → `documentsAppTech` (appli) + `dossierDropbox` (suivi).
+   L'outil crée le lien en **privé** : le **signaler à Patrice pour qu'il le passe en public +
+   mot de passe** (cf. « Accès Dropbox » et la serrure 2). Le bouton Documents ne marche pour les
+   techniciens qu'après.
+7. **Bumper** `SEED_VERSION` (suivi) et `APP_VERSION` + `APP_NOUVEAUTE` (appli), committer, pousser.
+
+Exemple fait le 27-28/08/2026 : **26-070 Campagnac - Séverac** (mesure de tourets) — fiche,
+prévisionnel 241 h, 8 WTC2, App Tech (Brief généré + NDS + MO + PDP signé + Photos terrain),
+demande de fichiers créée, lien App Tech à rendre public. PGO absent en PDF (seulement `.xlsm`) et
+PDP nommé « CTEAM » (couverture TELSAM à confirmer) — signalés à Patrice.
+
 ## Contenu standard d'un dossier "App Tech" — RÈGLE SYSTÉMATIQUE (à appliquer TOUJOURS)
 Chaque fois qu'un dossier "App Tech" est créé ou complété pour un chantier (nouveau chantier,
 ou chantier existant qui devient actif — cf. workflow hebdomadaire ci-dessous), il doit contenir :
