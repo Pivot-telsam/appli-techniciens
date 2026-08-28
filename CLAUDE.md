@@ -1281,10 +1281,28 @@ pour l'appli / commun pour les documents, envoyés dans un mail individuel), l'a
 d'accueil, et le renvoi à la notice PDF pour tout le détail. Patrice envoie ensuite un mail
 individuel par technicien avec ses deux mots de passe.
 
-**`Memo_Exploitation_TELSAM.docx`** — le « qui fait quoi » de Patrice, 11 sections depuis le
-27/08/2026. À tenir à jour dès qu'une tâche récurrente change de main : c'est le document qu'il
-relit pour savoir ce qu'il doit faire et ce que je fais. Il n'en existe pas de PDF, et Patrice
-n'en veut pas.
+**`Memo_Exploitation_TELSAM.docx`** — le « qui fait quoi » de Patrice, **12 sections depuis le
+28/08/2026** (A4 portrait, deux colonnes, 4 pages). À tenir à jour dès qu'une tâche récurrente
+change de main : c'est le document qu'il relit pour savoir ce qu'il doit faire et ce que je fais.
+Il n'en existe pas de PDF, et Patrice n'en veut pas.
+
+**Mise à jour du 28/08/2026.** Ce mémo est le document qui vieillit le plus vite : il décrit des
+circuits, et chaque changement de l'appli en périme un. Ce qui a changé :
+- **Section 6 (feuilles d'heures)** : elle décrivait encore le technicien envoyant son PDF par mail
+  à `equipefibretelsam@telsam.com`, et Patrice enregistrant les pièces jointes dans
+  « feuille d'heures / dépôts appli ». Faux depuis le relais : le technicien appuie, la feuille
+  arrive d'elle-même dans le dossier, Patrice n'a plus rien à enregistrer. Puce « Moi » ajoutée sur
+  le relais Cloudflare (en cas de panne, le technicien garde sa saisie — rien à lui redemander).
+- **Nouvelle section 7 « Le suivi d'avancement — nouveau, en pilote »**, insérée juste après les
+  heures (même circuit : ce qui remonte du terrain par l'appli). Dit explicitement qu'un seul
+  chantier est équipé, qu'ouvrir un chantier de plus demande son devis + la validation des tâches
+  par Patrice, et les deux limites assumées (fichier déposé pas confortable à lire dans App Tech,
+  regroupement multi-techniciens à faire).
+- **Sections 7 à 11 renumérotées en 8 à 12**, et l'ancienne 11 « Avant le déploiement » réécrite en
+  **12 « Le déploiement aux 13 techniciens »** (fait / toi / moi).
+Les sections 1 à 5 et 10-11 n'ont pas bougé — la puce « deux serrures » de la section 11 était déjà
+juste. Mêmes styles que les voisins (`H` / `SUB` / `BUL` / `NOTE`, cf. la méthode d'édition docx
+ci-dessus). Sauvegarde dans le scratchpad de la session, pas sur le Bureau.
 
 ## Règles de prudence
 - **PIÈGE D'ENCODAGE — ne JAMAIS relire un fichier accentué avec `Get-Content` sans `-Encoding
