@@ -11,7 +11,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-08-28-4';
+var APP_VERSION = '2026-08-28-5';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -21,7 +21,7 @@ var APP_VERSION = '2026-08-28-4';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Nouveau bouton « 📋 Suivi » (pour l'instant sur DATA4-Marcoussis) : coche les pylônes et tâches faits, et envoie ton avancement en un appui.";
+var APP_NOUVEAUTE = "Le bouton « 📋 Suivi » est en place sur DATA4-Marcoussis : coche les pylônes et tâches faits, puis envoie ton avancement en un appui.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -912,7 +912,7 @@ function renderCard(c, daysThisWeek){
   // Bouton Suivi : seulement si le chantier a des tâches vendues renseignées ET un dossier
   // App Tech (le relais dépose le suivi dans App Tech/Suivi, il lui faut ce lien).
   if(c.tachesVendues && c.tachesVendues.taches && c.tachesVendues.taches.length && c.documentsAppTech){
-    docsHtml += '<button type="button" class="doc-btn suivi" onclick="ouvrirSuivi('+JSON.stringify(c.id)+')">📋 Suivi</button>';
+    docsHtml += '<button type="button" class="doc-btn suivi" onclick="ouvrirSuivi(\''+c.id+'\')">📋 Suivi</button>';
   }
 
   let mapHtml='';
@@ -1891,7 +1891,7 @@ function ouvrirSuivi(cid){
     + '<div class="suivi-body">'+body+'</div>'
     + '<div class="suivi-foot">'
     + '<button type="button" class="suivi-cancel" onclick="fermerSuivi()">Annuler</button>'
-    + '<button type="button" class="suivi-send" id="suiviSendBtn" onclick="envoyerSuivi('+JSON.stringify(cid)+')">📤 Envoyer</button>'
+    + '<button type="button" class="suivi-send" id="suiviSendBtn" onclick="envoyerSuivi(\''+cid+'\')">📤 Envoyer</button>'
     + '</div></div>';
   document.body.appendChild(ov);
 }
