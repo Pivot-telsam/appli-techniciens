@@ -4,6 +4,35 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Sur le terrain — TELSAM</title>
+
+<!-- ===================== EPINGLER SUR L'ECRAN D'ACCUEIL =====================
+     Ce bloc est ce qui fait que l'appli s'ouvre en PLEIN ECRAN, sans barre
+     d'adresse, avec le logo TELSAM comme icone, quand le technicien fait
+     "Ajouter a l'ecran d'accueil" (Safari sur iPhone, Chrome sur Android).
+
+     Les chemins sont RELATIFS : le site est servi sous /appli-techniciens/ sur
+     GitHub Pages, un chemin commencant par / pointerait a la racine du domaine
+     et tout casserait sans erreur visible.
+
+     iOS ignore manifest.json pour l'icone et le plein ecran : il lui faut ses
+     propres balises apple-*. Les deux jeux sont donc necessaires, ce n'est pas
+     une redondance a "simplifier".
+
+     status-bar-style = black (barre d'etat noire, texte blanc) et non
+     black-translucent : ce dernier fait passer la page SOUS l'horloge, et il
+     faudrait alors gerer les zones sures (safe-area-inset) dans tout le CSS.
+     Le fond de l'appli etant #0C1012, le noir se confond avec.
+
+     Les icones sont fabriquees par scripts\generer-icones.ps1 a partir de
+     icons\logo-telsam-source.jpg. Si le logo change, relancer ce script.       -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0C1012">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Telsam">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <script>
 /* ===================== VERSION DE L'APPLI =====================================
    À INCRÉMENTER À CHAQUE MISE EN LIGNE (format AAAA-MM-JJ-n).
@@ -11,7 +40,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-08-31-5';
+var APP_VERSION = '2026-08-31-6';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -21,7 +50,7 @@ var APP_VERSION = '2026-08-31-5';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Poste de Portet : l’IST du poste 63 kV est revenue signée par RTE. Les travaux 63 kV peuvent démarrer, le document est dans tes Documents.";
+var APP_NOUVEAUTE = "Tu peux maintenant garder l’appli sur l’écran d’accueil de ton téléphone : appuie sur Partager, puis « Sur l’écran d’accueil » — elle s’ouvre en plein écran et te redemande ton mot de passe une fois. Portet : l’IST du poste 63 kV est revenue signée par RTE, elle est dans tes Documents.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
