@@ -13,8 +13,11 @@
 # under the logo is derived from APP_VERSION itself.
 #
 # Install (once per clone — hooks are not versioned by git itself):
-#   cp scripts/check-app-version.sh .git/hooks/pre-commit
+#   cp scripts/pre-commit.sh .git/hooks/pre-commit
 #   chmod +x .git/hooks/pre-commit
+#
+# (Ce script n'est plus installe directement comme hook : le depot a plusieurs
+#  controles, et c'est scripts/pre-commit.sh qui les enchaine tous.)
 
 FILE="index.html"
 

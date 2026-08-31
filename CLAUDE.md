@@ -1445,7 +1445,7 @@ ci-dessus). Sauvegarde dans le scratchpad de la session, pas sur le Bureau.
   git local (`scripts/check-seed-version.sh`, installé dans `.git/hooks/pre-commit`) bloque
   maintenant tout commit qui modifie un enregistrement `SEED_DATA` sans toucher `SEED_VERSION`
   dans le même commit. À réinstaller après un nouveau clone du dépôt :
-  `cp scripts/check-seed-version.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+  `cp scripts/pre-commit.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
   (les hooks ne sont pas versionnés par Git lui-même). Toujours annoncer explicitement dans le
   résumé de commit "SEED_VERSION bumpé : oui/non" quand `SEED_DATA` est modifié.
 - **Avant de committer un changement à `appli-techniciens/index.html`, incrémenter `APP_VERSION`.**
@@ -1458,6 +1458,30 @@ ci-dessus). Sauvegarde dans le scratchpad de la session, pas sur le Bureau.
   donc un format cassé lui afficherait une date fausse sans erreur nulle part ailleurs. Les trois
   cas (oubli / format cassé / bump correct) ont été testés en conditions réelles.
   À réinstaller après un nouveau clone du dépôt, comme celui de `suivi-chantiers` :
-  `cp scripts/check-app-version.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+  `cp scripts/pre-commit.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
   (les hooks ne sont pas versionnés par Git lui-même — ce garde-fou ne protège que la machine où
   il est installé).
+- **CE FICHIER EST LE MÊME DANS LES DEUX DÉPÔTS — un hook refuse de les laisser diverger**
+  (mis en place le 31/08/2026). `appli-techniciens/CLAUDE.md` et `suivi-chantiers/CLAUDE.md`
+  sont **un seul document**, dupliqué pour que chaque clone soit complet. Rien ne les tenait
+  ensemble : ils ont divergé en silence pendant trois jours. `suivi-chantiers` annonçait encore
+  des liens `?tech=slugifiedname` personnels et permanents, alors que le portail par mot de passe
+  du 27/08 avait supprimé la lecture de ce paramètre — selon le dépôt dans lequel on travaillait,
+  on lisait une règle périmée, et on aurait pu rediffuser ces liens comme s'ils identifiaient
+  encore un technicien.
+  `scripts/check-claude-md-sync.sh` (identique dans les deux dépôts) **bloque tout commit qui
+  toucherait `CLAUDE.md` sans que l'autre dépôt dise déjà la même chose**, et affiche l'écart. La
+  marche à suivre est donc : modifier un fichier, le **copier octet pour octet** dans l'autre
+  (`cp CLAUDE.md ../<autre-dépôt>/CLAUDE.md` — jamais une relecture/réécriture, les accents se
+  cassent), puis committer les deux. Si le dépôt voisin est absent (clone isolé), le hook
+  **avertit et laisse passer** plutôt que de bloquer un travail qu'il ne peut pas vérifier.
+- **Un seul hook `pre-commit` est possible : c'est `scripts/pre-commit.sh` qui enchaîne tous les
+  contrôles.** Depuis le 31/08/2026 chaque dépôt en a plusieurs (version + cohérence des
+  CLAUDE.md). Installer directement un `check-*.sh` comme hook, comme le disaient les lignes
+  ci-dessus jusqu'à cette date, **désactiverait silencieusement les autres**. Le lanceur prend
+  tout `scripts/check-*.sh` du dépôt : un nouveau contrôle déposé là est actif sans rien modifier.
+  - **PIÈGE rencontré en testant ce hook** : `git show :CLAUDE.md` applique la conversion de fins
+    de ligne de `core.autocrlf` (activé ici) et rend du CRLF, alors que le fichier voisin est lu
+    tel quel sur le disque. Deux fichiers identiques paraissaient alors différer **à chaque
+    ligne** (2927 lignes d'écart) et le hook bloquait tout. Utiliser `git cat-file blob`, qui rend
+    les octets bruts, et neutraliser les `\r` des deux côtés.
