@@ -911,6 +911,43 @@ demande** :
 Exemples manqués le 28/08 puis rattrapés : PGO Rion des Landes ind.12, PGO Bradascou ind.16, et le
 dossier App Tech de Bradascou (techniciens en S36 sans App Tech).
 
+### Deux garde-fous, parce que la règle seule n'a pas tenu (31/08/2026)
+
+**Cette règle a été oubliée DEUX fois** — le 28/08, puis le 31/08 où Patrice a dû redemander
+(« ça fait deux fois que je suis obligé de te rappeler des tâches à faire »). Même diagnostic que
+`SEED_VERSION` : une consigne écrite ici ne vaut que ce que vaut la mémoire de celui qui la lit.
+Même remède, deux mécanismes exécutés par l'outil.
+
+**1. Le rappel revient à chaque message tant que ce n'est pas traité.**
+`scripts/hook-veille-prompt.ps1`, déclaré en `UserPromptSubmit` dans `.claude/settings.json`.
+Il compare l'horodatage de `veille/dernier.json` à celui de **`veille/traitement.json`** et, tant
+qu'ils diffèrent, ajoute une ligne courte — dans le contexte de Claude **et à l'écran de Patrice**
+(champ `systemMessage`), pour qu'il voie lui-même si le travail a été fait plutôt que d'avoir à le
+demander. Il ne compte que ce qui est réellement actionnable : les nouveautés, plus les dossiers
+App Tech en retard **marqués `Prioritaire`** (donc avec des techniciens placés — cf. la règle de
+lecture ci-dessus). Un rapport sans rien d'actionnable ne déclenche aucun rappel.
+
+**Pour l'éteindre : `scripts/marquer-veille-traitee.ps1 -Note "…"`.** La note est obligatoire —
+elle force à dire ce qui a été fait et sert de trace. **Constater qu'un élément ne demande rien EST
+un traitement valable**, mais il faut l'avoir constaté : ne jamais marquer sans avoir regardé.
+
+**2. Le contrôle des chantiers actifs, pour ce que la veille ne peut pas voir.**
+`scripts/veille-chantiers-actifs.ps1`, appelé par le hook `SessionStart` à la suite du rapport.
+La veille prend une photo à 07h30 ; **tout ce qui arrive ensuite est invisible jusqu'au
+lendemain**. Le 31/08/2026, deux PGO de Portet sont arrivés à 08h55 et l'IST à 10h34 : dans aucun
+rapport, alors que trois techniciens y étaient toute la semaine — et le PGO du dossier App Tech
+(V40) ne couvrait plus la période, ses lignes TELSAM s'arrêtant au 28/08. Le 43-1 ajoutait
+justement « 31/08 → 04/09 : fin de raccordement BR SECTIONNEMENT ». C'est Patrice qui l'a vu.
+
+Ce contrôle ne rejoue pas les 143 000 fichiers : il ne regarde que les dossiers des chantiers où
+des techniciens sont placés (semaine en cours + 3 semaines), et n'y cherche que les documents de
+sécurité plus récents que le dernier passage de la veille. **3 secondes.** Il dit pour chacun s'il
+est déjà dans App Tech, et dédoublonne source et copie.
+
+**`.claude/settings.json` n'est sauvegardé par aucun dépôt** (le dossier parent n'est pas un dépôt
+Git). S'il disparaît, recréer les DEUX hooks : `SessionStart` → `hook-veille-session.ps1`,
+`UserPromptSubmit` → `hook-veille-prompt.ps1`.
+
 Le script est `suivi-chantiers/scripts/veille-documents.ps1`, lancé chaque jour à 07h30 par
 la tâche Windows **« TELSAM - Veille documents RTE »** (compte `patrice.pivot`, session ouverte
 requise, aucun mot de passe stocké, rattrapage automatique si le PC était éteint). Il est en
