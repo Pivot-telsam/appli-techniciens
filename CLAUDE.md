@@ -379,6 +379,79 @@ chose — ex. mise à jour du planning, recherche Dropbox) :
 - Le but : ce que le technicien ouvre dans App Tech doit toujours être la version en vigueur,
   jamais une version périmée qui traîne depuis la création du dossier.
 
+## Tâches vendues et document d'avancement (mis en place le 31/08/2026)
+
+Le technicien appuie sur « 📋 Suivi », coche ses pylônes, et le relais Cloudflare dépose un JSON
+dans `<chantier>/App Tech/Suivi/`. Chaque matin à 7h30, `suivi-chantiers/scripts/avancement-suivi.ps1`
+(deuxième action de la tâche Windows « TELSAM - Veille documents RTE ») consolide tous les envois
+d'un chantier en **un seul PDF `Avancement <numero>.pdf`** déposé dans son dossier App Tech — donc
+lisible par les techniciens ET le bureau, via le lien de partage qui existe déjà. Aucun nouvel
+accès à créer. Journal : `veille/avancement.log`.
+
+**`tachesVendues` vit UNIQUEMENT dans `appli-techniciens/index.html`**, jamais dans le suivi.
+Sans ce champ, le bouton Suivi n'apparaît pas (condition : `tachesVendues.taches.length` +
+`documentsAppTech`). Structure :
+```
+tachesVendues: { devis: "TELSAM_CC_RTE_…", taches: [ { id, libelle, pylones?: [...] } ] }
+```
+Une tâche **avec** `pylones` donne des cases à cocher ; **sans**, un bouton Pas fait / En cours /
+Fait. Au 31/08/2026 : 12 chantiers actifs renseignés, 65 tâches, 149 cases.
+
+### RÈGLE — quel devis fait foi (posée par Patrice le 31/08/2026)
+
+**Toujours la DERNIÈRE version (V2, V3…), PLUS les devis TS (travaux supplémentaires) quand il y
+en a.** Un chantier n'a presque jamais un seul devis, et les TS ne remplacent rien : ils s'ajoutent.
+- Lister TOUS les devis avant d'en lire un : dossier `DEVIS`, mais aussi la racine du chantier et
+  `Acte ST` — ils traînent aux trois endroits.
+- **PIÈGE — une variante `_option` peut être celle qui fait foi.** Vécu sur **26-045
+  St-Guillerme** : `26008` et `26008_option` coexistent ; c'est le second, devis
+  **`TELSAM/CC/RTE/26008-1`**, qui fait foi, et il ajoute le **pylône 1** au raccordement. Le
+  suffixe du nom de fichier laisse croire à une pièce secondaire. À ne pas confondre avec une
+  **ligne** « Option : … » à l'intérieur d'un devis, qui elle ne se compte pas tant qu'elle n'est
+  pas commandée.
+- Plusieurs devis sans hiérarchie évidente (variante `option`, devis d'un autre client comme le
+  « Data Hertz » de Lamativie 26-058) : **demander à Patrice**, ne pas trancher seul.
+
+### RÈGLE CHANGÉE — le DOO/DOE/DEO EST une tâche vendue
+
+Le 28/08/2026 il avait été retiré (« pas de leur ressort »). **Patrice a changé d'avis le
+31/08/2026 : on le garde.** Présent sur 11 chantiers sur 12 ; seul Portet (26-051) n'en a pas au
+devis. Sur l'audit 26-061 il s'appelle « Dossier de recettes de toutes les liaisons ».
+
+### Comment modéliser un chantier
+
+- **Pose et raccordement du boîtier = UNE seule tâche**, jamais deux, même quand le devis
+  distingue les deux lignes avec des listes différentes (choix de Patrice, 31/08/2026).
+- Le **demi-boîtier WTC2** reste une tâche à part (156 et 229 à Bradascou, P112 à Fleyriat) :
+  c'est une autre prestation, pas un autre état.
+- Un chantier qui compte des **quantités et pas des pylônes** (Portet : 84 raccordements,
+  20 000 m de câble) passe en **boutons d'état**, quantités précisées au commentaire. Idem quand
+  le devis ne donne aucun numéro de pylône (Campagnac-Séverac).
+
+### Pièges techniques
+
+- **Le tableau « DEVIS ESTIMATIF » est un classeur Excel INCRUSTÉ dans le `.doc`** :
+  `Document.Content.Text` de Word ne le voit pas et rend un devis sans aucune prestation, sans
+  erreur. **Lire le PDF**, pas le Word.
+- Le document d'avancement **n'affiche ni pourcentage ni référence de devis** : il est lu par les
+  techniciens, et la règle TELSAM interdit d'y faire figurer quoi que ce soit de commercial (même
+  règle que pour les briefs).
+- **Un document qui existe est toujours refait**, même quand il n'y a plus aucun envoi. Sinon,
+  supprimer un envoi erroné laisserait en place un document qui continue de l'affirmer.
+- **Un chantier `termine` n'annonce jamais de « reste à faire »** : le détail par tâche est retiré
+  et le document dit « Chantier terminé ». Afficher « 0 / 3 » sur des travaux qui SONT faits serait
+  faux.
+- Pour corriger l'avancement, il suffit de **supprimer le JSON fautif** (dans `Suivi` ou
+  `Suivi/_bruts`) : le document est recalculé de zéro au passage suivant.
+- **UNION des pylônes faits, jamais addition** — même règle que les récaps de feuilles d'heures.
+
+### Écarts de devis connus, laissés en l'état à la demande de Patrice
+
+- **26-060 Givors** : 7 cantons facturés, 4 listés (il manque le tronçon p1 → 39N).
+- **26-055 Fleyriat** : 11 cantons facturés, 10 listés.
+- **26-065 DATA4** (terminé) : un second devis `25115` couvre le pylône HZ291, non repris dans ses
+  tâches vendues.
+
 ## Feuilles d'heures : de l'appli au récap RH (mis en place le 24/08/2026)
 
 **La chaîne, validée de bout en bout avec de vraies feuilles (Ahmed Hamouch et Pascal
