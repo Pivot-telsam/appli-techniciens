@@ -1351,8 +1351,14 @@ paragraphe. (La sauvegarde `..._backup_2708.docx` a été supprimée le 28/08, c
    chantier). Ajouté aussi que **le tiret n'est pas obligatoire** (`normPw`). La puce
    « 📁 Documents » de la section 2 rappelle que Dropbox le demande une fois par chantier.
 3. **Puce « 📋 Suivi » ajoutée** en section 2, formulée « sur certains chantiers seulement » — le
-   bouton est en pilote sur DATA4-Marcoussis, un technicien qui le voit ne doit pas croire à un
-   bug, un technicien qui ne le voit pas ne doit pas le chercher.
+   bouton était alors en pilote sur DATA4-Marcoussis seul. **Réécrite le 31/08/2026**, tous les
+   chantiers actifs étant équipés : la puce décrit maintenant le geste (cocher en fin de journée),
+   le document « Avancement » qui se refait chaque matin dans Documents, et la consigne qui compte
+   — *ne pas corriger le document, écrire la correction dans le commentaire*, puisqu'il est
+   reconstruit de zéro chaque matin. **Seule la FIN de la puce a été remplacée** (plage bornée à
+   partir de « sur certains ») : réécrire le paragraphe entier aurait fait perdre à l'emoji son run
+   en `Segoe UI Emoji` et il serait devenu un carré. Contrôlé après coup : emoji présent, run
+   toujours en Segoe UI Emoji, texte en Calibri, document toujours sur 1 page.
 4. Section 6, première puce : « Tant que tu n'as pas **appuyé sur Envoyer** » (au lieu de « envoyé
    le PDF »), cohérent avec l'envoi direct.
 
