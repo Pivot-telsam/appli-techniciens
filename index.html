@@ -40,7 +40,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-08-31-6';
+var APP_VERSION = '2026-08-31-7';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -50,7 +50,7 @@ var APP_VERSION = '2026-08-31-6';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Tu peux maintenant garder l’appli sur l’écran d’accueil de ton téléphone : appuie sur Partager, puis « Sur l’écran d’accueil » — elle s’ouvre en plein écran et te redemande ton mot de passe une fois. Portet : l’IST du poste 63 kV est revenue signée par RTE, elle est dans tes Documents.";
+var APP_NOUVEAUTE = "Le numéro du chantier (26-051, 26-061…) s’affiche maintenant à côté de son nom, et il part avec ta feuille d’heures. Au passage : les chantiers sans lieu précis, comme l’audit multi postes, sortaient sur la feuille avec le mot « Chantier » au lieu de leur nom — c’est corrigé.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -255,6 +255,13 @@ main{padding:6px 16px 20px; display:flex; flex-direction:column; gap:14px;}
   padding:16px; display:flex; flex-direction:column; gap:10px;
 }
 .card-title{font-size:17px; font-weight:800; letter-spacing:-0.005em; line-height:1.25;}
+/* n° d'index du chantier, colle au titre : c'est lui que Patrice retrouve dans
+   son recap (colonne « N° chantier »), il doit etre lisible sans etre criard. */
+.card-num, .h-chantier-num{
+  font-size:12px; font-weight:800; color:var(--amber); background:var(--amber-dim);
+  border-radius:5px; padding:1px 6px; letter-spacing:0.02em; white-space:nowrap;
+  vertical-align:2px;
+}
 .card-lieu{font-size:13.5px; color:var(--text-muted); display:flex; gap:6px; align-items:flex-start;}
 .card-days{font-size:12px; color:var(--text-muted);}
 .card-days .d{
@@ -822,6 +829,30 @@ function chantierById(id){
   return SEED_DATA.find(c=>c.id===id);
 }
 
+/* N° d'index du chantier (26-0XX) a partir d'une ligne de feuille d'heures.
+   Les lignes enregistrees dans le telephone AVANT le 31/08/26 ne portent pas le
+   numero : on le relit dans la fiche a chaque affichage plutot que de le figer
+   dans la ligne, sinon les feuilles deja commencees repartiraient sans numero.
+   Vide pour un chantier saisi librement (id null) : mieux vaut un blanc visible
+   qu'un numero devine. */
+function numeroDeChantier(line){
+  if(!line || !line.id) return '';
+  const fiche = chantierById(line.id);
+  return (fiche && fiche.numero) ? fiche.numero : '';
+}
+
+/* Libelle d'une ligne de chantier : « 26-061 - AUDIT MULTI POSTES (...) ».
+   C'est le NOM qui identifie le chantier, pas le lieu : jusqu'au 31/08/26 la
+   feuille imprimait `lieu`, et les chantiers sans lieu renseigne (audit multi
+   postes, 26-061) sortaient avec le mot « Chantier » a la place du nom —
+   Didier et Vincent PERRIN, semaine 35. Le lieu reste en secours. */
+function libelleChantier(line){
+  const num = line && line.numero !== undefined ? line.numero : numeroDeChantier(line);
+  const nom = (line && (line.nom || line.lieu || line.client)) || '';
+  if(num && nom) return num + ' - ' + nom;
+  return nom || num || '(chantier libre)';
+}
+
 function slugify(s){
   return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -955,7 +986,7 @@ function renderCard(c, daysThisWeek){
   }
 
   return '<div class="card">'
-    + '<div class="card-title">'+c.nom+'</div>'
+    + '<div class="card-title">'+c.nom+(c.numero? ' <span class="card-num">'+escapeHtml(c.numero)+'</span>' : '')+'</div>'
     + (c.lieu ? '<div class="card-lieu">📍 '+c.lieu+'</div>' : '')
     + (days ? '<div class="card-days">'+days+'</div>' : '')
     + (badgesHtml ? '<div class="badges">'+badgesHtml+'</div>' : '')
@@ -1264,7 +1295,8 @@ function renderHoursUI(){
         + '</div>';
     }).join('');
     return '<div>'
-      + '<div class="h-chantier-name">'+escapeHtml(line.nom||'(chantier libre)')+'</div>'
+      + '<div class="h-chantier-name">'+escapeHtml(line.nom||'(chantier libre)')
+        + (numeroDeChantier(line)? ' <span class="h-chantier-num">'+escapeHtml(numeroDeChantier(line))+'</span>' : '')+'</div>'
       + (line.lieu? '<div class="h-chantier-lieu">📍 '+escapeHtml(line.lieu)+'</div>' : '')
       + '<div class="h-days-grid">'+days+'</div>'
       + '<div class="h-row-actions"><button class="h-del-btn" onclick="removeChantierLine('+idx+')">🗑 Retirer ce chantier</button></div>'
@@ -1275,7 +1307,7 @@ function renderHoursUI(){
   if(addingChantier){
     const options = SEED_DATA
       .filter(c=> !e.chantierLines.some(l=>l.id===c.id))
-      .map(c=>'<option value="'+c.id+'">'+escapeHtml(c.nom)+'</option>').join('');
+      .map(c=>'<option value="'+c.id+'">'+escapeHtml((c.numero? c.numero+' - ':'')+c.nom)+'</option>').join('');
     const contribOption = e.chantierLines.some(l=>l.id==='__contribution_agence__')
       ? '' : '<option value="__contribution_agence__">Contribution agence</option>';
     addChantierHtml = '<select class="h-picker" id="addChantierSelect"><option value="">— choisir un chantier —</option>'+contribOption+options+'<option value="__autre__">Autre (saisie libre)</option></select>'
@@ -1411,8 +1443,15 @@ function applyPayloadToSheetXML(xml, payload){
   payload.chantierLines.forEach((line, idx)=>{
     if(idx>=chantierRows.length) return;
     const row = chantierRows[idx];
-    if(line.client) xml = setTextCellXML(xml, 'B'+row, line.client);
-    if(line.lieu) xml = setTextCellXML(xml, 'C'+row, line.lieu);
+    // Colonne B du modele officiel = « Codes AFFAIRES CLIENT », colonne C = « LIEU ».
+    // Le n° d'index du chantier (26-061) EST le code affaire cote TELSAM : il y va,
+    // le nom du client ne servant que de repli pour les lignes sans numero.
+    // En C on ecrit le NOM du chantier, pas le lieu : les chantiers sans lieu
+    // renseigne (audit multi postes) sortaient sinon avec une case vide.
+    const codeAffaire = line.numero || line.client || '';
+    const libelle = line.nom || line.lieu || line.client || '';
+    if(codeAffaire) xml = setTextCellXML(xml, 'B'+row, codeAffaire);
+    if(libelle) xml = setTextCellXML(xml, 'C'+row, libelle);
     DAY_COLS.forEach((cols, d)=>{
       const h = line.jours && line.jours[d];
       if(h && h.j) xml = setNumberCellXML(xml, cols.j+row, h.j);
@@ -1623,7 +1662,7 @@ function buildPdfFromPayload(payload){
   let grandTotal = 0;
 
   payload.chantierLines.forEach(line=>{
-    const row = [line.lieu || line.client || 'Chantier', ''];
+    const row = [libelleChantier(line), ''];
     let rowTotal = 0;
     for(let d=0; d<7; d++){
       const h = line.jours && line.jours[d];
