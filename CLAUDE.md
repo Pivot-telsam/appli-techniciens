@@ -921,8 +921,17 @@ demande de sa part** — un récap contient des alertes internes et des écarts 
 - **Pourquoi Outlook COM et pas un envoi SMTP** : telsam.com est une boîte Microsoft 365,
   l'authentification simple y est désactivée, et un mot de passe dans un script serait à proscrire
   de toute façon. Outlook est déjà installé et déjà authentifié : aucun secret nulle part.
-- **Le script démarre Outlook s'il n'est pas ouvert, et NE LE FERME PAS** : un mail envoyé par COM
-  attend dans la boîte d'envoi tant que le client ne synchronise pas. Le fermer le retiendrait.
+- **PIÈGE PRINCIPAL, vérifié le 01/09/2026 : un Outlook démarré par COM tourne SANS FENÊTRE et ne
+  se connecte pas au compte Exchange.** `Send()` ne fait que déposer dans la boîte d'envoi, et
+  **`SendAndReceive()` ne suffit PAS à l'en sortir** — testé, la boîte d'envoi contenait toujours
+  1 message après l'appel, et les Éléments envoyés dataient encore du 08/06. J'avais entre-temps
+  annoncé à Patrice que le mail était parti : il ne l'était pas. **Ne jamais conclure d'un `Send()`
+  sans exception que le message est parti** ; la seule preuve est la boîte d'envoi vide (lecture
+  lente, plusieurs minutes, quand Outlook est en mode sans fenêtre).
+- **Choix retenu : on dépose quand même**, plutôt que de forcer une fenêtre Outlook à l'écran.
+  Le message part dès que Patrice ouvre Outlook, ce qu'il fait tous les matins — et de toute façon
+  la tâche ne tourne qu'à l'ouverture de sa session. Le journal distingue les deux cas, et le
+  script **ne ferme jamais Outlook** : le fermer retiendrait le message.
 - **Un seul envoi par jour** (`veille/recap-mail.json`) : la tâche se rattrape à l'ouverture de
   session et peut se déclencher plusieurs fois.
 - **Un échec d'envoi n'arrête rien** : il est tracé dans `avancement.log` avec le préfixe `[mail]`,
