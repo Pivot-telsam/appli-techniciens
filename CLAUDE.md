@@ -240,6 +240,52 @@ réponse ne lui suffit pas (« pour ce genre de manip, il faut que tu sois beauc
 tes demandes… ou que tu m'amènes directement au bon endroit »). Lui fournir un fichier à
 double-cliquer ou un chemin exact, jamais un bloc de code à recopier.
 
+### Le planning alimente le reste du suivi (branché le 01/09/2026)
+
+Jusqu'à ce jour la même information vivait **deux fois** : le planning relu tout seul, et
+`REAL_DAYS`/`TECH_RANGES` que je recopiais à la main chaque semaine — dans les DEUX dépôts. C'est ce
+doublon qui a déjà divergé deux fois cette année. `planning-rte.ps1` publie donc désormais la
+traduction « chantier → jours de présence », **calculée une seule fois** et consommée telle quelle
+par tous :
+
+| champ de `PLANNING_RTE` | forme | qui s'en sert |
+| --- | --- | --- |
+| `presence` | `{ id: [jours] }` | `joursPresenceReels()` (Gantt + vue par semaine), `veille-documents.ps1`, `recap-matin.ps1` |
+| `techRanges` | `{ id: { personne: [jours] } }` — **la forme exacte de `TECH_RANGES`** | `veille-chantiers-actifs.ps1`, qui la fusionne sans rien réécrire |
+| `conflits` | désaccords avec la recopie manuelle | affiché dans la vue Planning |
+
+**UNION, jamais remplacement.** Le planning ne porte le numéro du chantier que sur les semaines que
+Patrice a annotées (à partir de fin août) : avant, seul `TECH_RANGES` rattache un libellé à une
+fiche, et il garde donc l'historique. Sur un contrôle de documents de sécurité, mieux vaut vérifier
+un chantier de trop qu'en oublier un. Le jour où tout le planning portera les numéros,
+`REAL_DAYS`/`TECH_RANGES` pourront cesser d'être tenus à la main.
+
+**Le rattachement libellé → fiche n'existe qu'à UN endroit** (`planning-rte.ps1`), par le **numéro**
+écrit dans le libellé — numéro complet d'abord (`26-036-1` = lot RODA), puis numéro de base s'il ne
+désigne qu'une seule fiche. Ne jamais le refaire côté JavaScript ni dans un script de veille : ce
+serait recréer le doublon qu'on vient de supprimer.
+
+**Une case ambiguë ne nourrit PAS la présence.** Quand deux lignes-projet partagent la couleur cette
+semaine-là, attribuer la présence à l'une des deux serait un tirage au sort. Au premier essai, la
+lecture automatique déplaçait ainsi trois jours du lot 1 de Chaineau vers le lot 2. La grille garde
+le ⚠, `TECH_RANGES` garde l'arbitrage humain, et 78 cases sur l'année sont écartées à ce titre.
+
+**LE CONTRÔLE DE COHÉRENCE, ET CE QU'IL A TROUVÉ.** À chaque passage, le script compare, personne
+par personne et jour par jour, ce que dit le planning et ce que dit la recopie manuelle. Un
+désaccord n'est pas un détail : il veut dire qu'une personne apparaît sur **deux chantiers le même
+jour**. Dès le premier passage, 17 désaccords, tous en **S34 (17-21/08)** :
+
+- **François PERRIN**, 17-18/08 : planning = Portet 26-051, recopie = Arudy 26-056 ;
+- **Bilal HAMOUCH, Younes MOUSSA, Hugues VIRY**, 17-19/08 : planning = Chaineau **lot 2 SELT**
+  (26-036-2), recopie = **lot 1 RODA** ;
+- **les mêmes**, 20-21/08 : planning = Dambron-Voves 26-031, recopie = lot 1 RODA.
+
+**Non tranché, et à ne pas trancher seul.** La recopie porte un arbitrage explicite de Patrice du
+25/08/2026 (« ces techniciens étaient bien sur RODA », point noté comme clos) ; mais le planning
+partagé a pu être corrigé depuis, et c'est lui qu'on relit aujourd'hui. **Question posée à Patrice
+le 01/09/2026, en attente.** Tant qu'elle n'est pas tranchée, l'union fait apparaître les deux
+chantiers sur ces cinq jours passés — visible, et signalé dans la vue.
+
 ### La réserve du bas et le brouillon d'affectation (demandés par Patrice le 01/09/2026)
 
 **La réserve** reproduit le bas de son fichier Excel : toutes les lignes-chantier de la semaine
