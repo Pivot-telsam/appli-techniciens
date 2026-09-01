@@ -261,12 +261,31 @@ planning partagé reste le maître. Quatre garde-fous, tous nécessaires :
    venue de Teams ;
 2. il est **dessiné différemment** — bordure pointillée, hachures, étiquette « BROUILLON », croix de
    retrait — pour qu'aucun coup d'œil ne puisse le confondre avec une affectation réelle ;
-3. il **refuse de se poser sur une case déjà renseignée par Teams** : on ne saurait pas retirer
-   l'affectation là-bas, donc afficher un remplacement serait mentir sur l'état réel. Déplacer
-   quelqu'un se fait dans Teams ;
+3. quand il se pose **par-dessus une affectation Teams**, il écrit ce qu'il remplace — sur la case
+   (« brouillon · remplace 26-051 — Poste de Portet ») et dans le récapitulatif (« à la place de »).
+   *Première version corrigée le 01/09/2026 : le dépôt sur une case déjà renseignée était REFUSÉ,
+   au motif qu'on ne sait pas retirer l'affectation dans Teams. Conséquence non vue : en semaine
+   en cours toutes les cases des techniciens sont remplies, donc **la semaine la plus utile à
+   ajuster était la seule impossible à modifier** — Patrice l'a constaté tout de suite. Le bon
+   remède n'était pas d'interdire mais de **dire ce qui est remplacé*** ;
 4. il **disparaît tout seul** quand l'affectation apparaît dans le planning partagé
-   (`nettoyerBrouillonPlanning`, appelée au démarrage). Sans ce ménage le récapitulatif « à reporter »
-   grossirait sans fin et on cesserait de le lire.
+   (`nettoyerBrouillonPlanning`, appelée au démarrage). Le ménage compare le **libellé**, pas la
+   simple présence d'une case : depuis qu'on peut préparer un changement par-dessus l'existant,
+   « la case est remplie » ne veut plus dire « c'est reporté ». Sans ce ménage le récapitulatif
+   « à reporter » grossirait sans fin et on cesserait de le lire.
+
+**PIÈGE ÉVITÉ — le brouillon stocke le LIBELLÉ EN TOUTES LETTRES, jamais son index.** La table
+`libelles` est reconstruite à chaque relecture du planning et les index se décalent (118 le matin,
+172 après l'ajout de la réserve) : un brouillon qui aurait retenu un index se serait mis à désigner
+**un autre chantier** du jour au lendemain, sans que rien ne le signale. `chargerBrouillonPlanning`
+convertit les anciens brouillons au format index, et jette ceux qu'il ne peut pas convertir plutôt
+que de désigner un chantier au hasard.
+
+**Le clic sur une case est arbitré** : pinceau armé → on pose le chantier ; sinon → on ouvre la
+fiche. Et tout est branché en JavaScript (`brancherGlisserDeposer`), **pas en `onclick=` dans le
+HTML** : les libellés et les noms contiennent apostrophes et accents, et un attribut `onclick`
+construit par concaténation finit par se casser en silence (piège déjà vécu le 28/08/2026 sur le
+bouton Suivi de l'appli technicien).
 
 Un récapitulatif en bas de la vue liste ce qui reste à reporter dans Teams, par personne.
 **Tout a été vérifié à l'écran le 01/09/2026** : glisser-déposer, pinceau au clic, refus du dépôt sur
