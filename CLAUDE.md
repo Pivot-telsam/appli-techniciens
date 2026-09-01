@@ -280,11 +280,27 @@ jour**. Dès le premier passage, 17 désaccords, tous en **S34 (17-21/08)** :
   (26-036-2), recopie = **lot 1 RODA** ;
 - **les mêmes**, 20-21/08 : planning = Dambron-Voves 26-031, recopie = lot 1 RODA.
 
-**Non tranché, et à ne pas trancher seul.** La recopie porte un arbitrage explicite de Patrice du
-25/08/2026 (« ces techniciens étaient bien sur RODA », point noté comme clos) ; mais le planning
-partagé a pu être corrigé depuis, et c'est lui qu'on relit aujourd'hui. **Question posée à Patrice
-le 01/09/2026, en attente.** Tant qu'elle n'est pas tranchée, l'union fait apparaître les deux
-chantiers sur ces cinq jours passés — visible, et signalé dans la vue.
+**TRANCHÉ PAR PATRICE LE 01/09/2026 : c'est le PLANNING qui dit vrai, la recopie était fausse.**
+Les deux réponses sont « version B ». Ce qui annule et remplace le point noté comme clos le
+25/08/2026 (« ces techniciens étaient bien sur RODA ») : le planning partagé a été corrigé depuis,
+et c'est lui qu'on relit. Corrigé dans `TECH_RANGES` **des deux dépôts** et dans `REAL_DAYS` :
+Bilal / Younes / Hugues retirés du lot 1, placés sur le lot 2 SELT (17-19/08) puis Dambron-Voves
+(20-21/08) ; François PERRIN retiré d'Arudy et placé sur Portet toute la semaine. Arudy garde les
+17 et 18 dans `REAL_DAYS` (Didier, Benjamin DIRAT et Sid Ahmed y étaient bien) et perd les 19-21.
+Contrôle après correction : **aucun désaccord**.
+
+**Et ce que la comparaison des DEUX dépôts a révélé en plus** : l'appli mettait Didier PERRIN,
+Benjamin DIRAT et Sid Ahmed BENZAMERA sur Arudy du 19 au 21/08 alors que le suivi ET le planning
+disaient Portet. Corrigé aussi — pas besoin d'arbitrage, deux sources sur trois concordaient.
+**Le contrôle de cohérence porte donc maintenant sur les deux dépôts**, et son message précise
+lequel est en cause (`[suivi]` / `[appli]`). **Vérifié en y glissant une erreur exprès** : sans ce
+test, un contrôle qui n'aurait regardé que le suivi aurait paru irréprochable en laissant passer
+exactement ce cas.
+
+**La leçon, plus large que ce cas** : la recopie manuelle a été fausse sur DEUX semaines et dans
+DEUX dépôts sans que rien ne le signale pendant deux semaines. C'est l'argument le plus fort pour
+que `REAL_DAYS`/`TECH_RANGES` cessent d'exister — chaque jour où ils survivent est un jour où ils
+peuvent mentir en silence.
 
 ### La réserve du bas et le brouillon d'affectation (demandés par Patrice le 01/09/2026)
 
