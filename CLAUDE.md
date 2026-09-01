@@ -240,6 +240,44 @@ réponse ne lui suffit pas (« pour ce genre de manip, il faut que tu sois beauc
 tes demandes… ou que tu m'amènes directement au bon endroit »). Lui fournir un fichier à
 double-cliquer ou un chemin exact, jamais un bloc de code à recopier.
 
+### La réserve du bas et le brouillon d'affectation (demandés par Patrice le 01/09/2026)
+
+**La réserve** reproduit le bas de son fichier Excel : toutes les lignes-chantier de la semaine
+affichée, **y compris celles où personne n'est encore placé**. C'est ce qui manquait le plus — sans
+elle, une semaine à venir paraissait vide alors que les chantiers y sont posés depuis des mois
+(S37 : 8 chantiers en attente, S40 : 3). Champ `reserves` de `PLANNING_RTE`, une entrée par semaine,
+**dans l'ordre des lignes du fichier** — celui que Patrice a sous les yeux. Chaque pastille indique
+combien de personnes sont déjà placées dessus.
+
+**Le brouillon** permet de préparer les affectations comme dans l'Excel : glisser une pastille sur
+une case, **ou** cliquer la pastille pour l'« armer » puis cliquer les cases (c'est ce second geste
+qui sert vraiment quand on place cinq personnes d'affilée). Les deux gestes existent pour cette
+raison, ne pas en retirer un en simplifiant.
+
+**CE QUE LE BROUILLON N'EST PAS — à redire à Patrice, c'est le point qui compte.** Il ne part PAS
+dans Teams, ses collègues ne le voient pas (il vit dans l'IndexedDB de SON navigateur), et le
+planning partagé reste le maître. Quatre garde-fous, tous nécessaires :
+1. il est stocké **à part** de `PLANNING_RTE` (clé `planning_brouillon`), jamais mélangé à la donnée
+   venue de Teams ;
+2. il est **dessiné différemment** — bordure pointillée, hachures, étiquette « BROUILLON », croix de
+   retrait — pour qu'aucun coup d'œil ne puisse le confondre avec une affectation réelle ;
+3. il **refuse de se poser sur une case déjà renseignée par Teams** : on ne saurait pas retirer
+   l'affectation là-bas, donc afficher un remplacement serait mentir sur l'état réel. Déplacer
+   quelqu'un se fait dans Teams ;
+4. il **disparaît tout seul** quand l'affectation apparaît dans le planning partagé
+   (`nettoyerBrouillonPlanning`, appelée au démarrage). Sans ce ménage le récapitulatif « à reporter »
+   grossirait sans fin et on cesserait de le lire.
+
+Un récapitulatif en bas de la vue liste ce qui reste à reporter dans Teams, par personne.
+**Tout a été vérifié à l'écran le 01/09/2026** : glisser-déposer, pinceau au clic, refus du dépôt sur
+une case Teams, retrait par la croix, survie au rechargement, et effacement automatique après
+rattrapage par Teams.
+
+**Suite naturelle, PAS FAITE et à ne pas faire sans accord explicite de Patrice** : appliquer le
+brouillon au fichier Teams en session (Excel COM sait colorier les cellules). Ce serait la première
+fois qu'on **écrit** dans un fichier que toute l'équipe a ouvert — risque de conflit et de perte de
+travail. À proposer, jamais à décider seul.
+
 **Suite prévue — la grille sera modifiable, mais pas avant que le suivi soit une appli partagée.**
 C'est la raison pour laquelle Patrice a demandé cette grille (échange du 01/09/2026) : il veut à
 terme que ses collègues et lui modifient le planning dans le suivi, ce qui suppose de sortir les
