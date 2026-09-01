@@ -73,7 +73,24 @@ l'intérieur disent bien FLEYRIAT. Conséquences pratiques :
   le second. Regarder les deux avant de conclure.
 
 ## Planning RTE 2026.xlsx — RÈGLE CRITIQUE (affectations technicien/chantier)
-Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1" :
+
+**LE FICHIER QUI FAIT FOI EST CELUI DE TEAMS, ET IL SE LIT DIRECTEMENT** (mis en place le
+01/09/2026) :
+`https://telsam.sharepoint.com/sites/RTE/Shared Documents/RTE/Planning RTE 2026.xlsx`.
+Excel l'ouvre **en lecture seule** avec la session Windows de Patrice — `Workbooks.Open($url, 0,
+$true)` — donc les couleurs sont lisibles comme sur un fichier local. **Patrice n'a plus à copier
+le planning sur son Bureau ni à me l'envoyer dans la conversation.** La copie du Bureau
+(`C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`) ne sert plus que de repli quand le réseau
+TELSAM n'est pas joignable — elle est presque toujours en retard (le 01/09 elle datait du 27/08
+alors que le fichier partagé avait été modifié le matin même).
+
+**Le planning est un travail d'équipe dans Teams : Pierre Brillou, Christian Cazenave,
+Ahmed Hamouch, François Vidal et Patrice le modifient ensemble.** Ils sont aussi les seuls à le
+consulter au quotidien (le PDG y a accès). **Teams reste donc le maître** : la grille du suivi en
+est un reflet en lecture seule, et il ne faut pas proposer de la rendre modifiable tant que le
+suivi n'est pas devenu une vraie appli partagée (cf. section « Grille Planning » plus bas).
+
+Structure de la feuille "Feuil1" :
 - 370 colonnes = 1 jour par colonne à partir du 1er janvier (col2 = 1er janvier ; formule :
   colonne = jour_de_l'année + 1). Lignes 1-4 = en-têtes (mois/semaine/lettre jour/n° jour).
 - Lignes ~5-22 = un technicien par ligne (nom en colonne A).
@@ -107,6 +124,36 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
 - **PIÈGE WEEK-END** : les colonnes samedi/dimanche ont un fond gris uniforme sur toutes les
   lignes, que la lecture couleur confond avec un chantier (« tout le monde le même chantier le
   S/D », y compris les encadrants). **Ne lire les affectations que sur les jours ouvrés (L-V).**
+- **PIÈGE DE LA CELLULE SANS FOND — c'est `ColorIndex` qui fait foi, PAS `Color`** (relevé le
+  01/09/2026). Une cellule **sans remplissage** renvoie `Interior.Color = 16777215`, exactement la
+  même valeur qu'une cellule réellement peinte en blanc. Or **il existe des lignes-projet sans
+  fond** : ce sont de simples notes (le 01/09 : « Joncquiere St Cézaire Thym et recette », « DATA4 -
+  MARCOUSSIS fin chantier », « livraison Tourets Arnage Ecommoiy »). Les inclure dans la table des
+  couleurs colle **tout le monde** sur le mauvais chantier — un premier essai plaçait ainsi les cinq
+  encadrants sur Joncquière. Le test qui tranche est `Interior.ColorIndex = -4142` (`xlNone`).
+  Valeurs relevées sur ce classeur : `-4142` = pas de fond, `3` = rouge (CP / CP paternité),
+  `7` = gris du week-end, tout le reste = un chantier.
+- **RÈGLE FONDAMENTALE POSÉE PAR PATRICE LE 01/09/2026 : UNE COULEUR NE VAUT QUE DANS SA SEMAINE.**
+  « Les couleurs ne valent que pour la semaine en cours, c'est-à-dire dans la même colonne où elles
+  sont. » Le jaune de la S35 et le jaune de la S36 désignent couramment **deux chantiers
+  différents**. Ce n'est pas un défaut de tenue du fichier : les chantiers sont placés des mois à
+  l'avance, et en coloriant une ligne pour dans quatre mois on ne peut pas savoir de quelle couleur
+  seront ses voisines — **la couleur est donc choisie au hasard**, et les collisions sont inévitables.
+  Conséquences, toutes obligatoires :
+  - **Construire la table couleur → chantier SEMAINE PAR SEMAINE**, jamais pour l'année. Une table
+    globale mélangerait des chantiers sans aucun rapport.
+  - **Ne jamais reporter un libellé d'une semaine à une autre non contiguë.** Le libellé n'est écrit
+    qu'au démarrage d'une ligne, donc un report est nécessaire — mais uniquement depuis la semaine
+    **immédiatement précédente** (même ligne, même couleur), le seul cas légitime : un chantier qui
+    se poursuit. `planning-rte.ps1` borne ce report ; sans cette borne, une ligne recoloriée du même
+    vert quatre mois plus tard héritait du libellé de l'ancien chantier, en silence.
+  - **Deux lignes-projet de la même couleur dans la MÊME semaine restent possibles** (vu le
+    01/09/2026 : Chaineau lot RODA et lot SELT en vert, Fleyriat 1ʳᵉ phase et « oppc pyl125 » en
+    jaune — 83 cases sur l'année). Là, la case d'un technicien n'a qu'une couleur et ne permet
+    donc pas de trancher : le script garde les deux libellés (`a`) et la grille marque un ⚠ plutôt
+    que de choisir au hasard. **Ne pas présenter ça à Patrice comme une erreur à corriger** — c'est
+    la conséquence assumée de sa méthode. Le signaler seulement si les deux libellés désignent des
+    chantiers vraiment sans rapport, là où l'ambiguïté aurait une conséquence.
 - **`Nassime EL GARTILI` ne fait PLUS partie de l'effectif** (dit par Patrice le 27/08/2026) —
   **mais il reste coloré sur le planning RTE**, Patrice ne l'en retirera pas. C'est donc à moi de
   **l'exclure systématiquement** de toute lecture d'affectation : ne jamais l'ajouter à
@@ -114,6 +161,94 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
   ignoré. De même, **`Pierre Brillou` et `François VIDAL` sont des encadrants, pas des
   techniciens** — ne pas les traiter comme des techniciens (comme Christian Cazenave, Patrice,
   Ahmed Hamouch).
+
+## Grille Planning — onglet du suivi (mis en place le 01/09/2026)
+
+L'onglet **« Planning »** du suivi (bouton `btnViewTechs`, vue `techs`) **remplace l'ancienne vue
+« Techniciens »**, qui ne listait que des pastilles par technicien et dont Patrice disait qu'elle
+« ne servait pas à grand-chose ». C'est maintenant une **grille technicien × jour ouvré**, comme le
+planning RTE : une ligne par personne, cinq colonnes (L-V), la couleur du chantier en fond.
+
+**Ce qu'elle apporte par rapport au fichier Excel** — c'est ce qui justifie de l'avoir faite :
+- le **nom du chantier est écrit dans la case** (l'Excel ne met que la couleur, c'est ce qui avait
+  fait rater 9 affectations le 20/08/2026) ;
+- chaque case **ouvre la fiche du chantier** d'un clic (`ouvrirFiche(cid)`, utilisable depuis
+  n'importe quelle vue) ;
+- la colonne du jour est surlignée, les encadrants sont dans un bloc à part, les CP en rouge pâle,
+  et une légende liste les chantiers de la semaine avec leurs avertissements.
+
+**La donnée : `PLANNING_RTE`**, constante à côté de `SEED_DATA`, **refaite de zéro à chaque
+passage** de `scripts/planning-rte.ps1` — ne jamais y écrire à la main. Elle ne vit PAS dans
+IndexedDB : pas de `SEED_VERSION` à bumper, et aucun état local des collègues effacé. Forme :
+`{maj, source, personnes:[{nom,role}], libelles:[{t,c}], cellules:{"AAAA-MM-JJ":{"Nom":{l|s,a?,n?}}}}`
+— `l` = index de libellé, `s` = texte d'absence, `a` = libellés en concurrence sur la couleur,
+`n` = note écrite dans la cellule du technicien. 90 Ko pour l'année entière.
+
+**`scripts/planning-rte.ps1`** : `-Injecter` met à jour le HTML, `-Local` force la copie du Bureau.
+~35 s (la couleur ne se lit pas en bloc : `Range.Interior.ColorIndex` revient vide dès que la plage
+est mélangée, donc un appel COM par cellule ; les textes, eux, se lisent en un seul `Value2`).
+
+**PIÈGE — Excel refuse d'ouvrir un classeur si un autre DU MÊME NOM est déjà ouvert**, même quand
+l'un est sur SharePoint et l'autre sur le disque. Vécu le 01/09/2026 : Patrice avait
+« Planning RTE 2026.xlsx » ouvert depuis 10h45, la lecture Teams a échoué et **le repli a servi une
+donnée du 27/08 sans que ce soit flagrant**. Trois parades, toutes en place :
+1. **Emprunter le classeur déjà ouvert** (`GetActiveObject('Excel.Application')` puis recherche du
+   classeur par son nom) : c'est le fichier que Patrice a sous les yeux, donc la source la plus à
+   jour. Vérifié le 01/09 : son `FullName` était bien l'URL Teams.
+   **Dans ce cas il ne faut NI fermer le classeur NI quitter Excel** — c'est le rôle du drapeau
+   `$emprunte` dans le bloc `finally`. Le fermer ferait perdre à Patrice son travail non enregistré.
+   `GetActiveObject` est **peu fiable** (Excel n'est pas toujours inscrit au ROT, erreur
+   `MK_E_UNAVAILABLE`) : c'est une chance à saisir, jamais une garantie.
+2. **La grille dit d'où vient la donnée.** Sur repli, un bandeau rouge annonce que le fichier Teams
+   n'a pas pu être lu et donne la date d'enregistrement de la copie. Champ `teams` (booléen) +
+   `datePlanning` dans `PLANNING_RTE`. Les DEUX branches ont été testées à l'écran le 01/09/2026,
+   `-Local` servant à provoquer le repli exprès.
+3. La date n'est relevée que pour un fichier **local** (`LastWriteTime`) : sur un fichier SharePoint
+   `BuiltinDocumentProperties('Last Save Time')` revient **vide** (vérifié), et de toute façon lire
+   le fichier partagé donne par construction son état du moment. La date ne sert qu'au cas du repli.
+
+La voie `\\telsam.sharepoint.com@SSL\DavWWWRoot\...` (copie WebDAV vers un nom temporaire, qui
+contournerait le conflit de noms) a été essayée le 01/09/2026 : **le chemin n'est pas résolu**, même
+avec le service WebClient démarré. Ne pas la re-tenter sans nouvelle information.
+
+**Les noms des listes du script sont écrits SANS ACCENT et comparés sans accent** (`ClePersonne`).
+PowerShell 5.1 lit un `.ps1` sans BOM comme de l'ANSI : `'François VIDAL'` écrit avec sa cédille ne
+correspondait plus au nom lu dans la feuille, et **il s'est retrouvé classé parmi les techniciens**
+le 01/09/2026 — repéré à l'écran, pas par un contrôle. Un garde-fou prévient maintenant si un nom
+déclaré encadrant est absent de la feuille.
+
+**Rattachement case → fiche, dans cet ordre** (`chantierDuLibelle` puis `chantierParPresence`) :
+1. le **numéro complet** trouvé dans le libellé, sous-lot compris (`26-036-1` désigne le lot RODA,
+   pas le lot SELT) ;
+2. le numéro de base **s'il ne désigne qu'une seule fiche** ;
+3. sinon `TECH_RANGES` : sur quel chantier cette personne était-elle ce jour-là, d'après les
+   affectations déjà relevées — **et uniquement si la réponse est unique**.
+Le point 3 n'est pas un luxe : Patrice n'a commencé à noter les numéros au planning que récemment,
+donc sans lui les semaines antérieures à fin août n'auraient **aucun** lien cliquable (mesuré :
+0 case liée sur 57 en S16, 55 sur 57 avec le repli). **Ne jamais ajouter un rapprochement par
+ressemblance de libellé** : c'est ce qui enverrait un jour vers le mauvais lot.
+
+**La lecture quotidienne n'est PAS encore branchée sur la tâche de 7h30.** La modification de la
+tâche planifiée a été refusée par le garde-fou de sécurité le 01/09/2026. Un fichier à double-cliquer
+a été préparé pour que Patrice le fasse lui-même :
+`scripts\Ajouter le planning a la veille du matin.cmd` (idempotent, il refuse d'ajouter deux fois).
+**L'action doit rester la DERNIÈRE de la chaîne** : c'est la seule qui ouvre Excel sur un fichier en
+ligne, donc la seule qui pourrait rester bloquée sur une demande d'authentification — en dernière
+position, un blocage ne retarderait ni la veille, ni le récap du matin, ni son envoi par mail.
+**Leçon de forme, redite par Patrice le 01/09/2026** : une commande PowerShell collée dans une
+réponse ne lui suffit pas (« pour ce genre de manip, il faut que tu sois beaucoup plus précis dans
+tes demandes… ou que tu m'amènes directement au bon endroit »). Lui fournir un fichier à
+double-cliquer ou un chemin exact, jamais un bloc de code à recopier.
+
+**Suite prévue — la grille sera modifiable, mais pas avant que le suivi soit une appli partagée.**
+C'est la raison pour laquelle Patrice a demandé cette grille (échange du 01/09/2026) : il veut à
+terme que ses collègues et lui modifient le planning dans le suivi, ce qui suppose de sortir les
+données du fichier HTML pour les mettre dans un stockage commun (le Worker Cloudflare existe déjà,
+il faut lui ajouter une base). **Tant que ce n'est pas fait, rendre la grille modifiable créerait
+deux plannings divergents** — celui de Teams où l'équipe travaille, celui du suivi modifié dans un
+coin — sur une donnée qui décide d'envoyer des hommes sur des postes. Les 7 personnes concernées
+(les 5 ci-dessus + Carine Rambaud à la compta + Guillaume Heras, PDG) peuvent toutes voir le
+commercial : **un seul niveau d'accès suffit**, inutile de prévoir des rôles.
 
 ## Ordre d'affichage des chantiers — Gantt ET Boîtes & nacelle (posé par Patrice le 01/09/2026)
 
