@@ -1479,6 +1479,30 @@ ci-dessus). Sauvegarde dans le scratchpad de la session, pas sur le Bureau.
   - **Contrôle** : réextraire le texte du `.docx` (dézipper `word/document.xml`) et vérifier que
     le neuf est présent ET l'ancien absent, en tenant compte des DEUX formes d'apostrophe.
 - Toujours montrer le résumé des changements à Patrice AVANT de committer/pousser, sauf demande explicite contraire.
+- **« Montrer le résumé avant de committer » ne veut PAS dire « demander la permission de
+  travailler ».** Précision posée par Patrice le 01/09/2026, après avoir dû redire une TROISIÈME
+  fois une règle déjà écrite : « mets à jour systématiquement notre suivi quand un nouveau
+  document arrive et remplace dans App Tech les documents obsolètes — tu devrais le faire
+  systématiquement sans que je te le demande ». Sa crainte, dite mot pour mot : « si je suis
+  obligé de répéter les choses systématiquement, cela va être compliqué d'utiliser cet outil ».
+  - **Par défaut et sans rien demander** : lire le document, mettre à jour la fiche dans les DEUX
+    dépôts (indice ET couverture structurée), remplacer la version périmée dans App Tech quand le
+    dossier existe, bumper `SEED_VERSION`/`APP_VERSION`, puis montrer le résumé avant de committer.
+  - **On ne demande que pour une DÉCISION**, jamais pour une mise à jour : rouvrir un chantier
+    marqué terminé, trancher entre deux devis, diffuser une IST dont la validation RTE n'est pas
+    certaine, choisir un chemin de destination Dropbox ambigu.
+  - **Pourquoi la règle n'avait pas tenu — la vraie cause, vérifiée le 01/09/2026.** Les scripts
+    de veille écrits la veille répétaient eux-mêmes « avec l'accord de Patrice » : à chaque
+    message (`hook-veille-prompt.ps1`), à chaque démarrage de session (`hook-veille-session.ps1`),
+    dans `veille-chantiers-actifs.ps1` et dans `marquer-veille-traitee.ps1`. La consigne écrite
+    ici était donc contredite en permanence par le mécanisme censé la faire appliquer — et un
+    texte lu à chaque message pèse plus lourd qu'une ligne lue une fois au démarrage. Les quatre
+    formulations ont été réécrites le 01/09/2026.
+  - **Leçon générale, valable au-delà de ce cas** : quand une règle ne tient pas, ce n'est presque
+    jamais un problème de mémoire. C'est soit qu'aucun mécanisme ne la porte (cas `SEED_VERSION`,
+    résolu par un hook), soit qu'un mécanisme dit le contraire (ce cas-ci). **Répondre « c'est
+    noté » à Patrice ne vaut rien** : ce qui vaut, c'est de trouver quel mécanisme manque ou
+    lequel contredit la règle, et de le corriger.
 - En cas de nom de chantier ambigu ou de dossier Dropbox introuvable/multiple, ne jamais deviner —
   poser la question à Patrice.
 - Valider la syntaxe JS (node --check) et le JSON (SEED_DATA) avant toute livraison.
