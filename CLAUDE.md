@@ -855,6 +855,19 @@ le fichier modifié reste visible dans `git status`. Options utiles : `-Simuler`
 serait écrit sans toucher au fichier), `-Chantier 26-054`, `-Racine`/`-Suivi` pour tester sur une
 copie. Journal : `veille/avancement.log`, lignes préfixées `[boites]`.
 
+**Les poses que le comptage n'a pas su rattacher (« orphelines ») sortent à DEUX endroits.**
+Ajouté le 01/09/2026 après une remarque de Patrice : le script écrivait déjà cet avertissement dans
+`veille/avancement.log`, et il a demandé « de quel journal parles-tu ? » — **un avertissement rangé
+dans un fichier que personne n'ouvre n'avertit personne.** Donc, désormais :
+- **bandeau rouge en haut de l'onglet Boîtes & nacelle** (constante `POSES_ORPHELINES`, écrite par
+  le même script), qui dit explicitement que le reste à poser affiché est trop élevé ;
+- **bloc injecté au démarrage de session** via `scripts/veille-boites-orphelines.ps1`, appelé par
+  `hook-veille-session.ps1` — à traiter en session comme la veille documentaire.
+
+Deux causes possibles, distinguées dans le message : le chantier n'a pas d'entrée dans
+`BOITES_TACHES`, ou le pylône déclaré ne figure dans la liste d'aucun lot (erreur de numéro du
+technicien, ou liste du devis incomplète dans la fiche).
+
 **Deux pièges rencontrés en l'écrivant**, à ne pas réintroduire :
 - la ligne `const SEED_DATA` du **suivi** se termine par `;;` (double point-virgule, sans effet en
   JavaScript, fatal pour `ConvertFrom-Json`) — d'où le `TrimEnd(';')` et non un `Substring` ;
@@ -868,6 +881,49 @@ copie. Journal : `veille/avancement.log`, lignes préfixées `[boites]`.
 compléter, 26-021 Gampaloup-Valence, parce qu'aucun devis n'est encore arrivé dessus.
 **Au 01/09/2026** : 174 WTC2 restants, 30 posés dont **1 déclaré par un technicien** (Bradascou,
 pylône 195, Pascal BONAVENTURE le 31/08).
+
+## Récap du matin — `veille/RECAP.html` (mis en place le 01/09/2026)
+
+**Une page par jour : ce qui a été fait, ce qui reste à faire.** Demandée par Patrice le
+01/09/2026, et sa raison d'être est écrite dans sa phrase : « cela me permettra de constater s'il y
+a des erreurs ou non dans le traitement de nos infos ». **Ce n'est pas un tableau de bord de plus,
+c'est son moyen de contrôler le travail automatique et le mien.** Deux conséquences directes :
+ne jamais y présenter comme traité quelque chose qui ne l'est pas, et toujours dire d'où vient
+chaque ligne.
+
+`scripts/recap-matin.ps1`, **4e action** de la tâche Windows de 7h30. Il ne recalcule rien : il lit
+`veille/dernier.json` + `traitement.json`, les fiches du suivi, `POSES_APPLI`/`POSES_ORPHELINES`,
+et `git log` des deux dépôts. Écrit `veille/RECAP.html` (toujours au même endroit) **et** une copie
+datée dans `veille/recaps/` — c'est l'archive qui permet de comparer d'un jour sur l'autre.
+Un raccourci « Recap TELSAM du matin » est sur le Bureau de Patrice.
+
+**LE POINT QUI DÉCIDE DE TOUT : le tri du bruit.** Au 01/09/2026, les 46 chantiers actifs portent
+**42 alertes orange**. La première version listait tout : 55 lignes, illisible, et le vrai problème
+noyé. Règles appliquées, à ne pas défaire :
+- **toutes les alertes rouges passent**, toujours ;
+- **une alerte orange ne passe que si un technicien est placé sur ce chantier dans les 15 jours**
+  (via `REAL_DAYS`) — un point de vigilance sur un chantier où personne ne va peut attendre
+  l'onglet Alertes ;
+- **le reste est compté en une ligne**, jamais supprimé silencieusement : « N points de vigilance
+  sur des chantiers où personne n'est placé ». Cacher sans le dire serait pire que tout lister.
+Résultat : 5 faits / 20 restes le premier jour, au lieu de 22 / 55.
+
+**Un script qui n'a pas tourné est une information, pas un silence.** Si `avancement.log` n'a pas
+bougé depuis 24 h, le récap l'écrit en rouge — sans ça, une page vide se lirait comme « rien à
+signaler » alors qu'elle veut dire « rien ne fonctionne ».
+
+**Le récap n'envoie aucun message.** Écrire un fichier local ne demande pas d'autorisation ;
+envoyer un mail au nom de Patrice, si. L'envoi par Outlook est une étape séparée, à activer
+seulement s'il le demande explicitement.
+
+**Piège PowerShell rencontré ici (le même que dans `avancement-suivi.ps1`) : `@($null).Count`
+vaut 1.** Une liste d'orphelines vide ressortait comme un élément fantôme, et le récap affichait
+une ligne rouge sans texte. Filtrer explicitement (`Where-Object { $_ -and $_.numero }`).
+
+**Encodage** : ce script-ci est en **UTF-8 AVEC BOM**, contrairement à `avancement-suivi.ps1` qui
+est en pur ASCII avec des accents composés (`[char]0x00E9`). Les deux marchent ; le BOM est
+préférable pour un script à texte dense. Ce qui casse, c'est un `.ps1` **sans BOM** contenant des
+accents écrits directement.
 
 ## Temps prévisionnel par chantier — onglet Heures (mis en place le 27/08/2026)
 
