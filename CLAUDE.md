@@ -468,6 +468,30 @@ Bonaventure, S35) :**
 5. Patrice relit, lance son skill `recap-feuilles-heures` pour régénérer les onglets 2 et 3,
    puis envoie aux RH.
 
+**GARDE-FOU — les feuilles qui attendent sont signalées au démarrage** (mis en place le
+01/09/2026). `scripts/veille-feuilles-heures.ps1`, appelé par le hook `SessionStart` juste après le
+rapport de veille. Il dit deux choses :
+- les feuilles **déposées mais pas encore intégrées** au classeur, et depuis combien de jours ;
+- les feuilles **manquantes** — un technicien sans ligne dans une semaine que les autres ont déjà
+  remplie (congé ou oubli). C'est ce second point qui manquait le plus : rien ne disait qu'on
+  attendait encore quelqu'un.
+
+**Pourquoi.** Le 01/09/2026, **douze feuilles de la S35 dormaient depuis trois jours**, déposées
+entre le 28 et le 31/08. Le classeur n'avait pas bougé depuis le 25/08, donc le suivi affichait
+**374 h pour septembre au lieu de 759**. Rien ne le signalait : l'étape 4 ci-dessus dépendait
+entièrement de quelqu'un qui y pense. Exactement la faiblesse de `SEED_VERSION` et de la veille —
+même remède, un mécanisme exécuté par l'outil.
+
+**Détails de conception** : lecture seule (le classeur est ouvert en lecture seule, rien n'est
+jamais écrit), ~4 s, **silence complet quand il n'y a rien à signaler**. Il rapproche le nom des
+dépôts (`Prénom NOM - SNN …pdf`) des blocs de semaine du classeur de la période en cours, et
+normalise les noms comme le script d'intégration (accents et séparateurs retirés). Il ouvre Excel
+seulement s'il y a au moins un dépôt. Le fichier est en **pur ASCII** — PowerShell 5.1 lit un
+`.ps1` sans BOM comme de l'ANSI, et des accents dans le code se casseraient en silence ; le nom du
+dossier `dépôts appli` est donc retrouvé par motif (`^d.p.ts appli$`) au lieu d'être écrit en dur.
+**Les deux branches ont été testées**, dont l'arrivée d'une feuille manquante simulée par un faux
+dépôt au nom de Benjamin SOUPA — un test qui pouvait échouer, pas une vérification de façade.
+
 **RÈGLE — un seul fichier à envoyer, JAMAIS deux.** Un `.json` séparé à côté du PDF a été
 essayé le 24/08/26 : la plupart des téléphones ne savent pas partager deux fichiers d'un coup,
 le partage natif échouait et l'appli retombait sur « télécharger les deux, ouvrir chacun, puis
