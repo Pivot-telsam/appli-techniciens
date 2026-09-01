@@ -115,6 +115,36 @@ Fichier `C:\Users\patrice.pivot\Desktop\Planning RTE 2026.xlsx`, feuille "Feuil1
   techniciens** — ne pas les traiter comme des techniciens (comme Christian Cazenave, Patrice,
   Ahmed Hamouch).
 
+## Ordre d'affichage des chantiers — Gantt ET Boîtes & nacelle (posé par Patrice le 01/09/2026)
+
+**Les deux vues affichent les chantiers dans le MÊME ordre**, calculé par `chronoSortKey()` et
+exposé hors du Gantt par `chronoKeyParChantier()` / `chronoKeyDe()`. Demande de Patrice :
+« d'abord ceux où les techniciens sont placés, puis ceux où ils sont censés être placés ».
+Deux niveaux, chronologiques à l'intérieur de chaque niveau :
+1. **présence réelle** — segments `normal` / `tourets`, c'est-à-dire des jours confirmés par le
+   code couleur du planning RTE (`REAL_DAYS`) ;
+2. **tout le reste de ce qui est à venir** — fenêtre prévisionnelle (`prevu`), couverture PGO,
+   consignation, NIP, rappel MTFO.
+Puis, tout en bas : ce qui est entièrement passé, puis ce qui n'a aucune date. Un chantier terminé
+ou absent du Gantt reçoit la clé maximale (`chronoKeyDe`) et finit donc en fin de liste.
+
+**Le type de barre `prevu` (ajouté le 01/09/2026) — à ne pas confondre avec un retour en arrière
+sur l'incident du 20/08/26.** Depuis cette correction, une fenêtre annoncée dans `fenetres` sans
+aucun jour confirmé dans `REAL_DAYS` ne produit **pas** de barre bleue de présence : cette règle
+tient toujours, elle est ce qui empêche de croire qu'un technicien est placé alors que non.
+Son effet de bord, lui, était mauvais : **14 chantiers actifs sur 46 ne s'affichaient plus du tout**
+sur le Gantt et retombaient en vrac dans la ligne « sans date connue » du bas. Ils réapparaissent
+donc, mais avec un type de barre **distinct** : `prevu`, pâle, hachurée, bordure en pointillés,
+texte en italique, infobulle « Prévu, aucun technicien encore placé au planning ». **Aucun calcul
+d'alerte ne doit s'appuyer sur ce type** — les alertes PGO filtrent sur `'normal'`, les garder
+ainsi. Si un jour on retouche ce point : la barre pleine = quelqu'un est placé, la barre hachurée
+pâle = personne, et rien d'autre ne doit brouiller cette lecture.
+
+**Vue Boîtes & nacelle** : le tri chronologique est le **défaut** ; l'ancien tri « plus gros reste
+à poser d'abord » reste accessible dans le menu déroulant `boitesTri` (il sert à préparer une
+commande de boîtiers, où les dates ne comptent pas). Les trois listes secondaires de la vue
+(« À compléter », « Nacelle », « Remarques ») suivent le même ordre chronologique.
+
 ## Pièges connus dans le code (à ne pas "corriger" par erreur)
 - **METTRE À JOUR UN PGO/PDP = METTRE À JOUR LES DATES STRUCTURÉES, PAS SEULEMENT LE TEXTE DE
   L'INDICE.** Le Gantt dessine la couverture PGO à partir de `pgo.couverture` (tableau de
@@ -268,7 +298,9 @@ suffixe et rattachait tout le chantier au lot 1.
 2. **Créer la fiche** dans les DEUX dépôts (suivi = fiche riche, appli = fiche allégée, même `id`),
    avec `mesureTouret:true` si c'est une mesure de tourets.
 3. **Prévisionnel** : calculer `heuresPrevues` depuis le devis (cf. « Temps prévisionnel par
-   chantier ») et **relever les boîtes** (cf. « Boîtes WTC2 »).
+   chantier ») et **relever les boîtes** (cf. « Boîtes WTC2 »). Si le chantier a des boîtes ET des
+   tâches vendues avec des numéros de pylônes, **l'ajouter à `BOITES_TACHES`** dans le même geste —
+   sans cette entrée, les poses déclarées par les techniciens ne seront jamais comptées.
 4. **Monter le dossier App Tech complet** (cf. section ci-dessous) : Brief + MO/NDS TELSAM +
    PDP/PGO à jour + IST si TELSAM ET signée RTE + sous-dossier **Photos terrain**.
 5. **Demande de fichiers** Dropbox vers `Photos terrain` → câbler `depotTerrain` (bouton Dépôt
@@ -765,13 +797,77 @@ Bissy - Grand Île (8 boîtes) et Fleyriat (11 + 2) ont un dossier **vide**. Les
 souvent en retard : celui de Givors datait du 10/08 et ne couvrait pas les poses du 17 au 23/08.
 Ne jamais conclure « rien n'a été posé » de l'absence d'écrit.
 
-**À revoir quand le fichier normé existera.** Patrice prévoit de mettre en place un fichier de suivi
-de chantier normalisé. Le jour où il est en place, cette règle est à réécrire : la lecture pourra
-devenir automatique et la part « soumettre à Patrice » disparaîtra en grande partie.
+**Ce paragraphe remplace l'ancien « à revoir quand le fichier normé existera » : le fichier normé
+existe, c'est le bouton « 📋 Suivi » de l'appli.** La lecture des dossiers « Suivi » en texte libre
+reste valable pour les chantiers qui n'ont pas de tâches vendues, mais elle n'est plus le canal
+principal — voir la section suivante.
+
+### Mise à jour automatique des boîtes posées (mise en place le 01/09/2026)
+
+**Ce que déclare un technicien dans l'appli met à jour tout seul l'onglet Boîtes & nacelle.**
+Demandé par Patrice le 01/09/2026, à partir du cas Bradascou : Pascal BONAVENTURE avait déclaré le
+pylône 195 sur la tâche « Raccordement boîtier WTC2 » le 31/08, et l'onglet affichait toujours
+0 posée sur 10.
+
+**La chaîne, de bout en bout :** bouton 📋 Suivi → relais Cloudflare → JSON dans
+`<chantier>\App Tech\Suivi\` → `scripts/boites-posees.ps1` (3e action de la tâche Windows
+« TELSAM - Veille documents RTE », 7h30) → constante `POSES_APPLI` dans `suivi_chantiers_205.html`
+→ colonne « Posées » de l'onglet, avec le pictogramme 📱 et, au survol, qui a déclaré quel pylône
+et quand.
+
+**Deux constantes, deux natures — ne pas les confondre :**
+- `BOITES_TACHES` : **tenue à la main**, comme `REAL_DAYS`. Elle dit quelles tâches vendues valent
+  « une boîte posée », lot par lot. Sans entrée, un chantier n'est jamais compté automatiquement.
+  **À compléter à chaque nouveau chantier** qui a des boîtes au devis ET des tâches à pylônes,
+  sinon ses déclarations resteront invisibles (le script le signale dans le journal : « ATTENTION
+  … BOITES_TACHES n'a pas d'entrée pour ce chantier »).
+- `POSES_APPLI` : **refaite de zéro à chaque passage** du script. Ne jamais y écrire à la main.
+  Pour corriger une déclaration fausse : supprimer le JSON fautif dans `Suivi` ou `Suivi\_bruts`
+  et relancer — même principe que le PDF d'avancement.
+
+**Les quatre règles de comptage, dans l'ordre où elles protègent :**
+1. **Toutes les tâches ne valent pas une boîte.** Chez Bradascou, `racc` (8 pylônes) + `demi`
+   (2 pylônes) font les 10 du devis ; `canton`, `touret`, `recette`, `doo` n'ont rien à voir. C'est
+   `BOITES_TACHES` qui tranche, jamais le libellé.
+2. **Le pylône déclaré doit figurer dans la liste de pylônes DU LOT.** C'est ce qui empêche de
+   compter dans le lot 1 une boîte du lot 2 (Chaineau, pylône 222 : raccordé par le lot 2, mais sa
+   boîte est fournie par le lot 1) et ce qui neutralise **le piège St-Guillerme (26-045)** — le
+   technicien peut y cocher des pylônes alors que le devis ne vend AUCUNE boîte (option non
+   commandée) : lot sans pylônes ⇒ rien n'est compté.
+3. **Union, jamais addition.** Deux techniciens qui déclarent le même pylône = une seule boîte ;
+   le premier déclarant fait foi. Même règle que les feuilles d'heures et le document d'avancement.
+4. **`posees` (saisie manuelle) et les déclarations de l'appli ne s'additionnent PAS** : le
+   compteur retient **le plus grand des deux**. La saisie manuelle est un nombre sans détail des
+   pylônes, les déclarations sont une liste — les additionner compterait deux fois une boîte déjà
+   relevée à la main. Le maximum peut sous-compter, jamais sur-compter : c'est le bon sens d'erreur
+   pour un chiffre qui sert à commander du matériel. Dès que les deux valeurs diffèrent, la vue
+   affiche « (N à la main / M appli) » pour que l'écart se voie.
+
+**Comptage automatique possible au 01/09/2026 : 9 lots sur 8 chantiers** (Bradascou 26-054,
+Chaineau 26-036-1 et 26-036-2, Fleyriat 26-055 THYM + OPPC, Givors 26-060, Bissy 26-064,
+DATA4 26-065, Hospitalet 26-027). Restent hors comptage automatique, volontairement : Campagnac
+26-070 (8 boîtes mais aucun numéro de pylône au devis — tâches en boutons d'état), St-Guillerme
+26-045, Portet 26-051, Audit 26-061 et Lamativie 26-058 (aucune boîte vendue).
+
+**Le script ne touche PAS à `SEED_DATA`** : `POSES_APPLI` vit à côté, donc pas de `SEED_VERSION` à
+bumper chaque matin et aucun effacement de l'état local des collègues. Il ne commite pas non plus —
+le fichier modifié reste visible dans `git status`. Options utiles : `-Simuler` (montre ce qui
+serait écrit sans toucher au fichier), `-Chantier 26-054`, `-Racine`/`-Suivi` pour tester sur une
+copie. Journal : `veille/avancement.log`, lignes préfixées `[boites]`.
+
+**Deux pièges rencontrés en l'écrivant**, à ne pas réintroduire :
+- la ligne `const SEED_DATA` du **suivi** se termine par `;;` (double point-virgule, sans effet en
+  JavaScript, fatal pour `ConvertFrom-Json`) — d'où le `TrimEnd(';')` et non un `Substring` ;
+- en .NET, `.` avale le `\r` et `$` se place ENTRE le `\r` et le `\n` : un `Regex.Replace` sur
+  `^const POSES_APPLI = .*$` mange le retour chariot et laisse une fin de ligne LF isolée au milieu
+  d'un fichier en CRLF. Motif à utiliser : `^const POSES_APPLI = [^\r\n]*`, puis découpe/recolle
+  (un `Replace` réinterpréterait un `$1` présent dans un nom).
 
 **État au 26/08/2026** : 44 fiches renseignées sur 45 chantiers actifs, **167 boîtiers WTC2**,
 2 boîtiers OPPC (Fleyriat) et 4 boîtiers en chambre restant à poser, 29 déjà posés. Reste une seule fiche à
 compléter, 26-021 Gampaloup-Valence, parce qu'aucun devis n'est encore arrivé dessus.
+**Au 01/09/2026** : 174 WTC2 restants, 30 posés dont **1 déclaré par un technicien** (Bradascou,
+pylône 195, Pascal BONAVENTURE le 31/08).
 
 ## Temps prévisionnel par chantier — onglet Heures (mis en place le 27/08/2026)
 
