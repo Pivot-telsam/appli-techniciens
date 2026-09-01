@@ -912,9 +912,29 @@ Résultat : 5 faits / 20 restes le premier jour, au lieu de 22 / 55.
 bougé depuis 24 h, le récap l'écrit en rouge — sans ça, une page vide se lirait comme « rien à
 signaler » alors qu'elle veut dire « rien ne fonctionne ».
 
-**Le récap n'envoie aucun message.** Écrire un fichier local ne demande pas d'autorisation ;
-envoyer un mail au nom de Patrice, si. L'envoi par Outlook est une étape séparée, à activer
-seulement s'il le demande explicitement.
+**L'envoi par mail — `scripts/recap-mail.ps1`, 5e action de la tâche (activé le 01/09/2026).**
+Écrire un fichier local ne demande pas d'autorisation ; envoyer un mail au nom de Patrice, si.
+Il l'a demandé explicitement (« mets le mail en place ») et **le seul destinataire est lui-même** :
+`patrice.pivot@telsam.com`. **Ne jamais élargir la liste des destinataires sans une nouvelle
+demande de sa part** — un récap contient des alertes internes et des écarts de devis.
+
+- **Pourquoi Outlook COM et pas un envoi SMTP** : telsam.com est une boîte Microsoft 365,
+  l'authentification simple y est désactivée, et un mot de passe dans un script serait à proscrire
+  de toute façon. Outlook est déjà installé et déjà authentifié : aucun secret nulle part.
+- **Le script démarre Outlook s'il n'est pas ouvert, et NE LE FERME PAS** : un mail envoyé par COM
+  attend dans la boîte d'envoi tant que le client ne synchronise pas. Le fermer le retiendrait.
+- **Un seul envoi par jour** (`veille/recap-mail.json`) : la tâche se rattrape à l'ouverture de
+  session et peut se déclencher plusieurs fois.
+- **Un échec d'envoi n'arrête rien** : il est tracé dans `avancement.log` avec le préfixe `[mail]`,
+  et la page HTML existe de toute façon. Options : `-Simuler`, `-Forcer`, `-Destinataire`.
+- **Les compteurs sont dans l'objet du mail** (« 5 fait(s), 20 à faire ») : c'est ce qui se lit sur
+  un téléphone sans ouvrir le message.
+
+**À savoir sur l'heure d'arrivée.** La tâche est en `LogonType Interactive` : elle ne tourne QUE
+quand la session Windows de Patrice est ouverte, et se rattrape à l'ouverture — le 31/08 elle est
+passée à 08h10, le 01/09 à 08h14, jamais à 07h30. **Le mail arrive donc quand Patrice s'assied, pas
+avant son arrivée.** Pour qu'il parte vraiment à 7h30 il faudrait enregistrer son mot de passe
+Windows dans la tâche planifiée : à ne pas faire, et à ne pas proposer.
 
 **Piège PowerShell rencontré ici (le même que dans `avancement-suivi.ps1`) : `@($null).Count`
 vaut 1.** Une liste d'orphelines vide ressortait comme un élément fantôme, et le récap affichait
