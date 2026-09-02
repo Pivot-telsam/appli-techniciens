@@ -1298,6 +1298,57 @@ le fichier modifié reste visible dans `git status`. Options utiles : `-Simuler`
 serait écrit sans toucher au fichier), `-Chantier 26-054`, `-Racine`/`-Suivi` pour tester sur une
 copie. Journal : `veille/avancement.log`, lignes préfixées `[boites]`.
 
+### LE NUMÉRO DU CHANTIER SE LIT DANS L'ENVOI, JAMAIS DANS LE NOM DU DOSSIER (02/09/2026)
+
+**L'incident.** Un technicien remplit son suivi sur Fleyriat, et c'est LUI qui prévient Patrice :
+aucune alerte n'était partie. Deux envois perdus (Younes MOUSSA le 01/09, Morad EL ABBASSI le
+02/09). Patrice : « comment est-ce encore possible avec tout ce que nous avons mis en place ? »
+
+**La cause.** `boites-posees.ps1` et `avancement-suivi.ps1` identifiaient le chantier en cherchant
+un `26-0XX` dans le nom du **dossier parent** du dossier `Suivi` :
+```
+if ($d.Parent.Parent.Name -match '(\d{2}-\d{3})') { $numero = $Matches[1] }
+if (-not $numero) { continue }        # <-- saut SILENCIEUX
+```
+Or le dossier App Tech de Fleyriat est `Ligne aérienne\Fibrage Fleyriat\App Tech` : **son parent ne
+porte aucun numéro** (le numéro est sur un dossier frère, en dessous). Le comptage sautait donc ce
+dossier sans un mot, et **le détecteur d'orphelines ne pouvait rien signaler puisque le chantier
+n'entrait jamais dans son champ de vision.** Un `continue` sans trace est invisible par
+construction. `avancement-suivi.ps1`, lui, retombait sur le nom du dossier et écrivait
+« Avancement Fibrage Fleyriat.pdf » en annonçant « pas de tâches vendues » — un document qui ne
+disait rien pour un chantier qui a pourtant ses tâches.
+
+**Le pire est que l'information était là depuis le début** : chaque envoi contient
+`"chantier":"26-055"`, écrit par l'appli, et le relais met même le numéro dans le nom du fichier.
+Les scripts lisent désormais **le champ de l'envoi** ; le nom du dossier n'est qu'un repli, et un
+envoi qu'on n'arrive pas à rattacher est **signalé**, jamais ignoré (`nonRattaches`).
+
+**C'est le troisième exemplaire du même défaut en un jour** : `controle-chantiers.ps1` avait le
+même le matin même (« aucun dossier App Tech » sur Fleyriat, qui en a un). **Corriger un défaut de
+rapprochement dans un script oblige à vérifier les autres** : ils partagent tous cette hypothèse
+fausse que le dossier parent porte le numéro.
+
+### Les commentaires des techniciens remontent maintenant (02/09/2026)
+
+**Deuxième moitié de l'incident, indépendante de la première.** Même pour les envois correctement
+comptés, **le commentaire n'arrivait nulle part** — il ne finissait que dans le PDF déposé dans
+App Tech, que le bureau n'ouvre pas. Or c'est souvent là qu'est l'essentiel. Ce jour-là :
+- Morad EL ABBASSI, Fleyriat : « Ts : pyl 19 a 48 sur demande du client une mesure du câble car il
+  pensé à une cassure » — **une demande de travaux supplémentaires du client**, rien de coché ;
+- Pascal BONAVENTURE, Bradascou : « Pylône 184 devient pylône 46 » — **une renumérotation**, qui
+  invalide la liste de pylônes de la fiche.
+
+`boites-posees.ps1` écrit donc `veille/suivis.json` (tous les envois, faits ET commentaires), lu
+par le récap et par le hook de démarrage :
+- un envoi de moins de 24 h va dans **« Fait »** du récap ;
+- un envoi **avec commentaire** va AUSSI dans **« reste à faire »**, et y reste **7 jours** : une
+  phrase du terrain demande presque toujours une suite (chiffrer un TS, corriger un numéro,
+  rappeler le client), et elle ne doit pas disparaître au bout d'un jour ;
+- un envoi non rattaché passe en **rouge**.
+
+**Un envoi sans rien de coché n'est pas un envoi vide.** Celui de Morad ne cochait aucune case et
+portait la demande la plus importante de la journée. Ne jamais filtrer sur « faits non vides ».
+
 **Les poses que le comptage n'a pas su rattacher (« orphelines ») sortent à DEUX endroits.**
 Ajouté le 01/09/2026 après une remarque de Patrice : le script écrivait déjà cet avertissement dans
 `veille/avancement.log`, et il a demandé « de quel journal parles-tu ? » — **un avertissement rangé
