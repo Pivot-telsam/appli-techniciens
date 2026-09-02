@@ -516,20 +516,56 @@ dans le navigateur puisqu'il n'y a pas de Node) : refus sans Access, refus sans 
 à la semaine demandée, refus du samedi, pose avec libellé normalisé, journal avant/après, retrait,
 couleur invalide ignorée, libellé vide refusé.
 
-### Où on en est, et ce qui manque
+### OÙ ON EN EST — état au 02/09/2026, à relire avant de reprendre
 
-- **Fait** : `partage/schema.sql`, `functions/_middleware.js` (la porte, 7 empreintes posées),
-  `functions/api/planning.js`, `partage/INSTALLATION.md` (les 5 étapes de Patrice, avec les noms de
-  boutons exacts et les endroits où l'interface Cloudflare peut différer — signalés comme tels
-  plutôt que devinés), et les mots de passe générés sur son Bureau.
-- **À faire par Patrice** : les 5 étapes du guide, puis m'envoyer l'adresse `…pages.dev`.
-- **À faire ensuite par moi** : brancher la grille sur l'API — le « brouillon » devient une décision
-  partagée, avec le nom de qui l'a posée. **Volontairement pas écrit avant que l'API soit en ligne** :
-  sans pouvoir l'essayer en vrai, ce serait du code non éprouvé, et c'est exactement ce qu'on ne veut
-  pas sur la donnée qui envoie des hommes sur des postes.
-- **À prévoir avant d'y mettre autre chose que le planning** : une **sauvegarde quotidienne** de la
-  base vers Dropbox (le relais sait déjà y écrire). Aujourd'hui chaque copie Teams du fichier est une
-  sauvegarde ; une base unique n'en a aucune.
+**LE SUIVI EST EN LIGNE ET PROTÉGÉ : `https://suivi-telsam.pages.dev`.** Patrice s'y est connecté
+avec son mot de passe et voit son suivi. **Ne jamais lui envoyer cette adresse en lien cliquable —
+un lien fait planter sa machine et lui coupe l'accès à Claude** (posé fermement le 02/09/2026,
+cf. [[feedback_manip_amener_au_bon_endroit]]).
+
+Installé par Patrice, et **vérifié par moi sur le site réel** :
+
+| brique | état |
+| --- | --- |
+| Compte Cloudflare TELSAM | créé sur `Suivichantier@telsam.com` |
+| Projet Pages `suivi-telsam` | relié à `Pivot-telsam/suivi-chantiers` (autorisation GitHub limitée à ce seul dépôt), build `mkdir -p public && cp suivi_chantiers_205.html public/index.html`, sortie `public` |
+| `SESSION_SECRET` | posé en variable de production |
+| La porte | **vérifiée en direct** : écran de mot de passe, mauvais mot de passe refusé, 9 chemins testés (`/`, `/CLAUDE.md`, `/PROGRESS.md`, `/scripts/…`, `/partage/schema.sql`, `/functions/_middleware.js`, `/api/planning`, `/index.html`, `/suivi_chantiers_205.html`) tous bloqués, aucune fuite |
+| Base D1 `suivi-telsam` | créée, schéma exécuté (4 tables) |
+| Liaison `DB` → projet Pages | **MANQUE — c'est la seule chose qui reste** |
+
+**LA SEULE MANIP RESTANTE, pour Patrice** : projet Pages `suivi-telsam` → **Settings** →
+**Bindings** → **Add binding** → **D1 database** → variable **`DB`** → base `suivi-telsam` →
+**Save**, puis **Deployments** → `...` → **Retry deployment**.
+
+**OÙ IL ÉTAIT BLOQUÉ, ET COMMENT REPRENDRE.** Atteindre le *projet Pages* dans l'interface
+Cloudflare. Deux objets portent le nom `suivi-telsam` (la base D1 et le projet Pages), et dans la
+liste **Workers & Pages** cliquer la ligne lui ouvrait *le site* au lieu du projet. **Reprendre en
+lui demandant une capture de cette liste, puis lui dire où cliquer sur SA capture** — décrire un
+menu de mémoire ne marche pas, l'interface change de menu selon la page et il l'a dit clairement :
+« c'est fatigant, tu me dis de cliquer sur des choses qui n'y sont pas ».
+
+**ENSUITE, À MOI** : brancher la grille Planning sur `/api/planning`. Le « brouillon » local devient
+une décision partagée, visible de tous, avec le nom de qui l'a posée. **Volontairement pas écrit
+avant que la base soit reliée** : sans pouvoir l'essayer en vrai ce serait du code non éprouvé, et
+c'est exactement ce qu'on ne veut pas sur la donnée qui envoie des hommes sur des postes.
+
+**À prévoir, non bloquant :**
+- une **sauvegarde quotidienne** de la base vers Dropbox (le relais sait déjà y écrire) — aujourd'hui
+  chaque copie Teams du fichier est une sauvegarde, une base unique n'en a aucune ;
+- **inviter un deuxième administrateur** au compte Cloudflare (Christian ou Pierre) : c'est le vrai
+  remède au « l'outil ne doit pas dépendre d'une seule personne », mieux qu'une adresse générique.
+
+**Piège rencontré à l'inscription, à ne pas réoublier** : `Suivichantier@telsam.com` est un **groupe
+Microsoft 365**, et un groupe M365 **refuse par défaut les expéditeurs externes** — le mail de
+vérification Cloudflare n'arrivait donc jamais, alors que les mails internes arrivaient bien.
+Diagnostiqué par l'erreur Graph `ErrorGroupIsUsedInNonGroupURI` en tentant de lire la boîte, pas par
+supposition. À savoir pour tout futur service externe branché sur une adresse générique de TELSAM.
+
+**Piège de l'interface Cloudflare** : deux systèmes coexistent. L'écran « Make something new »
+(nouveau système Workers) **ignore silencieusement le dossier `functions`** — il aurait mis le suivi
+en ligne **sans la serrure**. Il faut passer par le lien « Continue to Pages » en bas de cet écran.
+C'est écrit dans `partage/INSTALLATION.md`.
 
 ## Ordre d'affichage des chantiers — Gantt ET Boîtes & nacelle (posé par Patrice le 01/09/2026)
 
