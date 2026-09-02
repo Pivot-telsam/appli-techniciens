@@ -1408,6 +1408,23 @@ par le récap et par le hook de démarrage :
 **Un envoi sans rien de coché n'est pas un envoi vide.** Celui de Morad ne cochait aucune case et
 portait la demande la plus importante de la journée. Ne jamais filtrer sur « faits non vides ».
 
+**Un commentaire arbitré doit CESSER de revenir — `scripts/marquer-suivi-traite.ps1`.**
+Le rappel sur 7 jours était nécessaire, mais sans moyen de l'éteindre il aurait redit pendant une
+semaine ce qui était déjà décidé, et le récap aurait perdu sa crédibilité comme tous les contrôles
+bruyants. La **note est obligatoire** (même principe que `marquer-veille-traitee.ps1`) : elle dit
+ce qui a été décidé et sert de trace dans `veille/suivis-traites.json`. `-Lister` montre ce qui
+attend, `-Tous` solde tout d'un coup. **Le fait reste visible dans « Fait »** du récap : seul le
+rappel « à traiter » s'éteint, on n'efface pas l'événement.
+
+**Et une décision de Patrice ne vit PAS dans ce fichier de marquage : elle va dans `aVerifier` de
+la fiche.** Le marquage éteint un rappel, il ne conserve rien de consultable. Les deux arbitrages
+du 02/09/2026 sont donc inscrits dans l'onglet « À vérifier » :
+- **26-055 Fleyriat** — le TS demandé par le client (mesure de câble pylônes 19 à 48) **se fera et
+  sera facturé plus tard** : ne pas le chiffrer maintenant, ne pas l'oublier à la facturation ;
+- **26-054 Bradascou** — « le pylône 184 devient le 46 » : **ne rien modifier**, ni la liste de
+  pylônes, ni les tâches vendues, ni le lot de boîtes. La mise à jour se fera **dans le DOO une
+  fois les travaux terminés**. Ne pas « corriger » cette numérotation entre-temps.
+
 **Les poses que le comptage n'a pas su rattacher (« orphelines ») sortent à DEUX endroits.**
 Ajouté le 01/09/2026 après une remarque de Patrice : le script écrivait déjà cet avertissement dans
 `veille/avancement.log`, et il a demandé « de quel journal parles-tu ? » — **un avertissement rangé
