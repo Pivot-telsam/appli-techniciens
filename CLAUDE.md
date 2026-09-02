@@ -388,14 +388,19 @@ raison pour laquelle il a demandé la grille Planning. **Le planning est le pilo
 la vraie douleur (plusieurs personnes arrêtent le planning ensemble), il ne contient rien de
 commercial, et l'Excel Teams reste tendu dessous comme filet pendant la bascule.
 
-### Les deux décisions de Patrice (02/09/2026)
+### Les décisions de Patrice (02/09/2026)
 
-1. **Porte d'entrée = Cloudflare Access, code à usage unique par mail.** Pas de mot de passe :
-   ni à retenir, ni à se transmettre, ni à fabriquer. **Je ne manipule aucun secret**, et Patrice
-   ajoute ou retire quelqu'un lui-même sans me le demander. Gratuit ≤ 50 personnes.
-2. **Compte Cloudflare au nom de TELSAM**, pas son compte personnel — l'outil de l'entreprise ne
+1. **Compte Cloudflare au nom de TELSAM**, pas son compte personnel — l'outil de l'entreprise ne
    doit pas dépendre de son compte à lui (le relais Dropbox, lui, est resté sur le compte perso :
    à migrer un jour).
+2. **Porte d'entrée = un mot de passe par personne.** Il avait d'abord retenu le code à usage
+   unique par mail (Cloudflare Access), puis **il est revenu en arrière le même jour** : Access
+   réclame une carte bancaire pour son offre gratuite, et « si un jour nous sommes plus de
+   cinquante, je vais être embêté si j'ai laissé mon code de carte bleue ». **Ne pas re-proposer
+   Access sans qu'il le demande** — la raison n'est pas technique, elle est contractuelle, et elle
+   ne changera pas parce qu'on la réexplique.
+   *Ce que ça coûte, à savoir et à assumer* : avec Access il ajoutait ou retirait quelqu'un tout
+   seul ; avec les mots de passe, il faut me le demander (recalcul de l'empreinte + push).*
 
 Rappel du cadrage : les **7 personnes** (Brillou, Cazenave, Hamouch, Vidal, Pivot, Rambaud, Heras)
 peuvent toutes voir le commercial → **un seul niveau d'accès**, pas de rôles à prévoir.
@@ -408,7 +413,7 @@ peuvent toutes voir le commercial → **un seul niveau d'accès**, pas de rôles
 | brique | choix | pourquoi |
 | --- | --- | --- |
 | hébergement | **Cloudflare Pages** relié au dépôt GitHub privé | publie un dépôt **privé** sans plan payant, contrairement à GitHub Pages (cf. « Pourquoi il n'y a pas de vraie serrure »). Un push = un déploiement, rien à lancer à la main. |
-| porte | **Cloudflare Access** devant tout le projet | la page elle-même n'est jamais servie à un inconnu — meilleur que l'appli technicien, où le HTML est public. |
+| porte | **`functions/_middleware.js`**, devant tout le projet | la page elle-même n'est jamais servie à un inconnu — voir ci-dessous, c'est LA différence avec l'appli technicien. |
 | API | **fonction Pages** `functions/api/planning.js` | même dépôt, même déploiement, aucune infrastructure de plus. |
 | base | **Cloudflare D1** (SQL), liaison `DB` | écriture **ligne par ligne**. C'est le point clé, voir ci-dessous. |
 
@@ -433,17 +438,70 @@ l'Excel, pas moins** — argument à redonner à Patrice, c'est contre-intuitif.
 - **Le fichier doit continuer de marcher seul, sans réseau.** C'est le filet ; ne pas le retirer en
   « simplifiant » quand la version en ligne tournera.
 
+### La porte — `functions/_middleware.js`
+
+**LA SERRURE EST AVANT LA PAGE, PAS DEDANS. C'est le point à ne jamais défaire.** Dans l'appli
+technicien le mot de passe est vérifié DANS la page : elle est donc téléchargée d'abord, et son
+contenu est lisible dans le code source sans rien taper — acceptable là-bas, puisqu'elle ne contient
+aucun secret (la vraie serrure des documents est côté Dropbox). Ici c'est l'inverse : **le suivi
+contient le commercial**. Une serrure dans la page ne protégerait donc rien du tout. Le filtre
+tourne côté Cloudflare et, sans session valide, ne renvoie que l'écran de mot de passe.
+
+- **Empreintes PBKDF2-SHA-256, sel `telsam-suivi-partage-2026`, 100 000 tours.** Pas 150 000 comme
+  l'appli technicien : **Cloudflare plafonne à 100 000**, au-delà l'appel échoue (piège déjà payé
+  sur le relais Dropbox). Même `normPw` que l'appli — minuscules, tout ce qui n'est ni lettre ni
+  chiffre retiré — donc les tirets sont facultatifs.
+- **Trois mots au lieu de deux** : ces mots de passe se tapent sur un clavier d'ordinateur, pas sur
+  un téléphone en haut d'un pylône, et ils gardent une adresse publique devant du commercial.
+- **Session par cookie signé** (`mail|expiration|HMAC`), 7 jours, `HttpOnly` + `Secure` +
+  `SameSite=Strict`. Le secret de signature vient de `SESSION_SECRET` (variable d'environnement
+  Cloudflare, **jamais dans le dépôt**). **Absent ⇒ 503, rien n'est servi** : un réglage manquant
+  ne doit pas ouvrir la porte.
+- **Comparaisons à temps constant** (`memeChaine`) : une comparaison qui s'arrête au premier écart
+  laisse deviner une empreinte octet par octet.
+- **Compteur d'échecs par IP** (table `tentative`, 10 échecs / 10 min). Sept mots de passe derrière
+  une adresse publique : sans compteur, rien n'empêche l'essai en masse.
+
+**INCIDENT DU 02/09/2026 — NE JAMAIS CITER EN EXEMPLE UNE COMBINAISON QUE LE TIRAGE PEUT PRODUIRE.**
+J'avais pris `ancre-jade-moulin` comme exemple dans le guide et comme mot de passe d'essai. Le tirage
+des 7 est **tombé exactement dessus** : un mot de passe réel, public le jour de sa création. Ce n'est
+pas de la malchance rare — 26×20×20 = 10 400 combinaisons, 7 tirages, plusieurs exemples cités : de
+l'ordre d'une chance sur 1 500 par exemple. Les 7 ont été regénérés, le générateur refuse maintenant
+les combinaisons interdites et les doublons, et le guide cite `velo-mangue-tiroir`, dont les trois
+mots sont **absents des listes de tirage**. Règle générale : un exemple doit être **impossible** à
+tirer, pas seulement improbable — et il faut vérifier après coup, ce qui est ce qui a rattrapé le cas.
+
+**Les mots de passe en clair vivent dans `Mots_de_passe_Suivi_Partage_TELSAM.txt` sur le Bureau,
+hors dépôt** — en `.txt` et non dans le document Word des mots de passe, pour ne pas risquer
+d'abîmer un fichier qui contient déjà tout le reste (les pièges Word sont documentés plus bas).
+Proposé à Patrice de l'y intégrer s'il préfère. Pour en changer un : recalculer avec
+`scratchpad/mdp-suivi.ps1` (même sel, mêmes tours), remplacer dans `PERSONNES`, pousser.
+
+**PIÈGE DE MÉTHODE — le navigateur ne peut PAS éprouver les cookies.** `Cookie` est un en-tête de
+requête interdit et `Set-Cookie` est filtré des `Headers` d'une réponse : un essai qui passe par de
+vrais objets `Request`/`Response` **ne prouve rien** et paraît pourtant réussir. Vécu le 02/09/2026 :
+un premier jeu d'essais affichait « cookie falsifié refusé ✓ » alors que le cookie n'était jamais
+arrivé — il refusait tout, y compris le cas valide. **Utiliser un objet de requête factice** (le code
+n'appelle que `headers.get`, `method`, `url`, `formData`). C'est ainsi qu'ont été vérifiés, le
+02/09/2026 : cookie valide accepté et identité posée, mail falsifié refusé, expiration repoussée
+refusée, session expirée refusée, secret différent refusé, API sans session refusée en JSON,
+blocage après 10 échecs, et le suivi jamais servi dans aucun cas de refus. Les attributs du cookie
+(`HttpOnly`/`Secure`/`SameSite`), eux, sont contrôlés **dans le source** — le navigateur ne les
+laisse pas relire.
+
 ### L'API — deux points à ne pas défaire
 
 `functions/api/planning.js`. `GET ?du=&au=` lit une semaine, `POST {jour, personne, chantier, remplace}`
 écrit une cellule (`chantier: null` retire).
 
-1. **ELLE ÉCHOUE FERMÉE.** L'identité vient de l'en-tête `Cf-Access-Authenticated-User-Email`, posé
-   par Access. **En-tête absent ⇒ 503, on ne sert RIEN.** Un en-tête manquant ne veut pas dire
-   « visiteur anonyme », il veut dire « Access n'est pas devant » — donc une mauvaise configuration
-   qui exposerait du commercial. Le cas par défaut doit être le refus.
-   *Renforcement possible plus tard : vérifier le jeton `Cf-Access-Jwt-Assertion` plutôt que de
-   faire confiance à l'en-tête. Utile seulement si Access peut cesser d'être devant.*
+1. **ELLE ÉCHOUE FERMÉE, ET NE CROIT AUCUN EN-TÊTE.** L'identité est lue dans
+   `context.data.utilisateur`, posé par le filtre. **Absente ⇒ 503, on ne sert RIEN** : ça ne veut
+   pas dire « visiteur anonyme » mais « le filtre n'est pas devant », donc une configuration qui
+   exposerait du commercial.
+   *Une première version lisait l'en-tête `Cf-Access-Authenticated-User-Email` parce que Cloudflare
+   Access était prévu devant. Après le retour aux mots de passe, cet en-tête n'existe plus — et un
+   en-tête est envoyé par le client, donc falsifiable : s'y fier laisserait n'importe qui écrire au
+   nom de n'importe qui. **Ne jamais faire porter l'identité par un en-tête ici.***
 2. **Le libellé du chantier est stocké EN TOUTES LETTRES, jamais son index** — même piège que le
    brouillon : `libelles` est reconstruite à chaque relecture et les index se décalent (118 puis
    172), une ligne qui retiendrait un index désignerait un autre chantier du jour au lendemain.
@@ -460,10 +518,11 @@ couleur invalide ignorée, libellé vide refusé.
 
 ### Où on en est, et ce qui manque
 
-- **Fait** : `partage/schema.sql`, `functions/api/planning.js`, `partage/INSTALLATION.md` (les 4
-  étapes de Patrice, avec les noms de boutons exacts et les deux endroits où l'interface Cloudflare
-  peut différer — signalés comme tels plutôt que devinés).
-- **À faire par Patrice** : les 4 étapes du guide, puis m'envoyer l'adresse `…pages.dev`.
+- **Fait** : `partage/schema.sql`, `functions/_middleware.js` (la porte, 7 empreintes posées),
+  `functions/api/planning.js`, `partage/INSTALLATION.md` (les 5 étapes de Patrice, avec les noms de
+  boutons exacts et les endroits où l'interface Cloudflare peut différer — signalés comme tels
+  plutôt que devinés), et les mots de passe générés sur son Bureau.
+- **À faire par Patrice** : les 5 étapes du guide, puis m'envoyer l'adresse `…pages.dev`.
 - **À faire ensuite par moi** : brancher la grille sur l'API — le « brouillon » devient une décision
   partagée, avec le nom de qui l'a posée. **Volontairement pas écrit avant que l'API soit en ligne** :
   sans pouvoir l'essayer en vrai, ce serait du code non éprouvé, et c'est exactement ce qu'on ne veut
