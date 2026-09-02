@@ -1526,6 +1526,36 @@ Résultat : 5 faits / 20 restes le premier jour, au lieu de 22 / 55.
 bougé depuis 24 h, le récap l'écrit en rouge — sans ça, une page vide se lirait comme « rien à
 signaler » alors qu'elle veut dire « rien ne fonctionne ».
 
+### Fiabilité du récap : quatre trous bouchés le 02/09/2026
+
+Patrice, après une journée où le récap l'avait trompé : **« le récap du matin me suffit, par contre
+je veux qu'il soit fiable ».** Décision claire : **on n'ajoute plus rien à la chaîne** (le relevé
+des suivis en cours de journée a été proposé et refusé) — on rend fiable ce qui existe. Audit de la
+chaîne elle-même, et non de ce qu'elle rapporte :
+
+1. **Si l'étape du récap échoue, la page ne doit PAS rester celle de la veille.** C'était le trou le
+   plus grave : le raccourci du Bureau s'ouvrait normalement sur la page d'hier, titre daté d'hier,
+   et rien ne disait qu'elle était périmée. `matin.ps1` écrit maintenant, à la place, **une page
+   rouge courte** qui dit ce qui s'est passé et donne l'état de chaque étape. Elle se déclenche
+   aussi quand l'étape se dit OK mais que la page n'a pas été réécrite ce jour-là.
+2. **Le mail refuse de partir avec une page qui n'est pas du jour** (`recap-mail.ps1` compare la
+   date du fichier). Sans ça il aurait envoyé le contenu d'hier sous un objet portant la date
+   d'aujourd'hui et les compteurs d'hier — **un mail qui se trompe de jour est pire que pas de
+   mail : il donne l'impression que tout a tourné.**
+3. **`dernier.json` absent** ne fait plus disparaître la ligne « veille » en silence : ligne rouge
+   « impossible de dire si un PGO est arrivé ».
+4. **Un `git log` muet** ne rend plus « 0 modification » (qui se lit « rien n'a bougé ») mais une
+   ligne disant qu'on n'a pas pu regarder.
+
+**Les deux premiers ont été vérifiés en cassant réellement la chaîne** : page antidatée → le mail
+refuse ; `recap-matin.ps1` renommé → la page de remplacement s'écrit. Un test qui ne peut pas
+échouer ne prouve rien.
+
+**Le trou qui RESTE, connu et assumé par Patrice** : un suivi envoyé par un technicien n'est vu
+qu'au passage du matin. Celui de Morad, arrivé à 11h33 le 02/09, n'aurait remonté que le lendemain.
+Un relevé toutes les dix minutes a été proposé (la tâche « TELSAM - Envoi du recap » existe déjà) ;
+**Patrice l'a refusé** — le récap du matin lui suffit. Ne pas le remettre sur la table.
+
 **L'envoi par mail — `scripts/recap-mail.ps1`, 5e action de la tâche (activé le 01/09/2026).**
 Écrire un fichier local ne demande pas d'autorisation ; envoyer un mail au nom de Patrice, si.
 Il l'a demandé explicitement (« mets le mail en place ») et **le seul destinataire est lui-même** :
