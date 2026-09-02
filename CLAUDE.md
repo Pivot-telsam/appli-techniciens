@@ -380,6 +380,98 @@ coin — sur une donnée qui décide d'envoyer des hommes sur des postes. Les 7 
 (les 5 ci-dessus + Carine Rambaud à la compta + Guillaume Heras, PDG) peuvent toutes voir le
 commercial : **un seul niveau d'accès suffit**, inutile de prévoir des rôles.
 
+## ÉTAPE 1 — le suivi devient une appli partagée (démarrée le 02/09/2026)
+
+**Le but, dit par Patrice** : « une page en ligne où chacun ouvre, saisit, et voit la même chose en
+direct. Fini les envois Teams, fini le SEED_VERSION, fini le une-personne-à-la-fois. » C'est la
+raison pour laquelle il a demandé la grille Planning. **Le planning est le pilote** : c'est là qu'est
+la vraie douleur (plusieurs personnes arrêtent le planning ensemble), il ne contient rien de
+commercial, et l'Excel Teams reste tendu dessous comme filet pendant la bascule.
+
+### Les deux décisions de Patrice (02/09/2026)
+
+1. **Porte d'entrée = Cloudflare Access, code à usage unique par mail.** Pas de mot de passe :
+   ni à retenir, ni à se transmettre, ni à fabriquer. **Je ne manipule aucun secret**, et Patrice
+   ajoute ou retire quelqu'un lui-même sans me le demander. Gratuit ≤ 50 personnes.
+2. **Compte Cloudflare au nom de TELSAM**, pas son compte personnel — l'outil de l'entreprise ne
+   doit pas dépendre de son compte à lui (le relais Dropbox, lui, est resté sur le compte perso :
+   à migrer un jour).
+
+Rappel du cadrage : les **7 personnes** (Brillou, Cazenave, Hamouch, Vidal, Pivot, Rambaud, Heras)
+peuvent toutes voir le commercial → **un seul niveau d'accès**, pas de rôles à prévoir.
+
+### L'architecture, et pourquoi celle-là
+
+**Aucun outil à installer sur la machine : il n'y a NI Node, NI npm, NI wrangler** (vérifié le
+02/09/2026). Tout choix qui suppose un déploiement en ligne de commande est donc hors jeu — d'où :
+
+| brique | choix | pourquoi |
+| --- | --- | --- |
+| hébergement | **Cloudflare Pages** relié au dépôt GitHub privé | publie un dépôt **privé** sans plan payant, contrairement à GitHub Pages (cf. « Pourquoi il n'y a pas de vraie serrure »). Un push = un déploiement, rien à lancer à la main. |
+| porte | **Cloudflare Access** devant tout le projet | la page elle-même n'est jamais servie à un inconnu — meilleur que l'appli technicien, où le HTML est public. |
+| API | **fonction Pages** `functions/api/planning.js` | même dépôt, même déploiement, aucune infrastructure de plus. |
+| base | **Cloudflare D1** (SQL), liaison `DB` | écriture **ligne par ligne**. C'est le point clé, voir ci-dessous. |
+
+**Le build ne publie QUE la page** : `mkdir -p public && cp suivi_chantiers_205.html public/index.html`,
+sortie `public`. Sans ça Pages mettrait en ligne tout le dépôt (CLAUDE.md, scripts). Les fonctions,
+elles, sont lues dans `functions/` à la racine quel que soit le dossier de sortie.
+
+**POURQUOI UNE BASE ET PAS UN FICHIER PARTAGÉ.** Un fichier ne réglerait rien : c'est le défaut de
+l'Excel actuel, où deux personnes qui préparent la même semaine s'écrasent mutuellement sans s'en
+apercevoir. Ici **une ligne = une personne, un jour** : Ahmed qui place Bilal mardi et Patrice qui
+place Didier jeudi ne se marchent jamais dessus. **La version partagée est donc plus sûre que
+l'Excel, pas moins** — argument à redonner à Patrice, c'est contre-intuitif.
+
+### Ce qui reste dehors, volontairement
+
+- **Le planning lu dans Teams n'entre PAS dans la base.** Il continue d'être relu chaque matin et
+  embarqué dans la page (`PLANNING_RTE`). La base ne contient que ce que l'équipe **décide** dans le
+  suivi. C'est ce qui permet de faire tourner les deux en parallèle et de **voir les écarts**, au
+  lieu de basculer d'un coup sur une source non éprouvée. On arrêtera l'Excel quand plus personne
+  ne l'ouvrira, pas avant.
+- **Le reste du suivi** (chantiers, boîtes, heures) fonctionne comme aujourd'hui, depuis `SEED_DATA`.
+- **Le fichier doit continuer de marcher seul, sans réseau.** C'est le filet ; ne pas le retirer en
+  « simplifiant » quand la version en ligne tournera.
+
+### L'API — deux points à ne pas défaire
+
+`functions/api/planning.js`. `GET ?du=&au=` lit une semaine, `POST {jour, personne, chantier, remplace}`
+écrit une cellule (`chantier: null` retire).
+
+1. **ELLE ÉCHOUE FERMÉE.** L'identité vient de l'en-tête `Cf-Access-Authenticated-User-Email`, posé
+   par Access. **En-tête absent ⇒ 503, on ne sert RIEN.** Un en-tête manquant ne veut pas dire
+   « visiteur anonyme », il veut dire « Access n'est pas devant » — donc une mauvaise configuration
+   qui exposerait du commercial. Le cas par défaut doit être le refus.
+   *Renforcement possible plus tard : vérifier le jeton `Cf-Access-Jwt-Assertion` plutôt que de
+   faire confiance à l'en-tête. Utile seulement si Access peut cesser d'être devant.*
+2. **Le libellé du chantier est stocké EN TOUTES LETTRES, jamais son index** — même piège que le
+   brouillon : `libelles` est reconstruite à chaque relecture et les index se décalent (118 puis
+   172), une ligne qui retiendrait un index désignerait un autre chantier du jour au lendemain.
+
+Refus volontaires : samedi/dimanche (le piège du week-end gris — une affectation acceptée là serait
+invisible dans la grille, donc incorrigible) et libellé vide. Une couleur mal formée n'est pas un
+refus, elle est simplement ignorée : mieux vaut une affectation enregistrée sans couleur qu'une
+saisie perdue.
+
+**Testée le 02/09/2026, 8 cas, avant tout déploiement** (fausse base D1 + vraies `Request`, jouées
+dans le navigateur puisqu'il n'y a pas de Node) : refus sans Access, refus sans base, lecture bornée
+à la semaine demandée, refus du samedi, pose avec libellé normalisé, journal avant/après, retrait,
+couleur invalide ignorée, libellé vide refusé.
+
+### Où on en est, et ce qui manque
+
+- **Fait** : `partage/schema.sql`, `functions/api/planning.js`, `partage/INSTALLATION.md` (les 4
+  étapes de Patrice, avec les noms de boutons exacts et les deux endroits où l'interface Cloudflare
+  peut différer — signalés comme tels plutôt que devinés).
+- **À faire par Patrice** : les 4 étapes du guide, puis m'envoyer l'adresse `…pages.dev`.
+- **À faire ensuite par moi** : brancher la grille sur l'API — le « brouillon » devient une décision
+  partagée, avec le nom de qui l'a posée. **Volontairement pas écrit avant que l'API soit en ligne** :
+  sans pouvoir l'essayer en vrai, ce serait du code non éprouvé, et c'est exactement ce qu'on ne veut
+  pas sur la donnée qui envoie des hommes sur des postes.
+- **À prévoir avant d'y mettre autre chose que le planning** : une **sauvegarde quotidienne** de la
+  base vers Dropbox (le relais sait déjà y écrire). Aujourd'hui chaque copie Teams du fichier est une
+  sauvegarde ; une base unique n'en a aucune.
+
 ## Ordre d'affichage des chantiers — Gantt ET Boîtes & nacelle (posé par Patrice le 01/09/2026)
 
 **Les deux vues affichent les chantiers dans le MÊME ordre**, calculé par `chronoSortKey()` et
