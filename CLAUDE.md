@@ -712,10 +712,26 @@ accès à créer. Journal : `veille/avancement.log`.
 Sans ce champ, le bouton Suivi n'apparaît pas (condition : `tachesVendues.taches.length` +
 `documentsAppTech`). Structure :
 ```
-tachesVendues: { devis: "TELSAM_CC_RTE_…", taches: [ { id, libelle, pylones?: [...] } ] }
+tachesVendues: { devis: "TELSAM_CC_RTE_…", taches: [ { id, libelle, unite?, pylones?: [...] } ] }
 ```
 Une tâche **avec** `pylones` donne des cases à cocher ; **sans**, un bouton Pas fait / En cours /
 Fait. Au 31/08/2026 : 12 chantiers actifs renseignés, 65 tâches, 149 cases.
+
+**RÉPONSE À UNE QUESTION DE PATRICE (02/09/2026) : le bouton Suivi n'apparaît JAMAIS tout seul.**
+Il a demandé, après la création du dossier App Tech de Cross-Sausset, si l'absence de suivi était
+normale et si « ça se mettrait en place une fois le chantier créé ». Non : le chantier existe,
+`documentsAppTech` est rempli, **il manquait `tachesVendues`** — et ce champ est relevé à la main
+dans le devis, il n'existe aucun automatisme. À ajouter dans le même geste que le dossier App Tech,
+sinon le technicien n'a pas de bouton et personne ne s'en aperçoit. Le sous-dossier `Suivi` de
+Dropbox, lui, est créé par le relais au premier envoi — il n'a pas à être préparé.
+
+**`unite` — le mot juste quand le chantier ne se compte pas en pylônes** (ajouté le 02/09/2026).
+Le mécanisme de cases sert à tout repère du devis, pas seulement aux pylônes : sur **26-002
+Cross-Sausset**, première MTFO souterraine équipée, les cases sont les **liaisons** (`LS 1`,
+`LS 2`). L'appli disait alors « Coche les pylônes que tu as faits » devant LS 1 / LS 2. Le champ
+`unite` (`"liaison"`) corrige les deux phrases de la fenêtre ; **sans lui, on garde « pylône »**,
+qui reste le cas courant — les 12 autres chantiers sont inchangés (non-régression vérifiée à
+l'écran sur Bradascou).
 
 ### RÈGLE — quel devis fait foi (posée par Patrice le 31/08/2026)
 
