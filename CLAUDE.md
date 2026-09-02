@@ -1136,6 +1136,50 @@ compléter, 26-021 Gampaloup-Valence, parce qu'aucun devis n'est encore arrivé 
 **Au 01/09/2026** : 174 WTC2 restants, 30 posés dont **1 déclaré par un technicien** (Bradascou,
 pylône 195, Pascal BONAVENTURE le 31/08).
 
+## La matinée automatique — `scripts/matin.ps1` (refondu le 02/09/2026)
+
+**L'incident qui a tout déclenché.** Le 02/09 au matin, Patrice branche son PC : pas de mail, pas
+de planning à jour, et l'impression que « tout ce que l'on fait ne sert à rien ». Il avait raison.
+Ce matin-là, sur les cinq actions de la tâche Windows : la veille est passée, **le document
+d'avancement et le comptage des boîtes n'ont rien fait**, **la lecture du planning Teams s'est
+bloquée sur Excel** au point que Windows a tué la tâche (`LastTaskResult = 0xC000013A`), et
+**le mail est resté dans la boîte d'envoi** d'un Outlook démarré sans fenêtre.
+
+**Mais le vrai défaut n'est aucun de ces quatre-là : c'est que RIEN NE L'A DIT.** Le récap
+affichait « Scripts du matin passés » — parce qu'il regardait la *date du fichier journal*, touché
+par la dernière étape. Un système qui se déclare en bonne santé quand il est en panne est pire que
+pas de système : il consomme la confiance de celui qui s'y fie.
+
+**La refonte, quatre règles :**
+1. **Un chef d'orchestre.** La tâche n'a plus qu'une action, `matin.ps1`, qui enchaîne les étapes.
+2. **Chaque étape a un délai maximum et tourne dans son propre processus.** Une étape bloquée est
+   tuée, **les suivantes se font quand même**. Avant, Excel restait pendu et Windows finissait par
+   tuer la tâche entière — donc aussi tout ce qui n'avait pas encore tourné.
+3. **Chaque étape écrit son état** (`ok` / `echec` / `expire` / `ignore`, message, durée) dans
+   `veille/matin.json`. **Le récap lit ce fichier** et fait une ligne rouge nommée par étape en
+   défaut. **Un silence ne doit jamais pouvoir se lire comme un succès.**
+4. **On attend Dropbox** (jusqu'à 10 min) avant les étapes qui en dépendent, au lieu d'échouer en
+   une fraction de seconde. La tâche se déclenche à l'ouverture de session, quand Dropbox monte
+   encore.
+
+**Ménage Office — deux garde-fous.** `matin.ps1` ferme les Excel/Word restés **sans fenêtre**,
+mais **uniquement ceux démarrés pendant son propre passage**, et **ne touche jamais à Outlook** :
+un Outlook réduit dans la zone de notification peut n'avoir aucun titre de fenêtre, le tuer
+fermerait la messagerie de Patrice et retiendrait son courrier.
+
+**L'envoi du mail est sorti de la matinée** — tâche séparée « TELSAM - Envoi du recap », qui
+repasse **toutes les 10 minutes de 7h30 à 13h00**. `recap-mail.ps1` **n'a plus le droit de démarrer
+Outlook** : il n'envoie que si Outlook tourne DÉJÀ **avec une fenêtre** (preuve qu'il est vraiment
+connecté), sinon il ne fait rien et retente. Et si Outlook disparaît juste après le `Send()`
+(vécu : « Le serveur RPC n'est pas disponible »), **la journée n'est pas marquée comme envoyée** :
+mieux vaut un doublon, qui se supprime en deux secondes, qu'un récap manquant que personne ne voit.
+
+**Bug qui aurait tout figé, corrigé le même jour** : dans `marquer-veille-traitee.ps1`,
+`@($x) | Where-Object {...}` rend un PSObject et non un tableau quand un seul élément passe le
+filtre, et le `+=` suivant échouait sur `op_Addition`. Déclenché le jour où l'historique est tombé
+à un seul élément : **plus aucune veille ne pouvait être marquée traitée**, donc le rappel serait
+resté allumé indéfiniment. Le `@()` doit envelopper le RÉSULTAT du filtre.
+
 ## Récap du matin — `veille/RECAP.html` (mis en place le 01/09/2026)
 
 **Une page par jour : ce qui a été fait, ce qui reste à faire.** Demandée par Patrice le
