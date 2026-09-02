@@ -160,7 +160,18 @@ Structure de la feuille "Feuil1" :
   `TECH_RANGES`/`REAL_DAYS` ni à la liste des techniciens. Vu sur Portet (S35) et Fleyriat (S36) :
   ignoré. De même, **`Pierre Brillou` et `François VIDAL` sont des encadrants, pas des
   techniciens** — ne pas les traiter comme des techniciens (comme Christian Cazenave, Patrice,
-  Ahmed Hamouch).
+  Ahmed Hamouch). **Nuance ajoutée le 02/09/2026 : François VIDAL est bien un encadrant pour la
+  lecture du planning, mais il est aussi l'UN DES DEUX SEULS habilités MTFO, avec Vincent PERRIN.**
+  Sur un chantier de mesures thermiques FO, c'est donc lui ou Vincent Perrin qui va sur site : ne
+  pas l'écarter en le rangeant mécaniquement parmi les encadrants.
+- **`Vincent BENIGAUD` N'EST PAS DE TELSAM : c'est un interlocuteur INEO, donc côté CLIENT.**
+  Règle posée par Patrice le 02/09/2026 (« attention de ne pas faire la confusion, c'est
+  important »). Il ne doit jamais entrer dans `TECH_RANGES`, dans le portail de l'appli, dans les
+  feuilles d'heures, ni dans une phrase parlant de « notre effectif ». **Le seul Vincent de
+  l'effectif est Vincent PERRIN.** L'erreur a été commise le 02/09/2026 : une alerte de la fiche
+  26-002 annonçait « deux Vincent dans l'effectif, Vincent PERRIN et Vincent Benigaud » — corrigée
+  le jour même. Vérification faite à cette occasion : il n'apparaissait nulle part ailleurs comme
+  technicien, sa seule autre mention le nomme correctement « Vincent Benigaud (INEO) ».
 
 ## Grille Planning — onglet du suivi (mis en place le 01/09/2026)
 
