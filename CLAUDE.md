@@ -532,18 +532,24 @@ Installé par Patrice, et **vérifié par moi sur le site réel** :
 | `SESSION_SECRET` | posé en variable de production |
 | La porte | **vérifiée en direct** : écran de mot de passe, mauvais mot de passe refusé, 9 chemins testés (`/`, `/CLAUDE.md`, `/PROGRESS.md`, `/scripts/…`, `/partage/schema.sql`, `/functions/_middleware.js`, `/api/planning`, `/index.html`, `/suivi_chantiers_205.html`) tous bloqués, aucune fuite |
 | Base D1 `suivi-telsam` | créée, schéma exécuté (4 tables) |
-| Liaison `DB` → projet Pages | **MANQUE — c'est la seule chose qui reste** |
+| Liaison `DB` → projet Pages | **faite et prouvée en direct** (voir ci-dessous) |
 
-**LA SEULE MANIP RESTANTE, pour Patrice** : projet Pages `suivi-telsam` → **Settings** →
-**Bindings** → **Add binding** → **D1 database** → variable **`DB`** → base `suivi-telsam` →
-**Save**, puis **Deployments** → `...` → **Retry deployment**.
+**L'INSTALLATION DE PATRICE EST TERMINÉE (02/09/2026).** Il n'a plus rien à faire.
 
-**OÙ IL ÉTAIT BLOQUÉ, ET COMMENT REPRENDRE.** Atteindre le *projet Pages* dans l'interface
-Cloudflare. Deux objets portent le nom `suivi-telsam` (la base D1 et le projet Pages), et dans la
-liste **Workers & Pages** cliquer la ligne lui ouvrait *le site* au lieu du projet. **Reprendre en
-lui demandant une capture de cette liste, puis lui dire où cliquer sur SA capture** — décrire un
-menu de mémoire ne marche pas, l'interface change de menu selon la page et il l'a dit clairement :
-« c'est fatigant, tu me dis de cliquer sur des choses qui n'y sont pas ».
+**Comment la liaison `DB` a été prouvée sans mot de passe** — méthode à réutiliser, elle vérifie
+trois choses d'un coup : envoyer **12 mauvais mots de passe** à `/entrer`. Les 10 premiers
+répondent 401, le **11ᵉ répond 429 « Trop de tentatives »**. Or ce blocage n'est possible que si le
+compteur d'échecs a pu **écrire puis relire** la table `tentative` : liaison en place, table
+présente et accessible, protection contre l'essai en force fonctionnelle. Un simple appel à
+`/api/planning` n'aurait rien prouvé (la porte le refuse avant d'atteindre la base).
+**Effet de bord à annoncer** : ce test bloque l'adresse IP **de Patrice** pendant 10 minutes,
+puisque le navigateur d'essai sort par sa connexion. Le lui dire avant, ou après, mais le dire.
+Pour débloquer tout de suite : `DELETE FROM tentative;` dans la console D1.
+
+*Petite friction d'interface, pour la prochaine fois : dans la liste **Workers & Pages**, la ligne
+contient DEUX textes superposés — le nom du projet en gras noir (qui ouvre le projet) et l'adresse
+`…pages.dev` en gris juste dessous (qui ouvre le site). Patrice cliquait la seconde. Et deux objets
+portent le nom `suivi-telsam` : la base D1 et le projet Pages.*
 
 **ENSUITE, À MOI** : brancher la grille Planning sur `/api/planning`. Le « brouillon » local devient
 une décision partagée, visible de tous, avec le nom de qui l'a posée. **Volontairement pas écrit
