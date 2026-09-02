@@ -578,7 +578,54 @@ lot 1. Deux suffixes ou plus = parent, un seul suffixe = ce lot (`NumeroDeDossie
 `scripts/veille-documents.ps1`). Sans ce cas particulier, l'extraction s'arrêtait au premier
 suffixe et rattachait tout le chantier au lot 1.
 
-## Nouveau chantier — checklist systématique (rappelé par Patrice le 28/08/2026)
+## Nouveau chantier — checklist systématique, et les DEUX mécanismes qui la portent
+
+**Cette checklist a été appliquée à moitié deux fois, et les deux fois c'est quelqu'un d'autre qui
+l'a vu.** Le 21/08/2026 : dossiers App Tech complets mais sans File Request ni `depotTerrain`,
+donc pas de bouton photos — signalé par Pascal Bonaventure. Le 02/09/2026 : dossier App Tech monté
+sans `tachesVendues`, donc pas de bouton Suivi — signalé par Patrice, avec la phrase qui résume
+l'enjeu : **« je vais être obligé de vérifier systématiquement ce que tu fais, et ce n'est pas le
+but de cet outil ».**
+
+**Ne pas répondre à ça en réécrivant la règle.** Elle était déjà écrite ici, et ça n'a pas suffi —
+c'est la leçon générale des « Règles de prudence » : une règle qu'aucun mécanisme ne porte ne tient
+pas. Deux mécanismes la portent désormais :
+
+**1. `appli-techniciens/scripts/check-chantier-complet.sh` — bloque le commit.**
+Dès qu'une fiche non terminée porte `documentsAppTech`, elle DOIT porter `depotTerrain` et
+`tachesVendues`. Les trois boutons vont ensemble ; il refuse le commit sinon, en nommant le
+chantier et ce qui manque. Pris automatiquement par `scripts/pre-commit.sh`. **Testé sur les deux
+oublis réels rejoués (21/08 et 02/09) et sur le cas sain.** Une exception se déclare dans le script
+avec sa raison — jamais un oubli silencieux.
+*Deux pièges rencontrés en l'écrivant* : en awk POSIX `\{` n'est pas portable (utiliser `index()`,
+pas une expression régulière), et **découper `SEED_DATA` sur `{"id":"` coupe la fiche au milieu de
+`tachesVendues`**, dont chaque tâche porte aussi un `id` — découper sur `{"id":"c_`.
+
+**2. `suivi-chantiers/scripts/controle-chantiers.ps1` — audite tout, chaque matin.**
+Étape de `matin.ps1`, résultat dans `veille/controle-chantiers.json`, repris **en ligne rouge dans
+le récap** et **injecté au démarrage de session**. Il vérifie, chantier actif par chantier actif :
+les trois champs de l'appli, `dossierDropbox` / boîtes / `heuresPrevues` côté suivi, et dans
+Dropbox le dossier App Tech, le brief, le PDP, le PGO, le sous-dossier Photos terrain.
+- **Priorité** : un chantier est « à traiter » si un technicien y est placé sous 21 jours **ou** si
+  une fenêtre de `pgo.couverture` y commence sous 21 jours. Le reste tient en une ligne.
+- **Ce réglage a demandé trois corrections le 02/09**, toutes trouvées en vérifiant les
+  signalements au lieu de les croire : le dossier App Tech de Fleyriat est au niveau du
+  regroupement et non du chantier (rapprocher dans les deux sens) ; le PDP de Portet s'appelle
+  `2025-PYR-PORTET-P.SIM-363-V08_260724.pdf`, son nom ne contient pas « PDP » (comparer aussi à
+  `pdp.ref`) ; « Plan de Prévention V2.pdf » ne correspondait pas au motif à cause du **é**
+  (retirer les accents avant toute comparaison). Puis un quatrième resserrage : ne considérer que
+  `pgo.couverture`, jamais `fenetres` — une fenêtre seulement annoncée est du prévisionnel, et la
+  version large sortait 9 chantiers « urgents » dont 8 où personne n'ira. **Un contrôle bruyant
+  finit ignoré : mieux vaut le régler jusqu'à ce que chaque ligne mérite d'être lue.**
+- Quand un document ne peut être ni reconnu ni rapproché d'une référence, il est déclaré
+  **« invérifiable »**, pas « absent », et le contrôle demande de renseigner `pdp.ref`/`pgo.ref`.
+
+**Ce qui reste fait EN SESSION, et pourquoi.** Monter un dossier App Tech suppose de choisir le bon
+devis parmi plusieurs, de juger si une IST est bien de TELSAM, de lire le bon indice de PGO,
+d'écrire un brief sans rien de commercial. Ces jugements ne s'automatisent pas sans risque — c'est
+le même raisonnement que pour la veille (« une détection ratée coûte une journée, une copie
+automatique fausse met un document périmé entre les mains d'un technicien »). Ce qui est garanti,
+c'est **qu'un oubli ne peut plus passer inaperçu** : il bloque le commit, ou il ressort le matin.
 
 **À faire À CHAQUE nouveau chantier, sans attendre qu'il le demande.** Patrice l'a redit le
 28/08/2026 (« note bien la règle pour le faire systématiquement »). L'ordre :
