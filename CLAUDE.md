@@ -399,6 +399,29 @@ pâle = personne, et rien d'autre ne doit brouiller cette lecture.
 commande de boîtiers, où les dates ne comptent pas). Les trois listes secondaires de la vue
 (« À compléter », « Nacelle », « Remarques ») suivent le même ordre chronologique.
 
+## Lire un PGO/PDP : la forme du document ne se négocie pas
+
+**Le format des PGO et des PDP nous est imposé** — c'est le SPS ou l'AEU qui les édite et les
+envoie, TELSAM n'a aucune main dessus (rappelé par Patrice le 02/09/2026). **Ne jamais demander
+« la version Excel plutôt que le PDF »** : la question est sans objet et fait perdre du temps à
+tout le monde. C'est à l'outil de s'adapter au document reçu, pas l'inverse.
+
+**Ce qui marche, dans l'ordre à essayer :**
+1. **`.xlsx` / `.xls`** → Excel COM. Modèle prêt à l'emploi dans le scratchpad :
+   ouvrir en lecture seule, parcourir `UsedRange.Value2`, filtrer les lignes contenant « TELSAM ».
+   Les dates ressortent en numérique série : `[DateTime]::FromOADate($v)`.
+2. **`.doc` / `.docx`** → Word COM, `$doc.Content.Text`. **Attention, le tableau chiffré d'un devis
+   TELSAM n'est pas dans le texte** : c'est un objet Excel embarqué
+   (`InlineShapes.Item(1).OLEFormat.Object`, ProgID `Excel.Sheet.8`), à ouvrir comme un classeur.
+   C'est comme ça qu'on lit les articles d'un devis.
+3. **`.pdf` texte** → décompresser les flux du PDF et récupérer les chaînes entre parenthèses.
+   **Piège : les polices espacent les caractères**, « TELSAM » y apparaît comme « T E L S A M ».
+   Toujours chercher sur le texte **compacté** (`-replace '\s+',''`), sinon on conclut à tort que
+   TELSAM n'est pas mentionné.
+4. **`.pdf` image** (le PGO Sausset ind.47 en est un : 1 page, 1 table d'en-tête, 1 image) → Word
+   n'en tire que l'en-tête. Là, seule la méthode 3 fonctionne ; si elle échoue aussi, le dire à
+   Patrice plutôt que d'inventer.
+
 ## Pièges connus dans le code (à ne pas "corriger" par erreur)
 - **METTRE À JOUR UN PGO/PDP = METTRE À JOUR LES DATES STRUCTURÉES, PAS SEULEMENT LE TEXTE DE
   L'INDICE.** Le Gantt dessine la couverture PGO à partir de `pgo.couverture` (tableau de
