@@ -2319,6 +2319,78 @@ fenêtre peut clignoter à 13h — au lieu de 34 dans la matinée.
 perdu en silence la moitié de ce qu'elle sert à garder. Vérifié : l'ancienne
 `RECAP-2026-09-03.html` du matin est intacte à côté de la nouvelle.
 
+
+### La bulle Windows remplace le mail — `scripts/recap-bulle.ps1` (03/09/2026)
+
+Patrice a vu la bulle d'essai et a demandé de la mettre en place. Étape
+**« Bulle de notification »** de `matin.ps1`, donc à 7h30 **et** à 13h00.
+WinRT `Windows.UI.Notifications`, AppId de PowerShell, **aucun module à installer**.
+
+**TROIS DÉFAUTS TROUVÉS EN LA CONSTRUISANT, tous par l'essai et non par relecture :**
+
+1. **Elle annonçait des chiffres FAUX.** Première version : une expression régulière sur
+   `RECAP.html`, qui a sorti « 0 fait, 26 à faire » quand le récap disait « 13 fait(s),
+   31 reste(s) ». **Des chiffres faux annoncés avec aplomb sont pires que pas de chiffres.**
+   `recap-matin.ps1` écrit désormais `veille/recap-compteurs.json` — les deux nombres sortent de
+   celui qui les calcule, ou de nulle part. Ne pas revenir à une relecture de la page.
+2. **Les accents étaient cassés** : « Â« Recap Â» ». Le `.ps1` était sans BOM, donc lu en ANSI par
+   PowerShell 5.1 — le piège déjà documenté, repayé une fois de plus. Le fichier porte maintenant un
+   BOM, **et** son message a été réécrit sans guillemets typographiques : du texte qui ne peut pas
+   se casser, quel que soit l'outil qui réécrira le fichier un jour.
+3. **Son statut n'aurait été signalé nulle part.** Posée après l'écriture de `matin.json`, son échec
+   n'entrait dans aucun fichier — exactement le défaut que `matin.json` existe pour empêcher. L'état
+   des étapes est donc écrit **tout à la fin**, après la dernière étape.
+
+**Deux règles de placement, à ne pas défaire :**
+- elle vient **après** le bloc qui écrit la page de remplacement. Si le récap a échoué, c'est cette
+  page-là qui est du jour, et la bulle annonce alors une page qui dit franchement que la chaîne a
+  échoué — au lieu de se taire, ce qui laisserait croire que rien n'a tourné ;
+- **elle ne doit jamais faire échouer la chaîne** : délai de 2 minutes, toute erreur tracée et
+  avalée, sortie en 0. Une bulle est un confort ; la veille et le planning sont le travail.
+
+**Elle refuse de parler d'une page périmée** (même règle que celle posée pour le mail le
+02/09/2026) : si `RECAP.html` n'est pas du jour, aucune bulle. Vérifié avec ses deux
+contre-exemples — page antidatée d'un jour, et page absente.
+
+**Essai réel de la chaîne complète le 03/09/2026** : 101 s, 7 étapes sur 7 en `ok`, bulle comprise,
+et son statut bien présent dans `matin.json`.
+
+
+**LE HOOK D'`APP_VERSION` IGNORE LES DEUX LIGNES ÉCRITES PAR LES SCRIPTS** (03/09/2026).
+Depuis que la chaîne tourne deux fois par jour, elle réécrit `PLANNING_TECH` et
+`AVANCEMENT_DECLARE` dans `index.html` à chaque passage — souvent pour le seul horodatage. Le hook
+a bloqué le premier commit qui suivait, et il avait raison de le faire : il ne savait pas
+distinguer. Mais le corriger n'était pas facultatif, car les deux issues étaient mauvaises :
+
+- bumper `APP_VERSION` chaque jour ⇒ le technicien se prend l'écran d'ouverture **tous les matins**.
+  La règle est écrite plus haut : « insupportable en trois jours, et le signal perdrait tout son
+  sens à force d'être vu ». On aurait détruit exactement ce que ce hook protège ;
+- ne pas le corriger ⇒ tout commit suivant un passage du matin est bloqué.
+
+Le hook **retire ces deux lignes du diff et regarde s'il reste quelque chose**. Ne pas remplacer ce
+test par « si le diff contient ces lignes, on passe » : un vrai changement de code passerait alors
+en douce dès qu'un passage du matin l'accompagne. **Vérifié dans les trois sens** : lignes générées
+seules ⇒ passe ; vrai changement sans bump ⇒ bloque ; vrai changement avec bump et nouveauté ⇒ passe.
+
+Même raisonnement que `POSES_APPLI` dans le suivi : une donnée regénérée vit à part justement pour
+ne pas déclencher de bump de version.
+
+### On n'emprunte que le classeur SharePoint, jamais une copie locale (03/09/2026)
+
+Question de Patrice sur le passage de 13h : « j'espère que ce n'est pas pour lire le planning qui
+est dans mon bureau, mais bien celui sur Teams, qui est toujours à jour. »
+
+**Réponse vérifiée, pas de mémoire** : `planning-rte.json` porte `teams = true`, la source est
+l'adresse SharePoint, la copie du Bureau **n'existe plus**, et le classeur ouvert dans son Excel
+pointe bien sur l'URL. Les trois voies restent : fichier Teams en direct, sinon copie figée du
+classeur qu'il a ouvert, sinon (et seulement alors) la copie du Bureau avec bandeau rouge.
+
+**Mais sa question a mis le doigt sur un vrai trou, désormais fermé.** La voie 2 ne testait que le
+**NOM** du classeur ouvert — et la copie du Bureau porte **exactement le même nom**. Le jour où il
+en rouvre une, on aurait lu une donnée périmée alors que le fichier partagé était joignable. Le test
+porte maintenant sur `FullName -like 'http*'` : un classeur du même nom mais local est **ignoré avec
+un message**, et on va chercher Teams.
+
 ### POURQUOI LE MAIL DU RÉCAP N'ARRIVERA JAMAIS AINSI — Patrice utilise le NOUVEL Outlook
 
 Patrice : « je suis bien allé chercher mon rappel du matin, mais je n'ai jamais reçu le mail. »
@@ -2341,7 +2413,7 @@ quelqu'un sous Outlook classique) mais **sa tâche est désactivée**. Ne pas es
 | voie | verdict |
 | --- | --- |
 | **Rien de plus** — il ouvre le raccourci du Bureau, ce qu'il fait déjà | marche, zéro pièce en plus |
-| **Une bulle de notification Windows** à 7h30 et 13h00 | **testée sur ce PC le 03/09/2026, envoyée sans erreur** ; les notifications ne sont pas coupées. Reste à confirmer qu'il l'a vue |
+| **Une bulle de notification Windows** à 7h30 et 13h00 | **RETENUE ET EN PLACE** : Patrice l'a vue, elle est l'étape « Bulle de notification » de matin.ps1 (voir ci-dessus) |
 | Mail via un service externe (Resend/SendGrid) branché sur le relais Cloudflare | demande un compte et une clé de plus, et un mail venu d'un domaine extérieur vers telsam.com risque le courrier indésirable. Disproportionné |
 | Message Teams par Graph | demande une inscription d'application côté M365. Pas simple, et il vit déjà dans Teams — à ne creuser que s'il le demande |
 

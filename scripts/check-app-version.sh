@@ -27,6 +27,36 @@ fi
 
 DIFF=$(git diff --cached -- "$FILE")
 
+# LES DONNEES ECRITES PAR LES SCRIPTS NE COMPTENT PAS COMME UNE MISE A JOUR.
+#
+# Depuis le 03/09/2026, la chaine du matin (7h30 et 13h00) reecrit deux lignes
+# de ce fichier a chaque passage : PLANNING_TECH (le planning lu dans Teams) et
+# AVANCEMENT_DECLARE (les cases deja cochees). Elles changent donc DEUX FOIS PAR
+# JOUR, souvent pour le seul horodatage.
+#
+# Sans cette exception, deux issues, toutes deux mauvaises :
+#   - soit APP_VERSION est bumpe chaque jour, et le technicien se prend l'ecran
+#     d'ouverture tous les matins. La doc le dit : « insupportable en trois
+#     jours, et le signal perdrait tout son sens a force d'etre vu » - donc on
+#     detruirait precisement ce que ce hook protege ;
+#   - soit tout commit suivant un passage du matin est bloque.
+#
+# Meme raisonnement que POSES_APPLI dans le suivi : une donnee regeneree vit a
+# part justement pour ne pas declencher de bump.
+#
+# ON RETIRE CES LIGNES DU DIFF, ET ON REGARDE S'IL RESTE QUELQUE CHOSE. Ne pas
+# remplacer ce test par un « si le diff CONTIENT ces lignes, on passe » : un
+# vrai changement de code passerait alors en douce des qu'un passage du matin
+# l'accompagne.
+RESTE=$(printf '%s\n' "$DIFF" \
+  | grep -E "^[+-]" \
+  | grep -vE "^(\+\+\+|---)" \
+  | grep -vE "^[+-]const (PLANNING_TECH|AVANCEMENT_DECLARE) = ")
+
+if [ -z "$RESTE" ]; then
+  exit 0
+fi
+
 ANCIENNE=$(printf '%s\n' "$DIFF" | grep -E "^-var APP_VERSION" | head -1 | sed "s/.*'\(.*\)'.*/\1/")
 NOUVELLE=$(printf '%s\n' "$DIFF" | grep -E "^\+var APP_VERSION" | head -1 | sed "s/.*'\(.*\)'.*/\1/")
 
