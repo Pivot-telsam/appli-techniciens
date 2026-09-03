@@ -167,6 +167,98 @@
   ok('2. et garde le statut des taches sans pylone', garde.faits.doo === 'fait');
   window.kvGet = vraiKvGet; window.kvSet = vraiKvSet;
 
+  // =======================================================================
+  // 3. AVEC QUI JE SUIS (demande des techniciens, 03/09/2026)
+  // =======================================================================
+  // On cherche un cas REEL : un chantier de la semaine prochaine ou plusieurs
+  // personnes sont placees. Fabriquer un faux cas ne prouverait rien de ce que
+  // les techniciens verront.
+  const sem = weekRange(1);
+  let cas = null;
+  for (const cid of idsChantiersPlanifies()) {
+    const presents = [];
+    for (const t of TECHS) if (isoDatesInRange(datesPour(cid, t), sem.mon, sem.sun).length) presents.push(t);
+    if (presents.length >= 2) { cas = { cid: cid, presents: presents }; break; }
+  }
+  ok('3. un chantier a plusieurs personnes la semaine prochaine', !!cas,
+     cas ? (chantierById(cas.cid) || {}).numero + ' : ' + cas.presents.join(', ') : 'aucun');
+  if (cas) {
+    const moi = cas.presents[0];
+    currentTech = moi;
+    const eq = equipeSurChantier(cas.cid, sem.mon, sem.sun, moi);
+    ok('3. l equipe est listee sans moi', eq.length === cas.presents.length - 1
+       && !eq.some(p => p.nom === moi), eq.map(p => p.nom).join(', '));
+    ok('3. chacun a ses jours', eq.every(p => p.jours.length > 0),
+       eq.map(p => p.nom + ' ' + p.jours.length + 'j').join(' | '));
+    ok('3. ils sont classes du plus tot arrive au plus tard',
+       eq.every((p, i) => i === 0 || eq[i - 1].jours[0] <= p.jours[0]));
+
+    const mesJours = isoDatesInRange(datesPour(cas.cid, moi), sem.mon, sem.sun);
+    const html = blocEquipe(cas.cid, sem.mon, sem.sun, mesJours);
+    ok('3. le bloc nomme les collegues', eq.every(p => html.indexOf(p.nom) !== -1));
+    ok('3. le bloc annonce le nombre', html.indexOf('(' + eq.length + ')') !== -1, html.slice(0, 90));
+    ok('3. il dit « memes jours » ou liste les jours',
+       /mêmes jours que toi/.test(html) || /lun|mar|mer|jeu|ven/i.test(html));
+
+    // La carte porte bien le bloc
+    const carte = renderCard(chantierById(cas.cid), mesJours, sem.mon, sem.sun);
+    ok('3. la carte du chantier contient le bloc', carte.indexOf('class="equipe"') !== -1);
+
+    // CONTRE-EXEMPLE : quelqu'un vraiment seul doit lire « tu es seul »
+    let seul = null;
+    for (const cid of idsChantiersPlanifies()) {
+      const presents = [];
+      for (const t of TECHS) if (isoDatesInRange(datesPour(cid, t), sem.mon, sem.sun).length) presents.push(t);
+      if (presents.length === 1) { seul = { cid: cid, qui: presents[0] }; break; }
+    }
+    if (seul) {
+      currentTech = seul.qui;
+      const h = blocEquipe(seul.cid, sem.mon, sem.sun,
+        isoDatesInRange(datesPour(seul.cid, seul.qui), sem.mon, sem.sun));
+      ok('3. celui qui est seul lit « tu es seul »', /Tu es seul/.test(h),
+         (chantierById(seul.cid) || {}).numero + ' ' + seul.qui + ' : ' + h.slice(0, 70));
+      ok('3. et aucun nom de collegue ne s y glisse',
+         !TECHS.some(t => t !== seul.qui && h.indexOf(t) !== -1));
+    } else {
+      R.push('     (personne seul sur un chantier la semaine prochaine : contre-exemple non joue)');
+    }
+
+    // Les jours affiches doivent etre ceux de la PERSONNE, pas les miens
+    const different = eq.find(p => p.jours.length !== mesJours.length);
+    if (different) {
+      currentTech = moi;
+      const h2 = blocEquipe(cas.cid, sem.mon, sem.sun, mesJours);
+      ok('3. un collegue aux jours differents voit ses jours listes',
+         h2.indexOf(different.nom) !== -1 && h2.indexOf('mêmes jours que toi') !== h2.lastIndexOf('mêmes jours que toi'),
+         different.nom + ' : ' + different.jours.length + 'j contre ' + mesJours.length + 'j pour moi');
+    } else {
+      R.push('     (aucun ecart de jours dans la donnee reelle : on fabrique le cas ci-dessous)');
+    }
+
+    /* LE CAS DES JOURS DIFFERENTS, JOUE MEME SI LA DONNEE REELLE NE L OFFRE PAS.
+     * C'est le plus important pour un logement : si un collegue present 2 jours
+     * s'affichait « memes jours que toi », le technicien reserverait la semaine
+     * a deux pour rien. On ne laisse donc pas cette branche non verifiee sous
+     * pretexte que le planning du moment ne la produit pas. */
+    const cidFaux = cas.cid;
+    const sauve = PLANNING_TECH.tech[cidFaux];
+    PLANNING_TECH.tech[cidFaux] = JSON.parse(JSON.stringify(sauve || {}));
+    const lundiMardi = [sem.mon, new Date(sem.mon.getTime() + 86400000)]
+      .map(d => d.toISOString().slice(0, 10));
+    PLANNING_TECH.tech[cidFaux]['Hugues VIRY'] = lundiMardi;
+    currentTech = moi;
+    const mesJours2 = isoDatesInRange(datesPour(cidFaux, moi), sem.mon, sem.sun);
+    const h3 = blocEquipe(cidFaux, sem.mon, sem.sun, mesJours2);
+    const bloc = h3.split('<div class="equipe-l">').find(x => x.indexOf('Hugues VIRY') !== -1) || '';
+    ok('3. un collegue present 2 jours voit SES jours listes',
+       /lun/i.test(bloc) && /mar/i.test(bloc) && !/mêmes jours/.test(bloc), bloc.slice(0, 120));
+    ok('3. et les autres, aux memes jours que moi, gardent la mention',
+       /mêmes jours que toi/.test(h3));
+    PLANNING_TECH.tech[cidFaux] = sauve;
+    ok('3. la donnee reelle est restauree apres le test',
+       JSON.stringify(PLANNING_TECH.tech[cidFaux]) === JSON.stringify(sauve));
+  }
+
   fin();
   } catch (e) {
     // Un test qui meurt en silence ne vaut rien : on affiche l'erreur ET la pile.

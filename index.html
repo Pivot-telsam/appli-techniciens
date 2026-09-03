@@ -40,7 +40,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-03-7';
+var APP_VERSION = '2026-09-03-8';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -50,7 +50,7 @@ var APP_VERSION = '2026-09-03-7';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Deux choses : tu vois maintenant tes chantiers des semaines à venir, et non plus seulement la semaine en cours (un bandeau te dit si le planning est validé ou encore prévisionnel — s'il est prévisionnel, ne réserve rien). Et dans « Suivi », les pylônes déjà déclarés restent cochés, y compris ceux déclarés par une autre équipe : passe le doigt dessus pour voir par qui et quand.";
+var APP_NOUVEAUTE = "Sur chaque chantier, tu vois maintenant AVEC QUI tu es, et quels jours chacun est là — de quoi vous organiser à plusieurs pour les logements. Si tu es seul, c'est écrit aussi. Ça marche sur les semaines à venir, pas seulement la semaine en cours.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -278,6 +278,21 @@ main{padding:6px 16px 20px; display:flex; flex-direction:column; gap:14px;}
   display:inline-block; background:var(--surface-2); border-radius:6px;
   padding:2px 6px; margin-right:4px; font-weight:700; color:var(--text);
 }
+/* ---- Avec qui je suis (demande des techniciens, 03/09/2026) ----
+   Le nom à gauche, ses jours à droite : c'est le couple qui sert à décider d'un
+   logement, et il se lit d'un coup d'œil sur une ligne. Un bloc discret, sans
+   couleur d'alerte : c'est une information d'organisation, pas un avertissement. */
+.equipe{
+  margin-top:2px; padding:8px 10px; border-radius:9px;
+  background:var(--surface-2); border:1px solid var(--border);
+}
+.equipe-h{font-size:11.5px; font-weight:800; letter-spacing:.02em; color:var(--text-muted);
+          text-transform:uppercase; margin-bottom:4px;}
+.equipe-l{display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+          font-size:13.5px; line-height:1.55;}
+.equipe-n{font-weight:700; color:var(--text);}
+.equipe-j{font-size:11.5px; color:var(--amber); font-weight:700; white-space:nowrap;}
+.equipe-meme{color:var(--text-muted); font-weight:400; font-style:italic;}
 
 .badges{display:flex; flex-wrap:wrap; gap:6px;}
 .badge{
@@ -757,7 +772,7 @@ const SEED_DATA = [{"id":"c_ry3b804w","numero":"26-035","nom":"Margeride - St Fl
  * ramenerait le defaut Chaineau : une personne sur deux chantiers le meme jour,
  * avec deux jeux de documents, donc le risque de partir avec le mauvais dossier.
  */
-const PLANNING_TECH = {"maj":"2026-09-03 15:22","du":"2026-08-31","au":"2026-10-16","tech":{"c_9g5cqsuj":{"François PERRIN":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Vincent PERRIN":["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11"],"Anthony DENIS":["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Didier PERRIN":["2026-08-31","2026-09-01","2026-09-04"],"Benjamin DIRAT":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Sid Ahmed BENZAMERA":["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16"],"Benjamin SOUPA":["2026-09-14","2026-09-15","2026-09-16"]},"c_chaineau_lot2_selt":{"Vincent PERRIN":["2026-09-02","2026-09-03","2026-09-04"],"Sid Ahmed BENZAMERA":["2026-09-02","2026-09-03","2026-09-04"]},"c_iu4rci9b":{"Pascal BONAVENTURE":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04"],"Hugues VIRY":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11"],"Didier PERRIN":["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11"]},"c_e5849v6z":{"Vincent PERRIN":["2026-08-31","2026-09-01"],"Sid Ahmed BENZAMERA":["2026-08-31","2026-09-01"]},"c_8479ntwq":{"Bilal HAMOUCH":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Morad EL ABBASSI":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Younes MOUSSA":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Anthony DENIS":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04"]},"c_campagnac_severac":{"Didier PERRIN":["2026-09-02","2026-09-03"]},"c_bollene_plantades":{"Morad EL ABBASSI":["2026-09-07"]},"c_poste_de_rion_des_la":{"Benjamin SOUPA":["2026-09-17","2026-09-18"],"Sid Ahmed BENZAMERA":["2026-09-17","2026-09-18"]},"c_y2edi4th":{"Didier PERRIN":["2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Hugues VIRY":["2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"]},"c_icp_ls_cross_sausset_goodman_1efea5":{"Vincent PERRIN":["2026-09-14","2026-09-15","2026-09-16"]},"c_fibrage_thym_bissy__":{"Bilal HAMOUCH":["2026-09-07"],"Younes MOUSSA":["2026-09-07"]}}};
+const PLANNING_TECH = {"maj":"2026-09-03 16:09","du":"2026-08-31","au":"2026-10-16","tech":{"c_9g5cqsuj":{"François PERRIN":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Vincent PERRIN":["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-17","2026-09-18"],"Anthony DENIS":["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Didier PERRIN":["2026-08-31","2026-09-01","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11"],"Benjamin DIRAT":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Sid Ahmed BENZAMERA":["2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16"],"Benjamin SOUPA":["2026-09-14","2026-09-15","2026-09-16"]},"c_chaineau_lot2_selt":{"Vincent PERRIN":["2026-09-02","2026-09-03","2026-09-04"],"Sid Ahmed BENZAMERA":["2026-09-02","2026-09-03","2026-09-04"]},"c_iu4rci9b":{"Pascal BONAVENTURE":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11"],"Hugues VIRY":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-07","2026-09-08","2026-09-09","2026-09-10","2026-09-11"]},"c_e5849v6z":{"Vincent PERRIN":["2026-08-31","2026-09-01"],"Sid Ahmed BENZAMERA":["2026-08-31","2026-09-01"]},"c_8479ntwq":{"Bilal HAMOUCH":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Morad EL ABBASSI":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Younes MOUSSA":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Anthony DENIS":["2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04"]},"c_campagnac_severac":{"Didier PERRIN":["2026-09-02","2026-09-03"]},"c_fibrage_thym_bissy__":{"Bilal HAMOUCH":["2026-09-07"],"Younes MOUSSA":["2026-09-07"]},"c_bollene_plantades":{"Morad EL ABBASSI":["2026-09-07"]},"c_icp_ls_cross_sausset_goodman_1efea5":{"Vincent PERRIN":["2026-09-14","2026-09-15","2026-09-16"]},"c_poste_de_rion_des_la":{"Benjamin SOUPA":["2026-09-17","2026-09-18"],"Sid Ahmed BENZAMERA":["2026-09-17","2026-09-18"]},"c_y2edi4th":{"Didier PERRIN":["2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"],"Hugues VIRY":["2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18"]}}};
 
 /* Les jours d'un technicien sur un chantier, une source par jour.
  *
@@ -968,8 +983,64 @@ function statusBadge(kind, label, statut){
   return '<span class="badge '+lvl+'"><span class="dot"></span>'+label+' · '+txt+'</span>';
 }
 
-function renderCard(c, daysThisWeek){
+/* ---------- AVEC QUI JE SUIS SUR CE CHANTIER ----------
+ * Demandé par les techniciens eux-mêmes, remonté par Patrice le 03/09/2026 :
+ * « ils ne savent pas avec qui ils sont la semaine suivante. Cela leur
+ * permettrait de mutualiser les logements. »
+ *
+ * LES JOURS DE CHACUN COMPTENT AUTANT QUE LE NOM. C'est tout l'intérêt pour un
+ * logement : savoir que Bilal est là toute la semaine et Younes seulement lundi
+ * et mardi change la réservation. Un simple « avec Bilal et Younes » aurait
+ * laissé croire à une semaine complète à trois.
+ *
+ * ON LIT LES NOMS DANS LA DONNÉE, pas dans la liste `TECHS` : c'est le planning
+ * qui dit qui est là. Les encadrants en sont déjà écartés à la source
+ * (`planning-rte.ps1` les exclut de la présence — une visite ou une réunion
+ * n'est pas une équipe sur le chantier), donc aucun risque d'annoncer un
+ * colocataire qui ne viendra pas dormir.
+ */
+function equipeSurChantier(cid, mon, sun, moi){
+  const noms = new Set();
+  if(planningTechActif() && PLANNING_TECH.tech[cid]){
+    for(const n in PLANNING_TECH.tech[cid]) noms.add(n);
+  }
+  if(TECH_RANGES[cid]) for(const n in TECH_RANGES[cid]) noms.add(n);
+
+  const equipe = [];
+  for(const n of noms){
+    if(n === moi) continue;
+    const jours = isoDatesInRange(datesPour(cid, n), mon, sun);
+    if(jours.length) equipe.push({ nom: n, jours: jours });
+  }
+  // Ceux qui arrivent le plus tôt d'abord : c'est l'ordre dans lequel on
+  // s'organise, et il est stable d'un affichage à l'autre.
+  equipe.sort((a,b)=> a.jours[0].localeCompare(b.jours[0]) || a.nom.localeCompare(b.nom,'fr'));
+  return equipe;
+}
+
+function blocEquipe(cid, mon, sun, mesJours){
+  const equipe = equipeSurChantier(cid, mon, sun, currentTech);
+  if(!equipe.length){
+    // On le DIT au lieu de ne rien afficher : « seul » est une réponse, une
+    // absence de bloc laisse se demander si l'information manque.
+    return '<div class="equipe"><div class="equipe-h">👤 Tu es seul sur ce chantier cette semaine</div></div>';
+  }
+  const memesJours = (p) => p.jours.length === mesJours.length
+    && p.jours.every((j,i)=> j === mesJours[i]);
+  return '<div class="equipe">'
+    + '<div class="equipe-h">👥 Avec toi sur ce chantier (' + equipe.length + ')</div>'
+    + equipe.map(p =>
+        '<div class="equipe-l"><span class="equipe-n">' + escapeHtml(p.nom) + '</span>'
+        + (memesJours(p)
+            ? '<span class="equipe-j equipe-meme">mêmes jours que toi</span>'
+            : '<span class="equipe-j">' + p.jours.map(j=>dayLabel(j)).join(' ') + '</span>')
+        + '</div>').join('')
+    + '</div>';
+}
+
+function renderCard(c, daysThisWeek, mon, sun){
   const days = daysThisWeek.map(iso=>'<span class="d">'+dayLabel(iso)+' '+fmtDate(new Date(iso+'T00:00:00Z'))+'</span>').join('');
+  const equipeHtml = (mon && sun) ? blocEquipe(c.id, mon, sun, daysThisWeek) : '';
 
   let bannersHtml='';
   // Consignation et NIP toujours en rouge (règle impérative)
@@ -1056,6 +1127,7 @@ function renderCard(c, daysThisWeek){
     + '<div class="card-title">'+c.nom+(c.numero? ' <span class="card-num">'+escapeHtml(c.numero)+'</span>' : '')+'</div>'
     + (c.lieu ? '<div class="card-lieu">📍 '+c.lieu+'</div>' : '')
     + (days ? '<div class="card-days">'+days+'</div>' : '')
+    + equipeHtml
     + (badgesHtml ? '<div class="badges">'+badgesHtml+'</div>' : '')
     + bannersHtml
     + '<div class="doc-row">'+docsHtml+mapHtml+'</div>'
@@ -1183,7 +1255,7 @@ function render(){
     list.innerHTML = '<div class="empty"><span class="big">🗓️</span>Rien de prévu pour toi cette semaine-là.</div>';
     return;
   }
-  list.innerHTML = cards.map(x=>renderCard(x.c, x.daysThisWeek)).join('');
+  list.innerHTML = cards.map(x=>renderCard(x.c, x.daysThisWeek, mon, sun)).join('');
 }
 
 document.getElementById('prevWeek').onclick=()=>{currentOffset--; render(); if(currentTab==='heures') loadAndRenderHours();};

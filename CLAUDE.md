@@ -1220,6 +1220,49 @@ jour. Il compare maintenant **les deux fichiers**.
 - un chantier sans déclaration s'ouvre entièrement décoché ;
 - la mémoire locale fait bien l'union de deux envois successifs.
 
+
+## « Avec qui je suis » sur la fiche chantier (demandé par les techniciens, 03/09/2026)
+
+**Ce n'est pas une demande du bureau, elle vient du terrain.** Patrice la relaie : « les techniciens
+me remontent une info importante et intéressante, c'est qu'ils ne savent pas avec qui ils sont la
+semaine suivante. Cela leur permettrait de **mutualiser les logements**. »
+
+Elle n'a pu être satisfaite que parce que l'appli reçoit désormais le planning (section
+précédente) : sans les semaines à venir, la question n'avait pas de réponse.
+
+**LES JOURS DE CHACUN COMPTENT AUTANT QUE LE NOM.** C'est tout l'intérêt pour un logement : savoir
+que Bilal est là toute la semaine et Younes seulement lundi et mardi change la réservation. Un
+simple « avec Bilal et Younes » aurait laissé croire à une semaine complète à trois. La ligne porte
+donc le nom à gauche et, à droite, soit ses jours (`Lun Mar`), soit « mêmes jours que toi ».
+
+**« Tu es seul sur ce chantier cette semaine » s'affiche aussi.** Ne pas remplacer ça par un bloc
+absent : « seul » est une réponse, une absence de bloc laisse se demander si l'information manque.
+
+**Les noms viennent de la DONNÉE, pas de la liste `TECHS`** — c'est le planning qui dit qui est là.
+Les encadrants en sont écartés **à la source** (`planning-rte.ps1` les exclut de la présence : une
+visite ou une réunion n'est pas une équipe sur le chantier), donc aucun risque d'annoncer un
+colocataire qui ne viendra pas dormir. Si un jour Patrice veut y voir François Vidal en MTFO, c'est
+la règle d'exclusion du script qu'il faudra discuter, pas ce bloc.
+
+`equipeSurChantier(cid, mon, sun, moi)` + `blocEquipe(...)`, posés sur la fiche juste après les
+jours — le « quand » et le « avec qui » se lisent ensemble. Tout est calculé dans la page à partir
+de `datesPour`, **aucune donnée nouvelle à publier** : le planning par technicien était déjà là.
+
+**Un cas a été testé bien qu'aucune donnée réelle ne le produise** : un collègue présent 2 jours
+quand j'y suis 5. C'est le plus important pour un logement — s'il s'affichait « mêmes jours que
+toi », le technicien réserverait la semaine à deux pour rien. La branche est donc éprouvée avec un
+cas fabriqué, puis la donnée réelle restaurée (et cette restauration est elle-même vérifiée). **Ne
+pas laisser une branche non jouée sous prétexte que le planning du moment ne la produit pas.**
+
+Vérifié sur la donnée réelle de la semaine du 07/09 : Anthony DENIS lit « Avec toi sur ce chantier
+(5) » sur Portet 26-051, Morad EL ABBASSI lit « Tu es seul » sur Bollène 26-071.
+
+**Les trois numéros manquants ont été écrits dans Teams par Patrice le 03/09/2026** (Bissy - Grand
+Île, MTFO Cross-Sausset, Racco Cantegrit) : le script ne signale plus aucune ligne non rattachée, et
+la présence publiée est passée de 14 à **16 chantiers**. Les entrées d'arbitrage correspondantes
+dans `TECH_RANGES` deviennent redondantes dans la fenêtre publiée (le planning prime) et restent
+justes pour les dates passées — les laisser.
+
 ## Ordre d'affichage des chantiers — Gantt ET Boîtes & nacelle (posé par Patrice le 01/09/2026)
 
 **Les deux vues affichent les chantiers dans le MÊME ordre**, calculé par `chronoSortKey()` et
