@@ -631,19 +631,37 @@ C'est écrit dans `partage/INSTALLATION.md`.
 
 ### Les trois améliorations demandées par Patrice le 03/09/2026
 
-**1. Des bulles pastel, harmonisées avec le Gantt.** « Les couleurs sont trop flashy… des bulles qui
-se déplacent plutôt que des cases… harmoniser tout ça. » La cause est dans la source : l'Excel
-colorie **au hasard** parmi les couleurs de base (jaune pur `#ffff00`, vert pur `#00ff00`), et en
-aplat de case ça pique et le texte y est illisible. Mais la couleur EST l'information — c'est elle
-qui relie une case à sa ligne-chantier. On ne l'écarte donc pas, on l'assagit :
-`fondPastel()` garde la **teinte**, plafonne la saturation et remonte la clarté (`hsl(h s% 88%)`) ;
-`encrePastel()` rend la même teinte au foncé (`30%`) pour le texte et la bordure. Trois gains :
-le contraste ne dépend plus de la luminosité d'origine (fini le noir sur jaune pur), deux teintes
-proches restent distinguables, et l'ensemble forme une famille cohérente quoi que contienne le
-fichier. **Une couleur d'origine grise reste grise** (saturation < 8 % ⇒ 0) : lui inventer une
-teinte ferait apparaître un chantier là où il n'y en a pas.
-La case redevient un fond neutre et c'est la **bulle** (`.plBulle`, coins arrondis) qui porte la
-couleur — d'où aussi une case vide qui se distingue enfin d'une case remplie.
+**1. Des bulles, et NOTRE palette — pas celle de l'Excel.** Trois essais, et c'est le troisième qui
+tient. D'abord les couleurs brutes du fichier : « trop flashy » (l'Excel colorie au hasard parmi
+jaune pur, vert pur, orange pur). Puis ces mêmes couleurs adoucies en pastel : « quand même un peu
+trop pastel ». Ce qu'il voulait, dit avec ses mots : **« celles du Gantt — sobres, mais bien
+colorées »**.
+
+**La phrase qui a débloqué le sujet** : « tu n'es pas obligé de prendre les mêmes couleurs que nous
+mettons sur notre planning Teams, l'essentiel est que les couleurs correspondent aux chantiers
+semaine par semaine comme nous fonctionnons sur Teams. » Autrement dit **la couleur de l'Excel n'a
+aucune valeur en soi** : sa seule fonction est de dire « ces cases-là, c'est le même chantier ». On
+peut donc la remplacer, à condition de rester stable sur la période regardée. Les deux premiers
+essais partaient de la couleur du fichier ; c'était la contrainte inutile.
+
+`PALETTE_PLANNING` : 12 teintes dans le registre exact de `.ganttBar` (fond franc, texte blanc,
+ombre discrète), attribuées **par affichage** dans l'ordre de première apparition — réserve d'abord
+(les chantiers qu'on manipule), puis les cases, puis les décisions. Deux couleurs sont
+**volontairement absentes** : le rouge vif et l'ambre des alertes, parce que dans cette vue rouge
+pâle = absence et ambre = avertissement ; les réutiliser pour un chantier brouillerait une lecture
+qui doit rester immédiate.
+
+**LA CLÉ DE COULEUR EST LA FICHE, PAS LE LIBELLÉ** (`cleTeinte`). Défaut vu à l'écran : le Poste de
+Portet ressortait **magenta en S36 et violet en S37**, parce que le planning le nomme autrement
+d'une semaine à l'autre. Deux couleurs pour le même chantier côte à côte, c'est le contraire du but.
+On classe donc par identifiant de fiche dès qu'on l'a. **Vérifié après correction : aucune fiche ne
+porte plus deux couleurs.** On ne retombe sur le libellé que pour les lignes qu'aucune fiche ne
+rattache — et **il ne faut PAS les rapprocher par ressemblance de texte** pour « finir le travail » :
+c'est la règle qui interdit d'envoyer un jour vers le mauvais lot. Ces lignes-là se règlent en
+annotant le numéro dans le planning, pas dans le code.
+
+La case redevient un fond neutre et c'est la **bulle** (`.plBulle`) qui porte la couleur — d'où
+aussi une case vide qui se distingue enfin d'une case remplie.
 
 **2. Deux semaines côte à côte, et la réserve enfin visible.** Dix colonnes (L-V, L-V), un en-tête
 par semaine et un séparateur franc (`.plSep`) : sans lui on lit le vendredi de la semaine 1 et le
@@ -657,15 +675,24 @@ bornées en hauteur et défilent (`max-height:104px`) — une barre qui grandit 
 l'écran qu'elle est censée dégager.
 
 **3. Une recherche parmi TOUS les chantiers.** « Aller chercher un chantier à affecter parmi nos
-chantiers. » La réserve ne montre que ce que l'Excel propose ces semaines-là ; le champ de recherche
-cherche dans les 70 fiches (numéro **ou** nom, chantiers terminés exclus). **Capacité nouvelle** :
-placer quelqu'un sur un chantier pas encore posé au planning RTE.
-- Un chantier hors planning n'a pas de couleur : `couleurDeChantier()` la **dérive de son numéro**,
-  donc elle est stable d'une session à l'autre. Une couleur tirée au hasard à l'affichage ferait
-  changer un chantier de teinte à chaque rechargement et on perdrait le repère. Elle rend un **hex**,
-  pas un `hsl()` : la valeur part dans la base (`chantier_couleur`), et l'API n'accepte que `#rrggbb`.
-- Le libellé enregistré est `26-039 — Lisieux - Vallée 1`, donc `chantierDuLibelle` le rattache à sa
-  fiche par le numéro et la bulle reste cliquable. **Vérifié.**
+chantiers. » La réserve ne montre que ce que l'Excel propose ces semaines-là ; le champ cherche dans
+les 70 fiches. **Capacité nouvelle** : placer quelqu'un sur un chantier pas encore posé au planning.
+
+**ELLE NE CACHE RIEN — corrigé le 03/09/2026.** Patrice : « quand je tape c a s, je n'ai pas Poste de
+Casteljaloux ». La recherche n'était pas cassée : **j'excluais les chantiers marqués `termine`**, et
+la fiche 26-044 Casteljaloux l'est — alors que le planning RTE porte des travaux dessus en septembre.
+Un chantier « terminé » peut donc reprendre, et c'est justement là qu'on a besoin de le chercher.
+**Un outil de recherche qui omet en silence ce qu'on lui demande passe pour cassé, et il l'est en
+pratique.** On rend donc tout, en marquant « ⚠ fiche marquée terminée » : c'est à Patrice de savoir,
+pas à moi de choisir pour lui.
+
+**Accents retirés des deux côtés**, via `normSearch()` — la fonction existait déjà dans le fichier
+(barre de recherche des fiches), inutile d'en écrire une deuxième. Sans ça « severac » ne trouve pas
+« Séverac » ni « vallee » « Vallée », et un chantier introuvable fait croire qu'il n'existe pas.
+Vérifié sur les trois cas.
+
+Le libellé enregistré est `26-039 — Lisieux - Vallée 1`, donc `chantierDuLibelle` le rattache à sa
+fiche par le numéro : la bulle reste cliquable et prend la couleur de cette fiche. **Vérifié.**
 - **La recherche ne redessine QUE la liste de pastilles**, jamais la vue : sinon le champ perdrait
   le focus à chaque lettre. Vérifié (`document.activeElement === champ` après saisie).
 
