@@ -3237,6 +3237,34 @@ Les sections 1 à 5 et 10-11 n'ont pas bougé — la puce « deux serrures » de
 juste. Mêmes styles que les voisins (`H` / `SUB` / `BUL` / `NOTE`, cf. la méthode d'édition docx
 ci-dessus). Sauvegarde dans le scratchpad de la session, pas sur le Bureau.
 
+**Mise à jour du 03/09/2026 — 8 passages réécrits, une section 13 ajoutée.** Ce mémo décrit des
+circuits, donc chaque changement de l'outil en périme un morceau : ce qui a été corrigé était
+devenu **faux**, pas seulement incomplet.
+- §1 : la chaîne tourne **deux fois par jour** (7h30 et 13h00) ; le rappel est une **bulle Windows**,
+  le mail est abandonné (le nouvel Outlook ne se pilote pas) ; ce qui arrive dans la matinée est
+  rattrapé à 13h.
+- §2 : Patrice **n'a plus à me dire** que le planning est à jour, ni à renvoyer le suivi par Teams.
+- §5 : écrire le numéro **dans la ligne** du planning, et pourquoi (sans lui le technicien ne voit
+  rien ce jour-là).
+- §11 : **trois** serrures, pas deux.
+- **§13 nouvelle** : le planning en ligne, la case « Valider ce planning » du vendredi, qui peut
+  cocher, et ce que le technicien voit en plus (avec qui il est, six semaines devant, les cases qui
+  restent cochées).
+
+**Méthode, et deux garde-fous qui ont servi le jour même** (script gardé dans le scratchpad, la
+sauvegarde du mémo aussi — **pas sur le Bureau**, cf. la règle des `_backup_`) :
+1. **chaque paragraphe visé est vérifié par son texte avant d'être touché**, et on n'écrit rien si
+   un seul ancrage manque. Ça a rattrapé un ancrage que j'avais écrit sans accent — sans lui,
+   j'aurais réécrit le mauvais paragraphe en silence ;
+2. **le contrôle d'encodage était cassé, et cassé dans le sens qui ne se voit pas**. Écrit
+   `if ($x -match [char]0xC3 + '|' + ...)`, PowerShell applique `-match` AVANT les `+` : la
+   condition valait une chaîne non vide, donc **toujours vraie**. Il bloquait une écriture légitime,
+   et il aurait laissé passer un vrai mojibake avec la même indifférence. **Parenthéser le motif**,
+   et éprouver le contrôle sur un texte sain ET sur un texte abîmé.
+
+Contrôles après écriture : Word ouvre le document (127 paragraphes, 4 pages, 2508 mots), les
+nouveaux textes sont présents, les anciens absents, zéro caractère abîmé.
+
 ## Règles de prudence
 - **PIÈGE D'ENCODAGE — ne JAMAIS relire un fichier accentué avec `Get-Content` sans `-Encoding
   UTF8`.** En PowerShell 5.1, `Get-Content -Raw` lit en ANSI (Windows-1252). Enchaîné avec
