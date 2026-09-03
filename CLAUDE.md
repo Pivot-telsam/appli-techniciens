@@ -1142,6 +1142,54 @@ prévisionnel 241 h, 8 WTC2, App Tech (Brief généré + NDS + MO + PDP signé +
 demande de fichiers créée, lien App Tech à rendre public. PGO absent en PDF (seulement `.xlsm`) et
 PDP nommé « CTEAM » (couverture TELSAM à confirmer) — signalés à Patrice.
 
+
+### Doublon inter-lots : deux hommes comptés deux fois pendant cinq jours (03/09/2026)
+
+**Ce qui s'était passé.** `TECH_RANGES` mettait Sid Ahmed BENZAMERA et Vincent PERRIN sur le
+**LOT 1 RODA et sur le LOT 2 SELT** du 31/08 au 04/09, dans les deux dépôts. Pas un arbitrage :
+l'union des deux. Le lot 2 avait été ajouté sans retirer les jours du lot 1. Effet : deux hommes
+comptés deux fois en présence, en heures, et en **couverture PGO**.
+
+**Rien à arbitrer, contrairement à la semaine 34.** Sur les lignes de Chaineau, le planning Teams
+écrit le numéro **en clair dans le libellé** : « lot RODA :MAP 26-036-1 » les 31/08 et 01/09,
+« SELT MAP) 26-036-2 » les 02, 03 et 04/09. Quand le numéro est écrit, c'est le planning qui
+tranche ; c'est seulement quand le lot n'est porté que par la couleur qu'il faut demander à
+Patrice.
+
+**Le piège à ne pas répéter en corrigeant** : `REAL_DAYS` ne doit perdre un jour que si **plus
+personne** ne reste sur ce lot ce jour-là. Retirer les jours « en même temps que » les personnes
+effacerait la présence réelle d'un autre technicien.
+
+**LE CONTRÔLE NE POUVAIT PAS VOIR CE DÉFAUT — c'est le vrai enseignement.** `planning-rte.ps1`
+indexait la recopie manuelle par `"jour|personne"` → **UN** id, en écrasant :
+
+```powershell
+$manuel[$cle][$depot] = $cid        # AVANT : la deuxième affectation efface la première
+```
+
+Une personne sur deux chantiers le même jour ne laissait donc voir que le dernier lu. Résultat : le
+contrôle signalait **2 jours sur 5** — ceux où ce dernier lu différait du planning — et se taisait
+sur les trois autres. Un contrôle qui perd l'information avant de la comparer ne peut pas trouver
+ce qu'il cherche.
+
+Corrigé en trois points :
+1. la recopie est indexée par **liste** d'ids, sans écrasement ;
+2. le **doublon est une alerte à part entière** (« une personne inscrite sur PLUSIEURS chantiers le
+   même jour »), indépendante du planning — elle aurait crié même si le planning avait été muet ;
+3. un désaccord n'est déclaré que si **aucun** des chantiers recopiés ne correspond au planning,
+   sinon un même fait sortait en deux alertes et l'ensemble se met à crier au loup.
+
+**Vérifié dans les deux sens** (règle : un test qui ne peut pas échouer ne prouve rien) — passe 1
+sur les données corrigées : « aucun désaccord, aucun doublon » ; passe 2 avec un doublon réinjecté
+exprès : l'alerte nomme la bonne personne, le bon jour, les deux lots et le bon dépôt, et **ne**
+sort **pas** de deuxième alerte en désaccord.
+
+**Piège de vérification rencontré au passage** : un premier script de comptage affichait
+« 0 cas » alors que sa lecture de fichier avait échoué — `Set-Location` n'avait pas pris effet et
+le compteur restait à zéro. Dans un contrôle, toujours **chemins absolus + `throw` si le fichier
+manque + afficher le nombre de lignes lues** : un zéro rassurant doit être impossible à obtenir par
+accident.
+
 ## Contenu standard d'un dossier "App Tech" — RÈGLE SYSTÉMATIQUE (à appliquer TOUJOURS)
 Chaque fois qu'un dossier "App Tech" est créé ou complété pour un chantier (nouveau chantier,
 ou chantier existant qui devient actif — cf. workflow hebdomadaire ci-dessous), il doit contenir :
