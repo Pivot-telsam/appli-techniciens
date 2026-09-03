@@ -732,6 +732,96 @@ texte : `LA 63kV` deviendrait `La 63kv`, et on abîmerait une information techni
 question d'allure. C'est l'annotation du planning qui résout ça, pas le code.
 
 
+
+### Les couleurs du planning, deuxième passe (03/09/2026) — et l'erreur de raisonnement corrigée
+
+Patrice : **« les couleurs de bollene et fleyria sont memes d'une semaine sur l'autre. il faut le
+modifier. »**
+
+**Ce qui était écrit ici avant, et qui était faux.** Le commentaire du code disait : « avec 16
+teintes et 71 fiches, deux chantiers finissent forcément par partager une couleur, et ce n'est pas
+grave puisque le nom est écrit dans la bulle ». Confortable, et démenti par la mesure. Les chiffres,
+relevés sur l'année entière :
+
+| | étiquettes simultanées au maximum |
+|---|---|
+| la grille seule (les cases) | **14** |
+| la grille + la réserve du bas | 25 |
+
+Pour 16 teintes, **la grille avait la place**. Ce n'était pas la palette qui manquait, c'était
+`rang % 16` qui la gâchait, en donnant la même case à deux rangs distants de 16 :
+Bollène rang 70, Fleyriat rang 54, `70 % 16 = 54 % 16 = 6`.
+
+**Ce qui est fait maintenant.** Chaque étiquette garde sa couleur **préférée** (`rang % 16`, celle
+qu'elle a toujours eue), sauf si une étiquette avec qui elle partage une quinzaine l'a déjà prise —
+auquel cas elle glisse sur la première teinte libre. Le calcul porte sur **toute l'année d'un
+coup**, jamais sur la semaine affichée : c'est ce qui garantit qu'une couleur ne bouge pas quand on
+tourne les semaines. Prix payé, mesuré : 24 chantiers sur 58 changent de teinte **une fois**.
+
+**TROIS DÉCISIONS QUI ONT CHACUNE COÛTÉ UN ESSAI RATÉ, ne pas les défaire :**
+
+1. **L'ordre de passage est la date de PREMIÈRE APPARITION, pas le numéro.** Premier essai par
+   numéro : trois collisions subsistaient. Le graphe a dit pourquoi — « POSTE DE CANTEGRIT » avait
+   35 voisins et « consignation 225kV CURBANS » 71, parce qu'un chantier qui revient en février
+   puis en mars puis en mai voisine avec tout ce qui passe entre-temps. Or ces voisinages ne sont
+   pas simultanés : ce qui compte n'est pas le nombre total de voisins mais le nombre de chantiers
+   présents **en même temps**. En traitant les étiquettes dans l'ordre de leur première semaine, on
+   ne se heurte qu'à celles déjà commencées. C'est le résultat classique sur les graphes
+   d'intervalles, et il vaut ici parce qu'un chantier occupe des semaines, pas des points isolés.
+2. **La grille passe avant la réserve.** Deuxième essai : deux collisions restaient, et la mesure a
+   montré que 25 étiquettes peuvent coexister pour 24 teintes — aucune palette de couleurs franches
+   et distinctes ne couvre ça. On tranche donc par l'usage : dans la grille, la couleur EST
+   l'information (« qui est où »), alors qu'une pastille de réserve est un bouton qu'on lit et
+   qu'on fait glisser, avec son nom écrit dessus. Les étiquettes de la grille sont servies en
+   premier et gardent la **garantie** ; les pastilles prennent ce qui reste. Résultat : **0
+   collision dans la grille**, 4 sur les pastilles, assumées.
+3. **Huit teintes de SECOURS** (`PALETTE_SECOURS_PLANNING`), jamais choisies spontanément, qui ne
+   servent que quand les 16 premières sont prises. Elles évitent qu'un chantier à cheval sur
+   plusieurs mois retombe sur une couleur déjà prise à côté de lui.
+
+**Le graphe est gardé dans `_grapheTeintes`** après chaque construction (voisins, semaines,
+première apparition, nombre de teintes bloquées au maximum, étiquettes à court de teintes). Ce n'est
+pas du décor : les trois essais ci-dessus ont été tranchés en le lisant, pas en devinant. La
+première tentative de diagnostic « à vue » avait produit une hypothèse fausse.
+
+**Deux étiquettes = une seule couleur quand c'est le même chantier.** La clé est `f:<id de fiche>`
+dès qu'une fiche est reconnue, et `t:<libellé normalisé>` sinon. C'est ce qui fait que les cinq
+lignes « FLEYRIAT » du planning ne donnent qu'une teinte. La résolution utilise
+`chantierDuLibelle(t) || chantierParPresence(nom, iso)`, **la même que la vue** : sans le repli par
+présence, Bollène — dont la ligne de planning ne porte pas de numéro — n'aurait pas été reconnu
+comme la fiche 26-071, et la collision signalée par Patrice serait restée invisible au calcul.
+
+### L'avertissement « couleur ambiguë » ne crie plus au loup (03/09/2026)
+
+Patrice : **« concernant fleyriat c'est le même chantier il n'y a pas besoin de mettre un
+avertissement. j'ai rajouté le numéro d'indice dans teams. »**
+
+Un même chantier occupe souvent **plusieurs lignes** du planning (une par phase : « contrôle
+touret », « 1er phase de travaux », « oppc… »), toutes de la même couleur puisque c'est le même
+chantier. L'avertissement « cette couleur sert à plusieurs lignes » se déclenchait alors pour rien —
+20 cases sur les seules lignes Fleyriat.
+
+**La règle, dans `planning-rte.ps1` : c'est le NUMÉRO écrit dans la ligne qui juge, et lui seul.**
+
+- un seul numéro distinct parmi les lignes, les autres muettes ⇒ même chantier, on retient la ligne
+  qui porte le numéro, **pas d'avertissement** ;
+- deux numéros différents (ex. les deux lots `26-036-1` / `26-036-2`) ⇒ vraie ambiguïté, on avertit ;
+- aucun numéro ⇒ on ne peut pas savoir, on avertit.
+
+**Comparer les libellés entre eux serait une devinette** : « AUDIT LIVIERE - MAS NOU » et
+« LANGEAC - PRATCLAUX » partagent une couleur et n'ont rien à voir. Et cette règle récompense le bon
+geste : **annoter le planning fait disparaître l'avertissement, sans toucher au code.**
+
+Effet mesuré : cases ambiguës 73 → 53, et **présence publiée 12 → 14 chantiers** — Fleyriat
+alimente désormais le Gantt et la couverture PGO, ce qu'il ne faisait pas.
+
+**Restent 3 groupes signalés, tous sans aucun numéro dans leurs lignes** — à dire à Patrice, le
+remède est entre ses mains :
+- CERDAGNE 2 (deux groupes, 43 cases) ;
+- COLAYRAC-GUPIE (6 cases) ;
+- AUDIT LIVIERE - MAS NOU / LANGEAC - PRATCLAUX (4 cases) — celui-là est un **vrai** avertissement,
+  ce sont deux chantiers différents.
+
 ### Les notes libres dans les cases (demandé par Patrice le 03/09/2026)
 
 Sa phrase : **« j'aimerais aussi que nous puissions rajouter manuellement des infos dans les cases
