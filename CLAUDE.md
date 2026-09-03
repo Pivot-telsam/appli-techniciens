@@ -551,10 +551,66 @@ contient DEUX textes superposés — le nom du projet en gras noir (qui ouvre le
 `…pages.dev` en gris juste dessous (qui ouvre le site). Patrice cliquait la seconde. Et deux objets
 portent le nom `suivi-telsam` : la base D1 et le projet Pages.*
 
-**ENSUITE, À MOI** : brancher la grille Planning sur `/api/planning`. Le « brouillon » local devient
-une décision partagée, visible de tous, avec le nom de qui l'a posée. **Volontairement pas écrit
-avant que la base soit reliée** : sans pouvoir l'essayer en vrai ce serait du code non éprouvé, et
-c'est exactement ce qu'on ne veut pas sur la donnée qui envoie des hommes sur des postes.
+### La grille est branchée sur la base (02/09/2026) — DEUX MODES
+
+**`planningPartage`** dit dans quel mode on tourne, et **on ne le devine jamais** : on interroge
+`/api/planning` une fois au démarrage et c'est sa réponse qui tranche.
+
+| mode | quand | ce qui se passe |
+| --- | --- | --- |
+| **partagé** | en ligne, la base répond | l'écriture part dans la base, les 7 la voient, le suivi garde qui/quand |
+| **fichier seul** | fichier ouvert en direct, pas de réseau, base en panne | brouillon local en IndexedDB, exactement comme avant |
+
+**LE REPLI N'EST PAS UN RESTE DU PASSÉ, C'EST LE FILET.** Le suivi doit continuer de s'ouvrir quand
+Cloudflare est en panne — c'est un outil qui sert à décider d'envoyer des hommes sur des postes. Ne
+pas le retirer en « simplifiant » quand la version en ligne sera devenue l'habitude.
+
+**IL NE FAUT JAMAIS LAISSER CROIRE QU'ON PARTAGE QUAND ON NE PARTAGE PAS.** C'est la règle qui a
+dicté le reste. Quelqu'un qui prépare une semaine en croyant que l'équipe la voit, c'est un
+technicien que personne ne prévient. D'où :
+- un **bandeau en haut de la vue**, vert « Suivi partagé — tes six collègues le voient » ou ambre
+  « Fichier seul — personne d'autre ne le voit ». Il se lit avant de toucher à la grille ;
+- une base qui répond mal **le dit** (`planningErreurBase` affiché dans le bandeau ambre) au lieu de
+  basculer en silence sur le local ;
+- une écriture refusée **prévient et ne change rien** — vérifié : la base reste intacte et la case ne
+  s'affiche pas comme si c'était passé.
+
+**Trois choix à ne pas défaire :**
+1. **Pas de bouton « Vider » en partagé.** Il effacerait d'un clic les décisions des six autres, sans
+   qu'elles l'aient demandé. On retire une case à la fois, comme on l'a posée.
+2. **Aucune suppression de ligne partagée déclenchée par une lecture.** Quand Teams rattrape une
+   décision, on la marque `dejaDansTeams` et on cesse de l'afficher — on ne la supprime pas. Effacer
+   des lignes communes pendant que sept postes lisent ferait disparaître le travail de quelqu'un.
+   En mode local, en revanche, l'effacement reste (c'est le comportement d'avant).
+3. **Pas de minuterie de rafraîchissement en fond.** On relit la base à l'ouverture de la vue et au
+   changement de semaine — les moments où l'on s'attend à voir le travail des collègues. Toujours
+   **dessiner d'abord, rafraîchir ensuite** : l'écran n'attend jamais le réseau.
+
+**Ce que la case affiche en partagé** : le chantier, puis « par <prénom> » (l'auteur vient de la
+base, jamais du navigateur) et « au lieu de <chantier> » quand la décision remplace ce que dit
+Teams. Trait plein (`plPartage`) au lieu des hachures du brouillon : ce n'est plus un brouillon.
+Le mot « brouillon » ne subsiste qu'en mode fichier seul.
+
+**PIÈGES DE BANC D'ESSAI — deux fois le même genre d'erreur le 02/09/2026, à connaître avant
+d'écrire un test ici :**
+- **Le navigateur ne peut pas éprouver les cookies** (déjà noté plus haut) ni relire `Set-Cookie`.
+- **Un faux `fetch` se contamine d'un essai à l'autre.** Un premier script avait remplacé
+  `window.fetch` puis échoué avant d'exposer sa poignée de restauration ; le script suivant a
+  « sauvegardé le vrai fetch » — qui était déjà le faux. Résultat : après restauration, la page
+  croyait être en mode partagé avec les données du test précédent. **Recharger la page entre deux
+  essais qui remplacent une fonction globale**, et ne jamais conclure sur un état hérité.
+- **Une découpe de fichier laisse des accolades orphelines.** Le splice de ce jour a dupliqué le `}`
+  final d'`armerPinceau` → tout le script cassait, et `storeSet is not defined` était le seul
+  symptôme visible. Contrôle qui tranche : `new Function(code)` sur **chaque** bloc `<script>` de la
+  page. Et méfiance avec la console du navigateur : **elle garde les erreurs des chargements
+  précédents**, j'ai cru deux fois à une erreur déjà corrigée.
+
+**Vérifié le 02/09/2026, les deux modes** : mode fichier seul inchangé (bandeau ambre, étiquette
+« brouillon », bouton Vider, persistance IndexedDB) ; mode partagé (bandeau vert, identité lue dans
+la base, POST au bon format avec `remplace`, étiquette « par Christian · au lieu de … », trait
+plein, pas de bouton Vider, retrait qui envoie `chantier: null`) ; et les deux cas de panne
+(écriture refusée → alerte + base intacte + rien affiché ; base muette au chargement → repli annoncé
+dans le bandeau).
 
 **À prévoir, non bloquant :**
 - une **sauvegarde quotidienne** de la base vers Dropbox (le relais sait déjà y écrire) — aujourd'hui
