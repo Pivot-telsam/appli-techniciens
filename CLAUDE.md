@@ -629,6 +629,62 @@ supposition. À savoir pour tout futur service externe branché sur une adresse 
 en ligne **sans la serrure**. Il faut passer par le lien « Continue to Pages » en bas de cet écran.
 C'est écrit dans `partage/INSTALLATION.md`.
 
+### Les trois améliorations demandées par Patrice le 03/09/2026
+
+**1. Des bulles pastel, harmonisées avec le Gantt.** « Les couleurs sont trop flashy… des bulles qui
+se déplacent plutôt que des cases… harmoniser tout ça. » La cause est dans la source : l'Excel
+colorie **au hasard** parmi les couleurs de base (jaune pur `#ffff00`, vert pur `#00ff00`), et en
+aplat de case ça pique et le texte y est illisible. Mais la couleur EST l'information — c'est elle
+qui relie une case à sa ligne-chantier. On ne l'écarte donc pas, on l'assagit :
+`fondPastel()` garde la **teinte**, plafonne la saturation et remonte la clarté (`hsl(h s% 88%)`) ;
+`encrePastel()` rend la même teinte au foncé (`30%`) pour le texte et la bordure. Trois gains :
+le contraste ne dépend plus de la luminosité d'origine (fini le noir sur jaune pur), deux teintes
+proches restent distinguables, et l'ensemble forme une famille cohérente quoi que contienne le
+fichier. **Une couleur d'origine grise reste grise** (saturation < 8 % ⇒ 0) : lui inventer une
+teinte ferait apparaître un chantier là où il n'y en a pas.
+La case redevient un fond neutre et c'est la **bulle** (`.plBulle`, coins arrondis) qui porte la
+couleur — d'où aussi une case vide qui se distingue enfin d'une case remplie.
+
+**2. Deux semaines côte à côte, et la réserve enfin visible.** Dix colonnes (L-V, L-V), un en-tête
+par semaine et un séparateur franc (`.plSep`) : sans lui on lit le vendredi de la semaine 1 et le
+lundi de la semaine 2 comme deux jours consécutifs. Les boutons disent « Semaine précédente /
+suivante » et décalent bien d'**une** semaine — le libellé doit décrire ce que fait le bouton.
+La réserve, elle, est devenue une **barre collée en bas** (`position:sticky; bottom:0`). Le défaut
+signalé était réel : avec la grille au-dessus, elle tombait sous la ligne de flottaison, donc on ne
+pouvait pas glisser un chantier sans faire défiler et perdre de vue la case visée. **Vérifié à
+cinq hauteurs de défilement** : la barre reste en bas de la fenêtre partout. Les pastilles sont
+bornées en hauteur et défilent (`max-height:104px`) — une barre qui grandit sans fin mangerait
+l'écran qu'elle est censée dégager.
+
+**3. Une recherche parmi TOUS les chantiers.** « Aller chercher un chantier à affecter parmi nos
+chantiers. » La réserve ne montre que ce que l'Excel propose ces semaines-là ; le champ de recherche
+cherche dans les 70 fiches (numéro **ou** nom, chantiers terminés exclus). **Capacité nouvelle** :
+placer quelqu'un sur un chantier pas encore posé au planning RTE.
+- Un chantier hors planning n'a pas de couleur : `couleurDeChantier()` la **dérive de son numéro**,
+  donc elle est stable d'une session à l'autre. Une couleur tirée au hasard à l'affichage ferait
+  changer un chantier de teinte à chaque rechargement et on perdrait le repère. Elle rend un **hex**,
+  pas un `hsl()` : la valeur part dans la base (`chantier_couleur`), et l'API n'accepte que `#rrggbb`.
+- Le libellé enregistré est `26-039 — Lisieux - Vallée 1`, donc `chantierDuLibelle` le rattache à sa
+  fiche par le numéro et la bulle reste cliquable. **Vérifié.**
+- **La recherche ne redessine QUE la liste de pastilles**, jamais la vue : sinon le champ perdrait
+  le focus à chaque lettre. Vérifié (`document.activeElement === champ` après saisie).
+
+**Les pastilles ne portent qu'un INDEX dans leur HTML** (`data-chip="3"`, résolu via
+`planningChips`). `escapeHtml` de ce fichier n'échappe **ni** les guillemets **ni** les apostrophes,
+et les libellés du planning en sont truffés (« Racco d'un TI, 2 équipes ») : mettre un libellé dans
+un attribut casserait l'attribut en silence — même piège que le bouton Suivi de l'appli le 28/08.
+
+**Impression** : la règle « les couleurs sont l'information » vaut maintenant pour `.plBulle` et
+`.plChip`, à ajouter au bloc `@media print` — l'oublier reproduirait exactement le défaut de grille
+blanche que cette règle corrigeait. La barre passe en `position:static` à l'impression, sinon elle
+se superpose au tableau sur le papier.
+
+**Limite connue, et c'est la vérité du fichier** : sur une semaine où Patrice n'a pas encore écrit
+le numéro dans la ligne du planning, la bulle affiche le libellé brut en capitales
+(« POSTE DE PORT… ») au lieu de « 26-051 — Poste de Portet ». Ne pas « embellir » en retitrant le
+texte : `LA 63kV` deviendrait `La 63kv`, et on abîmerait une information technique pour une
+question d'allure. C'est l'annotation du planning qui résout ça, pas le code.
+
 ## Ordre d'affichage des chantiers — Gantt ET Boîtes & nacelle (posé par Patrice le 01/09/2026)
 
 **Les deux vues affichent les chantiers dans le MÊME ordre**, calculé par `chronoSortKey()` et
