@@ -1749,6 +1749,16 @@ heures prévues = (montant total HT du devis − matériel au prix d'ACHAT) ÷ 9
 - **26-017 Chafauds-Courelles-Beaugency-Lestiou-Gribouzy : laissé de côté** (27/08/2026, décision de
   Patrice) — plusieurs devis possibles, lequel fait foi à confirmer avant de chiffrer.
 
+**JAMAIS DE REMPLACEMENT GLOBAL DANS `SEED_DATA`, MÊME POUR UN SEUL CARACTÈRE.** Commis le
+03/09/2026 en montant l'indice PGO de Rion des Landes : un `.Replace('(PGO ind.12)', '(PGO ind.13)')`
+sur tout le fichier a **aussi modifié la fiche 26-053 Le Havre**, qui portait exactement le même
+texte pour SON propre PGO — elle annonçait donc un indice qu'elle n'a jamais eu. Rattrapé parce que
+le compteur affichait « 2 occurrences » là où un seul chantier était concerné : **toujours compter
+les occurrences et s'arrêter si le nombre ne correspond pas à ce qu'on croit modifier.** Le contrôle
+qui tranche est de reparser `SEED_DATA` et de lister les fiches portant la nouvelle valeur.
+Réparation : réancrer sur un texte **unique** à la fiche (`'Havre-Rougemontier (PGO ind.13)'`),
+jamais sur le fragment commun.
+
 **Écriture dans `SEED_DATA`** : insertion ciblée par fiche (isoler la fiche via `"numero":"26-0XX"`
 puis `LastIndexOf('{"id":"c_')`, remplacer `"heuresTelsam":` par `"heuresPrevues":{…},"heuresTelsam":`
 DANS cette fiche seulement), lecture/écriture `[IO.File]` en UTF-8 sans BOM, **bump `SEED_VERSION`**,
