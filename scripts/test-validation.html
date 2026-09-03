@@ -36,23 +36,42 @@
   ok('la cle de semaine est au format de la base', cleSemaine(38, 2026) === '2026-S38', cleSemaine(38, 2026));
   ok('les semaines a un chiffre sont completees', cleSemaine(7, 2026) === '2026-S07', cleSemaine(7, 2026));
 
-  // --- 2. les trois etats -------------------------------------------------
+  // --- 2. les trois etats, sur une semaine A VENIR ------------------------
   semainesValidees = ['2026-S38'];
-  majBandeauValidation(38, 2026);
+  majBandeauValidation(38, 2026, 1);
   ok('semaine validee : bandeau vert', bar.className.indexOf('ok') >= 0, bar.className);
   ok('semaine validee : il peut reserver', /r.server/i.test(bar.textContent), bar.textContent);
 
-  majBandeauValidation(39, 2026);
+  majBandeauValidation(39, 2026, 2);
   ok('semaine NON validee : bandeau ambre', bar.className.indexOf('prev') >= 0, bar.className);
   ok('semaine NON validee : on lui dit de ne rien reserver',
      /ne r.serve rien/i.test(bar.textContent), bar.textContent);
 
   semainesValidees = null;
-  majBandeauValidation(38, 2026);
+  majBandeauValidation(38, 2026, 1);
   ok('base injoignable : JAMAIS « valide », meme sur une semaine validee',
      bar.className.indexOf('ok') === -1 && bar.className.indexOf('prev') >= 0, bar.className);
   ok('base injoignable : on le DIT au technicien',
      /impossible de v.rifier/i.test(bar.textContent), bar.textContent);
+
+  // --- 2 bis. RIEN sur la semaine en cours ni sur le passe ----------------
+  // Defaut releve par Patrice le 03/09/2026 : le bandeau ambre « ne reserve
+  // rien » s'affichait sur la semaine que les techniciens etaient en train de
+  // faire. La question du logement ne se pose que pour une semaine a venir.
+  semainesValidees = [];
+  majBandeauValidation(36, 2026, 0);
+  ok('semaine EN COURS : aucun bandeau', bar.textContent === '' && bar.className === 'valid-bar',
+     JSON.stringify(bar.className + '|' + bar.textContent));
+  majBandeauValidation(35, 2026, -1);
+  ok('semaine PASSEE : aucun bandeau', bar.textContent === '', JSON.stringify(bar.textContent));
+  semainesValidees = ['2026-S36'];
+  majBandeauValidation(36, 2026, 0);
+  ok('semaine en cours MEME validee : toujours aucun bandeau', bar.textContent === '',
+     JSON.stringify(bar.textContent));
+  // contre-exemple : la semaine suivante, elle, parle
+  majBandeauValidation(36, 2026, 1);
+  ok('mais une semaine a venir parle bien (sinon ce test ne prouve rien)',
+     bar.textContent !== '', bar.textContent);
 
   // --- 3. la lecture de la base ------------------------------------------
   const vraiFetch = window.fetch;

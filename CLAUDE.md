@@ -1059,6 +1059,24 @@ tranché — si une semaine validée change, « nous préviendrons le technicien
 **Le plafond à 6 semaines** est dans l'appli (`SEMAINES_DEVANT_MAX`), et **le passé n'est pas
 borné** : les feuilles d'heures des semaines écoulées doivent rester accessibles.
 
+
+**CORRECTION DANS L'HEURE — aucun bandeau sur la semaine en cours ni sur le passé.**
+Patrice, juste après la mise en ligne : « je vois qu'il faut valider le planning de la semaine en
+cours. J'espère que les techniciens n'ont pas eu de changement sur leur appli ? » Ils en avaient
+un : un bandeau ambre **« ne réserve rien »** sur la semaine qu'ils étaient en train de faire.
+Vérifié en interrogeant le site en ligne (`APP_VERSION` déployée, et `/api/public/semaines` qui
+renvoyait `{"validees":[]}`) — pas supposé.
+
+Ce bandeau répond à **une** question : « est-ce que je peux réserver mon logement ? ». Elle ne se
+pose que pour une semaine **à venir**. Sur la semaine en cours le technicien est déjà sur le
+chantier ; sur une semaine passée la question est absurde. Un avertissement affiché là où il n'a
+pas d'objet inquiète pour rien, et surtout **il apprend à ne plus lire le bandeau** — donc à ne
+plus le lire le jour où il compte. `majBandeauValidation` reçoit désormais l'offset et ne dit rien
+pour `offset <= 0`. **Ne pas « uniformiser » en le remettant partout.**
+
+Contrôle ajouté avec son contre-exemple : rien sur l'offset 0 (même semaine validée), rien sur
+l'offset -1, mais la semaine suivante parle bien.
+
 ### Ce qui reste vrai et qu'il faut savoir
 
 **L'appli continue de tirer son planning de `TECH_RANGES` recopié à la main.** Une semaine validée

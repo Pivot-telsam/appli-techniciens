@@ -40,7 +40,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-03-5';
+var APP_VERSION = '2026-09-03-6';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -50,7 +50,7 @@ var APP_VERSION = '2026-09-03-5';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Nouveau : chaque semaine affiche maintenant si le planning est validé ou seulement prévisionnel. Tant que tu vois « planning prévisionnel », ne réserve rien — le chantier peut encore changer. Dès que le bureau a figé la semaine, le bandeau passe au vert et tu peux réserver ton logement. Tu ne vois plus au-delà de 6 semaines.";
+var APP_NOUVEAUTE = "À partir de la semaine prochaine, chaque semaine à venir t'indique si le planning est validé (bandeau vert, tu peux réserver ton logement) ou seulement prévisionnel (bandeau ambre, ne réserve rien encore). Rien ne change sur ta semaine en cours. Tu ne vois plus au-delà de 6 semaines.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1061,9 +1061,32 @@ function cleSemaine(weekNum, year){
   return year + '-S' + String(weekNum).padStart(2,'0');
 }
 
-function majBandeauValidation(weekNum, year){
+function majBandeauValidation(weekNum, year, offset){
   const el = document.getElementById('validBar');
   if(!el) return;
+
+  /* AUCUN BANDEAU SUR LA SEMAINE EN COURS NI SUR LE PASSÉ.
+   *
+   * Défaut de ma première version, relevé par Patrice le 03/09/2026 dans l'heure
+   * qui a suivi la mise en ligne : « je vois qu'il faut valider le planning de la
+   * semaine en cours. J'espère que les techniciens n'ont pas eu de changement sur
+   * leur appli ? » Ils en avaient un — un bandeau ambre « ne réserve rien » sur la
+   * semaine qu'ils étaient en train de faire.
+   *
+   * Ce bandeau répond à UNE question : « est-ce que je peux réserver mon
+   * logement ? ». Elle ne se pose que pour une semaine à venir. Sur la semaine en
+   * cours le technicien est déjà sur le chantier, et sur une semaine passée la
+   * question est absurde. Un avertissement affiché là où il n'a pas d'objet
+   * inquiète pour rien, et surtout il apprend à ne plus lire le bandeau — donc à
+   * ne plus le lire le jour où il compte.
+   *
+   * Ne pas « uniformiser » en le remettant partout. */
+  if(typeof offset === 'number' && offset <= 0){
+    el.className = 'valid-bar';
+    el.textContent = '';
+    return;
+  }
+
   if(semainesValidees === null){
     el.className = 'valid-bar prev';
     el.textContent = '⏳ Planning prévisionnel — impossible de vérifier pour le moment. Ne réserve rien.';
@@ -1084,7 +1107,7 @@ function render(){
   document.getElementById('weekSub').textContent = fmtDate(mon)+' au '+fmtDate(sun)+' '+year;
   document.getElementById('weekTagNow').style.display = currentOffset===0 ? 'inline-block':'none';
   document.getElementById('weekTagNext').style.display = currentOffset===1 ? 'inline-block':'none';
-  majBandeauValidation(weekNum, year);
+  majBandeauValidation(weekNum, year, currentOffset);
   // Le bouton se grise au plafond : un bouton qui ne fait rien quand on appuie
   // dessus laisse croire à une panne.
   const btnSuiv = document.getElementById('nextWeek');
