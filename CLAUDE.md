@@ -731,6 +731,133 @@ le numéro dans la ligne du planning, la bulle affiche le libellé brut en capit
 texte : `LA 63kV` deviendrait `La 63kv`, et on abîmerait une information technique pour une
 question d'allure. C'est l'annotation du planning qui résout ça, pas le code.
 
+
+### Les notes libres dans les cases (demandé par Patrice le 03/09/2026)
+
+Sa phrase : **« j'aimerais aussi que nous puissions rajouter manuellement des infos dans les cases
+des encadrants (comme rajouter une ICP où prevoir une visite, etc..) »**.
+
+**LA DÉCISION QUI COMPTE : une note n'est PAS un chantier, et ne doit jamais en devenir un.** Le
+réflexe économique aurait été de la poser comme une affectation au libellé libre — rien à changer
+dans la base, rien dans l'API. Ç'aurait été faux, et faux silencieusement :
+
+- elle serait entrée dans l'effectif affiché sur les pastilles (« 3 personnes » au lieu de 2) ;
+- elle serait apparue dans le récap « affectations à reporter dans Teams » ;
+- le jour où le planning alimentera la **couverture PGO**, « prévoir une visite » compterait comme
+  une présence d'homme sur un poste — c'est-à-dire une couverture documentaire fausse sur une
+  donnée de sécurité.
+
+D'où un champ **séparé à tous les étages** : colonne `note` dans `affectation`, clé `n` dans le
+brouillon, `.plBulleNote` au rendu.
+
+**Ce qui a été touché, et ce qu'il faut savoir avant de le retoucher :**
+
+| Endroit | Ce qui change |
+|---|---|
+| `partage/schema.sql` | colonne `note TEXT`, `schema_version` = 3, historique des versions en pied |
+| `functions/api/planning.js` | `assurerColonneNote()`, lecture de `note` → `n`, branche note dans `ecrire()` |
+| `suivi_chantiers_205.html` | `poserNote()`, `demanderNote()`, `noteDe()`, `NOTE_MAX`, `.plBulleNote`, `.plNoteBtn` |
+
+**La colonne se pose toute seule, et c'est volontaire.** `assurerColonneNote()` lance
+`ALTER TABLE affectation ADD COLUMN note TEXT` au premier appel de l'isolat et absorbe **la seule**
+erreur « duplicate column ». Toute autre erreur remonte, et le drapeau `_colonneNotePosee` ne se
+pose qu'en cas de succès (une base momentanément indisponible est retentée au coup suivant, pas
+condamnée pour la durée de vie de l'isolat). Raison du choix : la base est **en service**, et faire
+exécuter une ligne SQL à Patrice dans la console Cloudflare voulait dire une manip de plus sur une
+donnée vivante, un ordre de passage à respecter entre le push et la manip, et un déploiement en
+panne tant qu'elle n'est pas faite. Ne pas supprimer cette fonction en croyant nettoyer : une base
+restaurée depuis une sauvegarde d'avant le 03/09/2026 en aurait besoin.
+
+**LES QUATRE PIÈGES, tous testés, tous avec leur contre-exemple :**
+
+1. **`note: ''` ≠ `note` absente.** On distingue sur `hasOwnProperty`, pas sur la valeur. `''` veut
+   dire « efface la note », absente veut dire « n'y touche pas ». Confondre les deux effacerait la
+   note d'un encadrant chaque fois qu'un collègue déplace un chantier sur la même case.
+2. **Retirer le chantier ne supprime plus forcément la ligne.** Si une note y reste, la ligne
+   survit avec `chantier_libelle = NULL` (`UPDATE`, pas `DELETE`). La réponse renvoie
+   `noteConservee`.
+3. **Effacer la note d'une case qui ne portait QUE ça supprime la ligne.** Laisser une ligne
+   entièrement vide donnerait une case qui a l'air libre mais qui bloque le prochain `INSERT` sur
+   sa clé primaire.
+4. **Toutes les boucles du brouillon supposaient `b.t` présent.** Elles ont chacune reçu un
+   `|| !b.t` : teintes, `effectif`/`prepares`, `nbDecisions`, récap, et `nettoyerBrouillonPlanning`.
+   Sans ça, une case ne portant qu'une note comptait comme une affectation et cherchait une couleur
+   pour un libellé `undefined`.
+
+**Le geste, côté écran** : survoler la case fait apparaître un `+` en bas à droite (un `✎` si une
+note existe déjà). `prompt()` est gardé volontairement — c'est le seul champ de saisie identique
+dans les deux modes, y compris sur le fichier ouvert en double-clic sans réseau, et il ne demande
+aucune fenêtre à construire. Le bouton fait `stopPropagation` : sans lui, le clic remonte à la case
+et, avec un pinceau armé, on peindrait un chantier au moment même où on voulait écrire une note.
+Le crayon reste invisible jusqu'au survol — 190 cases (19 personnes × 10 jours) portant chacune un
+bouton visible annuleraient la lisibilité gagnée le matin même.
+
+**Plafond à 300 caractères, côté serveur ET côté page.** Le côté page seul ne suffit pas : l'API
+est joignable directement.
+
+### Comment tester ces deux dépôts sans Node ni navigateur interactif
+
+Il n'y a **ni Node ni npm** sur la machine, et l'accès `file://` du navigateur intégré est accordé
+fichier par fichier — donc pas toujours disponible. Chrome en mode `--headless` remplace les deux :
+
+```bash
+"/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --disable-gpu \
+  --allow-file-access-from-files --virtual-time-budget=20000 --dump-dom "file:///…/test.html"
+```
+
+Trois harnais existent, dans le scratchpad de session :
+
+- **`verif-syntaxe.html`** — lit le HTML cible, découpe chaque bloc `<script>` et le passe à
+  `new Function` (qui compile sans exécuter). **Piège** : `new Function` compile un *corps de
+  fonction*, donc il refuse un `await` de premier niveau et signale « await is only valid in async
+  functions ». Sur un fichier qui compilait la veille, ce message veut presque toujours dire qu'un
+  **en-tête `async function` a été mangé** par une insertion — c'est exactement ce qui est arrivé le
+  03/09/2026 à `poserBrouillon`.
+- **`localiser.html`** — injecte le bloc dans un vrai `<script>` et attrape l'événement `error` de
+  la fenêtre, qui donne **la ligne et la colonne** ; `new Function` ne sait dire que la nature de
+  l'erreur, pas où elle est. C'est l'outil qui a trouvé l'en-tête manquant en une passe.
+- **`test-notes.html` / `test-api-notes.html`** — tests fonctionnels. Le premier concatène la vraie
+  page et un bloc de test (22 contrôles) ; le second charge `planning.js` en texte, retire les
+  `export`, le compile avec `new Function` et remplace `env.DB` par un **mouchard** qui note les
+  ordres SQL (34 contrôles). On ne teste **jamais** contre la vraie base D1 : sept personnes ont
+  leurs décisions dedans.
+
+**Chaque contrôle doit avoir son contre-exemple.** Les scénarios C et E du test d'API existent
+uniquement pour cela : C vérifie qu'on NE supprime PAS une ligne qui porte un chantier, E qu'on la
+supprime bien quand elle n'en porte pas. Un test qui ne peut pas échouer ne prouve rien.
+
+### Le cas Rion des Landes S38 — quand la couleur dit le contraire de la vérité (03/09/2026)
+
+Patrice : « je te confirme que nos techniciens sont bien sur Rion des landes en s38. je vois que mon
+collègue n'a pas mis exactement la même couleur, c'est peut-être pour ça que tu ne l'as pas vu ? »
+
+Son hypothèse était juste, mais le fond est **plus grave que « pas vu »**. Couleurs mesurées sur les
+17 et 18/09 (colonnes 261-262 du fichier Teams) :
+
+| Ligne | Couleur | `ColorIndex` |
+|---|---|---|
+| Benjamin SOUPA (L15) et Sid Ahmed BENZAMERA (L16) | `#9bc2e6` | 37 |
+| ligne-projet « POSTE DE RION DES LANDES : TX AMIANTE SOUS SS4 » (L27) | `#bdd7ee` | 24 |
+| ligne-projet « Racco et recette … Poste de Cantegrit » (L34) | **`#9bc2e6`** | **37** |
+
+Les cases des deux techniciens correspondent **exactement** à la ligne Cantegrit. La lecture ne les
+avait donc pas « oubliés » : elle les avait mis sur **le mauvais chantier**.
+
+**CONSÉQUENCE POUR LE CODE : ne pas ajouter de tolérance sur la couleur.** C'était la correction
+évidente, et elle n'aurait rien réglé ici — une correspondance *exacte* avec une autre ligne existe
+déjà, donc tout algorithme de « couleur la plus proche » choisirait Cantegrit avant Rion. Une
+tolérance rendrait en plus ambigus des cas aujourd'hui nets. Le vrai correctif est **humain** : la
+case doit être recoloriée dans Teams avec `#bdd7ee`.
+
+**En attendant, l'arbitrage vit dans `TECH_RANGES`** (`c_poste_de_rion_des_la` → Benjamin SOUPA et
+Sid Ahmed BENZAMERA, 17 et 18/09), dans les deux dépôts. C'est le rôle de `TECH_RANGES` : ce que
+l'humain a tranché prime sur ce que la couleur raconte.
+
+**Ce qui reste ouvert et qu'il faut lui redemander** : les 14 et 15/09 portent le texte `CATEC`
+(une formation) sur fond vert-Portet, et le 16/09 le vert de Portet. Le PGO de Rion couvre pourtant
+TELSAM du 14 au 18/09. Lecture retenue faute de mieux : Rion les 17-18 seulement, la fenêtre du PGO
+étant plus large que la présence réelle. À confirmer.
+
 ## Ordre d'affichage des chantiers — Gantt ET Boîtes & nacelle (posé par Patrice le 01/09/2026)
 
 **Les deux vues affichent les chantiers dans le MÊME ordre**, calculé par `chronoSortKey()` et
