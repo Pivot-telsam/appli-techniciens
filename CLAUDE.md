@@ -1079,10 +1079,10 @@ l'offset -1, mais la semaine suivante parle bien.
 
 ### Ce qui reste vrai et qu'il faut savoir
 
-**L'appli continue de tirer son planning de `TECH_RANGES` recopié à la main.** Une semaine validée
-n'affiche donc du contenu que si la recopie a été faite. Le branchement de l'appli sur la lecture de
-Teams (extrait par technicien sur 6 semaines, injecté par le script du matin) **reste à faire** — il
-a été présenté à Patrice comme le préalable, et il n'a pas été demandé dans ce lot.
+**FAIT LE MÊME JOUR, une heure plus tard** : l'appli reçoit son planning de Teams (voir
+« L'appli technicien reçoit enfin le planning de Teams »). Ce paragraphe disait que le branchement
+restait à faire ; livrer le bandeau sans lui a produit exactement le défaut annonce - un bandeau
+qui promet un planning absent.
 
 ### Testé — 64 contrôles, chacun avec son contre-exemple
 
@@ -1099,6 +1099,126 @@ Les contrôles qui comptent vraiment :
 - **le cache** : frais ⇒ on garde ce qu'on savait ; périmé de 30 jours ⇒ on ne sait plus, donc
   prévisionnel ; réponse inattendue ⇒ on ne sait pas (jamais « tout validé ») ;
 - **le mode fichier seul** : aucune case à cocher dans l'en-tête.
+
+
+## L'appli technicien reçoit enfin le planning de Teams (03/09/2026)
+
+**Ce qui l'a déclenché.** Une heure après la mise en ligne du bandeau « planning prévisionnel »,
+Patrice : « ils ont bien le message comme quoi le planning n'est pas validé. Par contre, **ils n'ont
+pas le planning**. Donc il y a un problème d'affichage. »
+
+**Ce n'était pas l'affichage.** Mesuré avant de toucher au code : pour la semaine du 07/09, l'appli
+pouvait montrer **1 personne** quand Teams en plaçait **7** ; pour celle du 14/09, **2 contre 10**.
+Le bandeau annonçait donc un planning que l'appli n'avait jamais reçu. La cause est celle notée la
+veille sans être traitée : l'appli ne connaissait que `TECH_RANGES`, que je recopiais à la main.
+
+**LEÇON DE MÉTHODE.** J'avais présenté ce branchement comme « le préalable » puis livré le bandeau
+sans lui. Un bandeau qui promet une donnée absente est pire que pas de bandeau : il fait douter de
+l'outil. **Quand une fonction dépend d'un préalable, on livre le préalable ou on ne livre rien.**
+
+### Comment ça marche
+
+`planning-rte.ps1 -Injecter` écrit désormais, dans l'appli, la constante **`PLANNING_TECH`** :
+`{maj, du, au, tech:{ chantierId: { personne: [jours] } }}` — **six semaines** à partir du lundi
+courant, le même plafond que celui appliqué côté appli (`SEMAINES_DEVANT_MAX`).
+
+**UNE SEULE SOURCE PAR JOUR, JAMAIS L'UNION** (`datesPour` dans l'appli) : dans la fenêtre publiée,
+c'est le planning qui dit tout ; avant elle, `TECH_RANGES`. Faire l'union aurait ramené le défaut
+Chaineau du matin même — une personne sur deux chantiers le même jour, avec deux jeux de documents,
+donc le risque de partir avec le mauvais dossier. Vérifié sur les 7 semaines publiées : aucune
+personne sur deux chantiers le même jour.
+
+**REPLI COMPLET SI LE BLOC EST VIDE** (`planningTechActif`) : tant que le script n'a jamais tourné,
+ou s'il a échoué, l'appli retombe entièrement sur `TECH_RANGES`. Sans ce garde-fou, un bloc vide
+effacerait la semaine en cours de **tout le monde** — douze techniciens sur le terrain devant
+« rien de prévu ». Contrôle de non-régression dans le harnais : bloc neutralisé ⇒ 11 personnes
+servies quand même.
+
+**Le complément manuel ne comble que les trous.** `TECH_RANGES` n'entre dans la fenêtre que pour
+les couples jour-personne que le planning ne place pas — un arbitrage humain là où le planning est
+muet. Un jour où le planning place quelqu'un ailleurs écrase donc la vieille recopie, au lieu de
+s'y ajouter.
+
+**Les lignes sans numéro sont SIGNALÉES, jamais tues.** Le script liste ce que le planning place et
+qu'il ne sait pas rattacher : le technicien ne verrait rien ce jour-là. Au premier passage,
+15 cases sur 3 lignes — Bissy - Grand Île (26-064), MTFO Cross-Sausset (26-002) et « Racco et
+recette réseau liaisons BI-BR Poste de Cantegrit » (26-003), toutes sans numéro dans leur libellé.
+Arbitrage posé dans `TECH_RANGES` des deux dépôts, et **la vraie solution reste que Patrice écrive
+le numéro dans Teams** : ce jour-là ces entrées deviennent redondantes et inoffensives.
+*Défaut corrigé aussitôt dans ce même avertissement : il comparait à ce que le planning avait su
+rattacher, donc il continuait de crier après que l'arbitrage avait couvert les cases. Il compare
+maintenant à ce qui est RÉELLEMENT publié.*
+
+Résultat mesuré, avant/après : semaine en cours 11 → 11, **semaine +1 : 1 → 10**,
+**semaine +2 : 2 → 11**. La semaine +3 reste à 0 — Teams n'est pas rempli plus loin, et c'est la
+vérité du fichier, pas un défaut.
+
+## Les cases cochées restent cochées (03/09/2026)
+
+**Demande de Patrice** : « quand les techniciens cochent sur leur suivi, le pylône coché ne reste
+pas coché. Mettons, lundi il coche tel pylône ; le mardi, quand il va ouvrir le suivi, ce pylône
+sera marqué décoché. Cela n'a pas d'incidence sur le rapport. Par contre ça peut les amener en
+erreur, eux, ou **si on envoie une autre équipe sur le même chantier, ils auront l'impression
+qu'aucun pylône n'a été fait** s'ils ne lisent pas l'avancement du chantier. »
+
+Son diagnostic était exact, y compris sur le rapport : la consolidation fait une **union**, un
+pylône déclaré ne se perd pas. Le défaut était d'affichage — mais un affichage qui montre un
+chantier vierge alors qu'une équipe y a travaillé fait refaire du travail, ou douter de son envoi.
+
+### DEUX ÉTAGES DE MÉMOIRE, et les deux sont nécessaires
+
+| étage | contenu | fraîcheur | où |
+| --- | --- | --- | --- |
+| `AVANCEMENT_DECLARE` | ce que **tout le monde** a déclaré | refait chaque matin par `boites-posees.ps1` | constante dans l'appli |
+| `kvSet('suivi_<numéro>')` | ce que **ce technicien** a envoyé | immédiat, et marche sans réseau | IndexedDB du téléphone |
+
+Retirer l'un laisse un trou : sans le local, il ne revoit pas ses propres coches de la journée
+(la consolidation ne repasse que le matin) ; sans le partagé, il ne voit pas celles des autres
+équipes — le cas que Patrice a nommé.
+
+**Ce qui est publié va au-delà des boîtes.** `boites-posees.ps1` ne comptait que les tâches reliées
+à un lot par `BOITES_TACHES` ; `AVANCEMENT_DECLARE`, lui, publie **toutes** les tâches, y compris
+celles sans pylône (statut « fait »/« en cours ») et les cantons. Un chantier dont le devis ne vend
+aucune boîte doit quand même remontrer ses coches : c'est précisément là que le technicien se
+demanderait s'il a bien envoyé. Premier passage : 11 cases sur 3 chantiers.
+
+**À l'écran** : les cases déjà déclarées s'ouvrent cochées, celles d'un **autre** technicien en
+bordure pointillée, l'infobulle disant « Déjà déclaré par Pascal BONAVENTURE le 02/09/26 », et un
+rappel compte les cases (« ✔ 3 pylônes déjà déclarés. Décoche seulement si c'est une erreur. »).
+Sans le « par qui », un technicien qui trouve une case cochée qu'il n'a pas cochée doute de l'outil.
+
+**Union à l'écriture aussi** (`retenirSuivi`) : un envoi du mardi ne doit pas effacer ce qui a été
+déclaré lundi. Et **on ne retient QUE ce qui est parti** — retenir avant l'envoi ferait croire que
+le travail est déclaré alors qu'il est resté dans le téléphone.
+
+### DÉFAUT TROUVÉ PAR LE BANC D'ESSAI : une promesse qui ne se règle jamais
+
+Le harnais s'est **figé** sur `await kvGet(...)`. Cause : IndexedDB ne répond pas sous
+`--virtual-time-budget`. Mais ce n'est pas un artefact de test — sur un vrai téléphone, IndexedDB
+peut ne jamais répondre (navigation privée, stockage désactivé, base verrouillée par un autre
+onglet). **Une promesse qui ne se règle pas ne lève aucune erreur** : le `try/catch` ne l'attrape
+pas, et `ouvrirSuivi` restait bloqué AVANT d'afficher la fenêtre. Le technicien aurait appuyé sur
+« Suivi » et **rien ne se serait passé**.
+
+D'où `avecDelai(promesse, 1500)` : au-delà, on continue avec ce qu'on a. À garder sur tout accès à
+IndexedDB dont dépend l'ouverture d'un écran.
+
+**Autre correction du même passage** : `boites-posees.ps1` sortait sur « rien de nouveau » en ne
+comparant que le suivi. Le jour où seules les cases de l'appli changent (une tâche sans pylône
+passée de « en cours » à « fait », qui ne compte aucune boîte), l'appli n'aurait jamais été mise à
+jour. Il compare maintenant **les deux fichiers**.
+
+### Testé — 120 contrôles au total, 0 échec
+
+`appli-techniciens/scripts/test-planning-appli.html` (21) s'ajoute aux suites existantes
+(25 + 22 + 9 + 16 + 27), toutes rejouées sans régression. Les contrôles qui comptent :
+- semaine +1 servie par au moins 6 personnes (elle en servait **1**) ;
+- les deux lignes sans numéro rattachées à leur fiche ;
+- **personne sur deux chantiers le même jour** sur les 7 semaines ;
+- bloc planning neutralisé ⇒ repli complet, jamais d'écran vide ;
+- cases pré-cochées **et** toutes les cases pas cochées (sinon le test ne prouverait rien) ;
+- un chantier sans déclaration s'ouvre entièrement décoché ;
+- la mémoire locale fait bien l'union de deux envois successifs.
 
 ## Ordre d'affichage des chantiers — Gantt ET Boîtes & nacelle (posé par Patrice le 01/09/2026)
 

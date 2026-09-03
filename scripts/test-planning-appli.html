@@ -1,0 +1,180 @@
+<pre id="verdictTest" style="position:fixed;top:0;left:0;background:#fff;color:#000;z-index:99999;font:11px monospace;padding:4px;">en cours</pre>
+<script>
+/* TEST DU PLANNING RECU DE TEAMS ET DES CASES QUI RESTENT COCHEES.
+ * A concatener apres index.html, Chrome --headless --dump-dom.
+ *
+ * DEUX DEFAUTS SIGNALES PAR PATRICE LE 03/09/2026 :
+ *   1. « ils n'ont pas le planning » - le bandeau annoncait des semaines que
+ *      l'appli n'avait pas ;
+ *   2. « le pylone coche ne reste pas coche » - une autre equipe croyait que
+ *      rien n'avait ete fait.
+ * Chaque controle a son contre-exemple : sans eux, un test qui passe ne
+ * prouverait que l'absence de plantage. */
+(async function () {
+  const R = []; let ko = 0;
+  try {
+  function ok(nom, cond, detail) {
+    R.push((cond ? 'OK   ' : 'ECHEC') + ' | ' + nom + (detail ? '  -> ' + detail : ''));
+    if (!cond) ko++;
+  }
+  function fin() {
+    R.push('---');
+    R.push(R.filter(l => l.startsWith('OK')).length + ' controle(s) passes, ' + ko + ' en echec');
+    R.push(ko ? 'VERDICT: ECHEC' : 'VERDICT: TOUT PASSE');
+    document.getElementById('verdictTest').textContent = R.join('\n');
+  }
+  for (let i = 0; i < 100 && typeof datesPour === 'undefined'; i++) await new Promise(r => setTimeout(r, 50));
+  if (typeof datesPour === 'undefined') { document.getElementById('verdictTest').textContent = 'page non construite'; return; }
+  // IndexedDB ne tourne pas sous --virtual-time-budget : on remplit 
+  // depuis SEED_DATA, ce qui est l'etat d'un premier chargement.
+  chantiers = {}; for (const f of SEED_DATA) chantiers[f.id] = f;
+
+  // =======================================================================
+  // 1. LE PLANNING EST BIEN ARRIVE
+  // =======================================================================
+  ok('1. le bloc planning est actif', planningTechActif(),
+     PLANNING_TECH.du + ' -> ' + PLANNING_TECH.au + ', maj ' + PLANNING_TECH.maj);
+  let couples = 0;
+  for (const cid in PLANNING_TECH.tech) {
+    for (const t in PLANNING_TECH.tech[cid]) couples += PLANNING_TECH.tech[cid][t].length;
+  }
+  R.push('     ' + couples + ' jour(s)-personne publies, sur ' + Object.keys(PLANNING_TECH.tech).length + ' chantier(s)');
+  ok('1. il y a de la matiere', couples > 100, String(couples));
+
+  // Combien de personnes voient quelque chose, semaine par semaine ?
+  function personnesDeLaSemaine(offset) {
+    const { mon, sun } = weekRange(offset);
+    const vus = new Set();
+    for (const cid of idsChantiersPlanifies()) {
+      for (const tech of TECHS) {
+        if (isoDatesInRange(datesPour(cid, tech), mon, sun).length) vus.add(tech);
+      }
+    }
+    return vus;
+  }
+  const parSem = [];
+  for (let o = 0; o <= 3; o++) parSem.push(personnesDeLaSemaine(o).size);
+  R.push('     personnes servies : semaine en cours ' + parSem[0] + ', +1 ' + parSem[1]
+         + ', +2 ' + parSem[2] + ', +3 ' + parSem[3]);
+  ok('1. la semaine en cours sert toujours du monde', parSem[0] >= 8, String(parSem[0]));
+  // LE DEFAUT SIGNALE : c'est la semaine PROCHAINE qui etait vide (1 personne).
+  ok('1. la semaine prochaine ne sert plus 1 seule personne', parSem[1] >= 6, String(parSem[1]));
+  ok('1. la semaine +2 est servie aussi', parSem[2] >= 6, String(parSem[2]));
+
+  // Les cas repares a la main doivent etre la
+  function chantierDe(tech, iso) {
+    const noms = [];
+    for (const cid of idsChantiersPlanifies()) {
+      if (datesPour(cid, tech).indexOf(iso) !== -1) {
+        const c = chantierById(cid);
+        noms.push(c ? (c.numero || c.nom) : cid);
+      }
+    }
+    return noms;
+  }
+  const cantegrit = chantierDe('Didier PERRIN', '2026-09-14');
+  ok('1. Cantegrit (ligne sans numero) est rattache', cantegrit.indexOf('26-003') !== -1, cantegrit.join(', '));
+  const bissy = chantierDe('Bilal HAMOUCH', '2026-09-07');
+  ok('1. Bissy (ligne sans numero) est rattache', bissy.indexOf('26-064') !== -1, bissy.join(', '));
+
+  // UNE SEULE SOURCE PAR JOUR : personne sur deux chantiers le meme jour
+  const doubles = [];
+  for (let o = 0; o <= 6; o++) {
+    const { mon, sun } = weekRange(o);
+    for (let d = new Date(mon); d <= sun; d.setUTCDate(d.getUTCDate() + 1)) {
+      const iso = d.toISOString().slice(0, 10);
+      for (const tech of TECHS) {
+        const n = chantierDe(tech, iso);
+        if (n.length > 1) doubles.push(iso + ' ' + tech + ' : ' + n.join(' ET '));
+      }
+    }
+  }
+  ok('1. personne sur DEUX chantiers le meme jour', doubles.length === 0,
+     doubles.length ? doubles.slice(0, 3).join(' | ') : 'aucun');
+
+  // Contre-exemple : si le bloc est neutralise, on retombe sur la recopie
+  const vraiDu = PLANNING_TECH.du;
+  PLANNING_TECH.du = '';
+  ok('1. bloc neutralise : repli complet sur TECH_RANGES (jamais de vide)',
+     !planningTechActif() && personnesDeLaSemaine(0).size >= 8, String(personnesDeLaSemaine(0).size));
+  PLANNING_TECH.du = vraiDu;
+
+  // =======================================================================
+  // 2. LES CASES QUI RESTENT COCHEES
+  // =======================================================================
+  R.push('     avancement declare : ' + Object.keys(AVANCEMENT_DECLARE.chantiers || {}).length
+         + ' chantier(s), maj ' + AVANCEMENT_DECLARE.maj);
+  const numDecl = Object.keys(AVANCEMENT_DECLARE.chantiers || {});
+  ok('2. des declarations sont publiees', numDecl.length > 0, numDecl.join(', '));
+
+  const cTest = Object.values(chantiers).find(c => numDecl.indexOf(c.numero) !== -1
+    && c.tachesVendues && c.tachesVendues.taches && c.tachesVendues.taches.length);
+  ok('2. un chantier declare a bien des taches vendues', !!cTest, cTest ? cTest.numero : 'aucun');
+  if (!cTest) { fin(); return; }
+
+  currentTech = 'Anthony DENIS';
+  const memo = await memoireSuivi(cTest);
+  let nbCoches = 0;
+  for (const tid in memo) nbCoches += Object.keys(memo[tid].pylones).length;
+  ok('2. la memoire retrouve des cases a cocher', nbCoches > 0, nbCoches + ' case(s) sur ' + cTest.numero);
+
+  await ouvrirSuivi(cTest.id);
+  const ov = document.getElementById('suiviOverlay');
+  ok('2. la fenetre de suivi s ouvre', !!ov);
+  if (ov) {
+    const cochees = ov.querySelectorAll('.pyl-chip.on');
+    ok('2. des cases sont deja cochees a l ouverture', cochees.length > 0,
+       cochees.length + ' case(s) cochee(s)');
+    ok('2. celles des autres sont marquees a part', ov.querySelectorAll('.pyl-chip.on.autre').length > 0,
+       String(ov.querySelectorAll('.pyl-chip.on.autre').length));
+    const avecTitre = [].slice.call(cochees).filter(ch => ch.getAttribute('title'));
+    ok('2. et l infobulle dit par qui', avecTitre.length === cochees.length,
+       avecTitre.length ? avecTitre[0].getAttribute('title') : 'aucune');
+    ok('2. un rappel compte les cases deja declarees', !!ov.querySelector('.suivi-deja'),
+       ov.querySelector('.suivi-deja') ? ov.querySelector('.suivi-deja').textContent : '');
+    // contre-exemple : toutes les cases ne sont pas cochees
+    const total = ov.querySelectorAll('.pyl-chip').length;
+    ok('2. et TOUTES les cases ne sont pas cochees (sinon le test ne prouve rien)',
+       cochees.length < total, cochees.length + ' / ' + total);
+    fermerSuivi();
+  }
+
+  // Contre-exemple : un chantier SANS declaration n ouvre rien de coche
+  const cVierge = Object.values(chantiers).find(c => numDecl.indexOf(c.numero) === -1
+    && c.tachesVendues && c.tachesVendues.taches && c.tachesVendues.taches.some(t => t.pylones && t.pylones.length));
+  if (cVierge) {
+    await ouvrirSuivi(cVierge.id);
+    const ov2 = document.getElementById('suiviOverlay');
+    ok('2. un chantier sans declaration ouvre tout decoche',
+       !!ov2 && ov2.querySelectorAll('.pyl-chip.on').length === 0,
+       cVierge.numero + ' : ' + (ov2 ? ov2.querySelectorAll('.pyl-chip.on').length : '?') + ' cochee(s)');
+    fermerSuivi();
+  } else {
+    ok('2. un chantier vierge a ete trouve pour le contre-exemple', false, 'aucun');
+  }
+
+  // La memoire locale : union, jamais remplacement
+  const vraiKvGet = window.kvGet, vraiKvSet = window.kvSet;
+  let mem = {};
+  window.kvGet = async (k) => mem[k];
+  window.kvSet = async (k, v) => { mem[k] = v; };
+  const faux = { id: 'c_faux', numero: '99-999' };
+  await retenirSuivi(faux, { racc: ['1', '2'] });
+  await retenirSuivi(faux, { racc: ['2', '3'], doo: 'fait' });
+  const garde = mem['suivi_99-999'];
+  ok('2. la memoire locale fait l UNION des envois',
+     JSON.stringify(garde.faits.racc) === '["1","2","3"]', JSON.stringify(garde.faits));
+  ok('2. et garde le statut des taches sans pylone', garde.faits.doo === 'fait');
+  window.kvGet = vraiKvGet; window.kvSet = vraiKvSet;
+
+  fin();
+  } catch (e) {
+    // Un test qui meurt en silence ne vaut rien : on affiche l'erreur ET la pile.
+    const lignes = R.slice();
+    lignes.push('');
+    lignes.push('VERDICT: ERREUR ' + (e && e.message ? e.message : e));
+    if (e && e.stack) lignes.push(String(e.stack).split('\n').slice(0, 4).join(' | '));
+    document.getElementById('verdictTest').textContent = lignes.join('\n');
+  }
+})();
+</script>
