@@ -760,9 +760,19 @@ brouillon, `.plBulleNote` au rendu.
 
 **La colonne se pose toute seule, et c'est volontaire.** `assurerColonneNote()` lance
 `ALTER TABLE affectation ADD COLUMN note TEXT` au premier appel de l'isolat et absorbe **la seule**
-erreur « duplicate column ». Toute autre erreur remonte, et le drapeau `_colonneNotePosee` ne se
-pose qu'en cas de succès (une base momentanément indisponible est retentée au coup suivant, pas
-condamnée pour la durée de vie de l'isolat). Raison du choix : la base est **en service**, et faire
+erreur « duplicate column ».
+
+**Elle ne fait JAMAIS échouer la requête qui l'appelle.** Une première version relançait l'erreur
+dès qu'elle n'était pas « duplicate column » — défaut grave, corrigé avant la mise en ligne : le
+jour où cet ordre échoue pour une raison passagère alors que la colonne existe déjà (posée par un
+autre isolat), on aurait coupé la **lecture** du planning, donc toute la vue, pour les sept
+personnes, à cause d'une migration qui n'avait plus rien à faire. **Une étape de rattrapage ne doit
+pas pouvoir casser ce qui marchait sans elle.** On laisse la vraie requête trancher : si la colonne
+manque pour de bon, c'est elle qui échoue, et le message reprend celui de la migration
+(`_derniereErreurNote`) plus la ligne SQL de secours — un « no such column: note » nu enverrait
+chercher au mauvais endroit. Le drapeau `_colonneNotePosee` ne se pose qu'en cas de succès ou de
+doublon (une base momentanément indisponible est retentée au coup suivant, pas condamnée pour la
+durée de vie de l'isolat). Raison du choix : la base est **en service**, et faire
 exécuter une ligne SQL à Patrice dans la console Cloudflare voulait dire une manip de plus sur une
 donnée vivante, un ordre de passage à respecter entre le push et la manip, et un déploiement en
 panne tant qu'elle n'est pas faite. Ne pas supprimer cette fonction en croyant nettoyer : une base
@@ -805,7 +815,10 @@ fichier par fichier — donc pas toujours disponible. Chrome en mode `--headless
   --allow-file-access-from-files --virtual-time-budget=20000 --dump-dom "file:///…/test.html"
 ```
 
-Trois harnais existent, dans le scratchpad de session :
+Les harnais vivent dans `suivi-chantiers/partage/` — donc versionnés, et **jamais publiés** : le
+build Cloudflare ne recopie que `suivi_chantiers_205.html` vers `public/index.html`, tout le reste
+du dépôt reste hors ligne. Ils portent des chemins `file:///C:/Users/patrice.pivot/...` en dur : à
+adapter si le dossier de travail change.
 
 - **`verif-syntaxe.html`** — lit le HTML cible, découpe chaque bloc `<script>` et le passe à
   `new Function` (qui compile sans exécuter). **Piège** : `new Function` compile un *corps de
@@ -819,7 +832,7 @@ Trois harnais existent, dans le scratchpad de session :
 - **`test-notes.html` / `test-api-notes.html`** — tests fonctionnels. Le premier concatène la vraie
   page et un bloc de test (22 contrôles) ; le second charge `planning.js` en texte, retire les
   `export`, le compile avec `new Function` et remplace `env.DB` par un **mouchard** qui note les
-  ordres SQL (34 contrôles). On ne teste **jamais** contre la vraie base D1 : sept personnes ont
+  ordres SQL (36 contrôles). On ne teste **jamais** contre la vraie base D1 : sept personnes ont
   leurs décisions dedans.
 
 **Chaque contrôle doit avoir son contre-exemple.** Les scénarios C et E du test d'API existent
