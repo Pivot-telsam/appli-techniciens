@@ -961,6 +961,127 @@ l'humain a tranché prime sur ce que la couleur raconte.
 TELSAM du 14 au 18/09. Lecture retenue faute de mieux : Rion les 17-18 seulement, la fenêtre du PGO
 étant plus large que la présence réelle. À confirmer.
 
+
+## Planning validé / prévisionnel (demandé par Patrice le 03/09/2026)
+
+**Le problème, dans ses mots** : « les techniciens ont accès aux plusieurs semaines suivantes, ce
+qui n'est pas une bonne chose, sachant que nous pouvons modifier entre-temps le planning et qu'il
+ne faudrait pas qu'eux réservent par exemple un hôtel ou un logement alors qu'on va les échanger de
+sites. » Et ce qu'il veut : « une fois que le planning est fixé le vendredi, nous disons c'est bon,
+le planning est bon pour la semaine prochaine, et les techniciens le voient passer comme planning
+validé ».
+
+### CE SUR QUOI L'APPLI SE BASE — la réponse à sa première question
+
+**L'appli technicien ne lit PAS Teams.** Le mot `PLANNING_RTE` n'apparaît nulle part dans
+`appli-techniciens/index.html` (vérifié le 03/09/2026). Elle affiche les chantiers d'un technicien
+depuis **`TECH_RANGES`**, recopié à la main. La lecture de Teams ne sert qu'à la grille du suivi et
+au contrôle de cohérence du matin.
+
+Mesuré le 03/09/2026, pour répondre précisément : un technicien voyait jusqu'au **18 septembre**
+(Benjamin SOUPA et Sid Ahmed BENZAMERA, 3 semaines devant), 1 semaine pour les dix autres — et les
+boutons de semaine n'avaient **aucune limite**. Sa crainte était donc fondée, mais bornée par
+hasard, pas par une sécurité.
+
+### CE QUI A ÉTÉ ÉCARTÉ, ET PAR QUI
+
+J'avais proposé de garder une **empreinte du planning** au moment de la validation, de la
+recomparer chaque matin, et de **dévalider automatiquement** une semaine modifiée depuis.
+**Patrice l'a refusé**, avec sa raison : « ce n'est pas la peine de tout modifier et de faire un
+contrôle quotidien et systématique des chantiers ; si un jour nous devons changer un chantier dans
+la journée, nous préviendrons le technicien et ça ne sera pas la peine de revalider une semaine. »
+
+**Ne pas le rajouter « pour bien faire ».** Ce serait une alerte quotidienne pour un cas qu'ils
+règlent au téléphone — exactement le mécanisme qui crie au loup jusqu'à ce qu'on l'ignore.
+
+**Ses deux arbitrages du 03/09/2026** :
+1. une semaine non validée **reste visible**, marquée « prévisionnel » (l'autre option était de ne
+   rien montrer du tout) ;
+2. **les cinq qui modifient le planning** peuvent cocher — pas Carine Rambaud ni Guillaume Heras,
+   qui entrent pourtant dans le suivi.
+
+### L'architecture, et pourquoi pas de manip Cloudflare
+
+| brique | rôle |
+| --- | --- |
+| table `semaine_validee` | un interrupteur par semaine ISO (`2026-S38`), plus qui et quand |
+| `functions/api/semaines.js` | valider/dévalider, **derrière la porte**, réservé aux 5 |
+| `functions/api/public/semaines.js` | **la seule adresse du suivi sans mot de passe** : lit la liste |
+| `functions/_middleware.js` | ouvre cette seule adresse, en GET/OPTIONS |
+| `appli-techniciens/index.html` | bandeau vert/ambre + plafond à 6 semaines |
+
+**La porte de service, plutôt qu'une liaison D1 sur le Worker relais.** L'appli vit sur un autre
+domaine et n'a aucun mot de passe du suivi. L'autre solution était de relier la base au Worker
+`relais-telsam` que l'appli utilise déjà : une liaison à ajouter à la main dans la console
+Cloudflare, donc **une manip de plus pour Patrice sur une base en service**. Ici, zéro manip — la
+table se crée toute seule (`CREATE TABLE IF NOT EXISTS`, idempotent), comme la colonne `note`.
+
+**Ce que cette adresse expose, et rien d'autre** : une liste de numéros de semaine. Pas de
+chantier, pas de nom de personne, pas de date de validation. Un inconnu qui la trouverait
+apprendrait que TELSAM a validé la semaine 38.
+
+**TROIS RÈGLES À NE PAS DÉFAIRE sur cette exception :**
+1. le chemin est comparé **en entier** (`===`), pas en `startsWith` : un préfixe ouvrirait tout ce
+   qu'on ajouterait un jour sous `/api/public/` sans que personne ne le décide ;
+2. **GET et OPTIONS seulement** ;
+3. **aucun champ en plus.** La tentation sera d'y mettre « validé par Patrice le 03/09 » pour faire
+   joli dans l'appli : ce serait publier des noms de salariés sur une adresse ouverte, pour de la
+   décoration.
+
+### LA RÈGLE QUI COMMANDE TOUT LE RESTE : on n'affirme jamais « validé » sans preuve
+
+Trois états côté appli, et le doute penche toujours du côté prudent :
+
+| ce que dit la base | ce que voit le technicien |
+| --- | --- |
+| la semaine y est | vert, « Planning validé — tu peux réserver ton logement » |
+| la semaine n'y est pas | ambre, « Planning prévisionnel — ne réserve rien » |
+| **elle ne répond pas** | ambre, « impossible de vérifier pour le moment. Ne réserve rien » |
+
+Se rabattre sur « validé » en cas de panne serait le pire des replis : **une coupure réseau ferait
+réserver un hôtel.** Le bandeau dit ce qu'il faut FAIRE, pas un état (« ne réserve rien » plutôt
+que « non validé »).
+
+**Le cache existe pour le terrain**, sept jours (`kvSet('semaines_validees')`) : un technicien sur
+un poste sans réseau doit pouvoir lire l'état de sa semaine. Risque assumé, et c'est Patrice qui l'a
+tranché — si une semaine validée change, « nous préviendrons le technicien ».
+
+**Côté suivi, deux garde-fous du même ordre :**
+- **la case n'existe pas en mode « fichier seul »** (« validation indisponible hors ligne »). Une
+  validation qui ne vivrait que dans le navigateur de celui qui a coché ne serait vue ni par les
+  collègues ni par les techniciens : un bouton qui mentirait sur une décision qui envoie des gens
+  réserver des logements ;
+- **c'est le serveur qui applique le droit de valider**, la page ne fait que griser la case. Une
+  page se modifie par celui qui la regarde ; `VALIDATEURS` vit dans `functions/api/semaines.js`.
+- **Confirmation à la décoche seulement.** Cocher est le geste courant du vendredi ; décocher
+  retire aux techniciens une information sur laquelle ils ont pu réserver.
+
+**Le plafond à 6 semaines** est dans l'appli (`SEMAINES_DEVANT_MAX`), et **le passé n'est pas
+borné** : les feuilles d'heures des semaines écoulées doivent rester accessibles.
+
+### Ce qui reste vrai et qu'il faut savoir
+
+**L'appli continue de tirer son planning de `TECH_RANGES` recopié à la main.** Une semaine validée
+n'affiche donc du contenu que si la recopie a été faite. Le branchement de l'appli sur la lecture de
+Teams (extrait par technicien sur 6 semaines, injecté par le script du matin) **reste à faire** — il
+a été présenté à Patrice comme le préalable, et il n'a pas été demandé dans ce lot.
+
+### Testé — 64 contrôles, chacun avec son contre-exemple
+
+`partage/test-api-semaines.html` (27), `partage/bloc-test-validation-suivi.html` (16),
+`appli-techniciens/scripts/test-validation.html` (21). Jamais contre la vraie base D1.
+
+Les contrôles qui comptent vraiment :
+- **la porte** : `/api/public/semaines` passe en GET ; le **POST** sur la même adresse ne passe
+  pas ; `/api/public/semaines/autre` ne passe pas ; `/api/planning`, `/` et
+  `/functions/_middleware.js` restent fermés ;
+- **le droit de valider** : la compta reçoit 403 **et rien n'est écrit**, alors qu'elle voit l'état ;
+- **la panne réseau** : sur une semaine réellement validée, base injoignable ⇒ le bandeau reste
+  ambre. C'est le contrôle qui protège de l'hôtel réservé pour rien ;
+- **le cache** : frais ⇒ on garde ce qu'on savait ; périmé de 30 jours ⇒ on ne sait plus, donc
+  prévisionnel ; réponse inattendue ⇒ on ne sait pas (jamais « tout validé ») ;
+- **le mode fichier seul** : aucune case à cocher dans l'en-tête.
+
 ## Ordre d'affichage des chantiers — Gantt ET Boîtes & nacelle (posé par Patrice le 01/09/2026)
 
 **Les deux vues affichent les chantiers dans le MÊME ordre**, calculé par `chronoSortKey()` et

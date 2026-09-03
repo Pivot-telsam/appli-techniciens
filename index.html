@@ -40,7 +40,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-03-4';
+var APP_VERSION = '2026-09-03-5';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -50,7 +50,7 @@ var APP_VERSION = '2026-09-03-4';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Correction : Chaineau-Cordy-Lamotte apparaissait en double, sur le lot 1 RODA et sur le lot 2 SELT en même temps, du 31 août au 4 septembre. C'est remis d'aplomb — lot 1 lundi et mardi, lot 2 mercredi, jeudi et vendredi — donc chacun a le bon dossier, avec la bonne NDS et le bon brief. Sinon : Benjamin SOUPA et Sid Ahmed BENZAMERA sont bien sur Rion des Landes les 17 et 18 septembre.";
+var APP_NOUVEAUTE = "Nouveau : chaque semaine affiche maintenant si le planning est validé ou seulement prévisionnel. Tant que tu vois « planning prévisionnel », ne réserve rien — le chantier peut encore changer. Dès que le bureau a figé la semaine, le bandeau passe au vert et tu peux réserver ton logement. Tu ne vois plus au-delà de 6 semaines.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -235,12 +235,22 @@ header.top .hv-line{margin:0 0 11px 0;}
   width:38px; height:38px; border-radius:9px; border:1px solid var(--border);
   background:var(--surface-2); color:var(--text); font-size:17px; cursor:pointer;
 }
+.week-arrows button:disabled{opacity:.32; cursor:default;}
 .week-tag{
   display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:0.06em;
   text-transform:uppercase; padding:2px 7px; border-radius:100px; margin-top:4px;
 }
 .week-tag.now{background:var(--amber-dim); color:var(--amber);}
 .week-tag.next{background:var(--cyan-dim); color:var(--cyan);}
+/* ---- Planning validé / prévisionnel (demande de Patrice, 03/09/2026) ----
+   Le but est qu'un technicien ne réserve pas un hôtel sur une semaine qui peut
+   encore changer. Le bandeau doit donc être LU, pas deviné : pleine largeur,
+   sous la semaine qu'il décrit, et il dit ce qu'il faut FAIRE (« ne réserve
+   rien ») plutôt que d'exposer un état (« non validé »). */
+.valid-bar{margin-top:10px; padding:8px 11px; border-radius:9px; font-size:13px;
+           line-height:1.4; font-weight:600; display:none;}
+.valid-bar.ok{display:block; background:var(--green-bg); color:var(--green);}
+.valid-bar.prev{display:block; background:var(--amber-dim); color:var(--amber);}
 
 main{padding:6px 16px 20px; display:flex; flex-direction:column; gap:14px;}
 
@@ -709,6 +719,7 @@ html.maj-vue #splashLogo{display:none;}
         <button id="nextWeek" aria-label="Semaine suivante">›</button>
       </div>
     </div>
+    <div class="valid-bar" id="validBar"></div>
   </header>
   <div class="tab-row">
     <button class="tab-btn active" id="tabChantiers">Chantiers</button>
@@ -884,6 +895,9 @@ async function selectTech(t){
   currentTab='chantiers'; hoursEntry=null; hoursKeyCurrent=null; addingChantier=false; addingAbsence=false;
   updateTabsUI();
   render();
+  // On demande l'etat de validation APRES un premier rendu : l'ecran ne doit
+  // jamais attendre le reseau. Le bandeau se corrige des que la reponse arrive.
+  chargerSemainesValidees().then(() => render());
   loadJSZipLib().catch(()=>{}); // préchargement précoce pour que le partage natif reste réactif au clic
   loadPdfLib().catch(()=>{});
 }
@@ -995,12 +1009,86 @@ function renderCard(c, daysThisWeek){
     + '</div>';
 }
 
+/* =====================================================================
+   PLANNING VALIDÉ OU PRÉVISIONNEL
+   ---------------------------------------------------------------------
+   Demande de Patrice du 03/09/2026. Le problème qu'il décrit : « les
+   techniciens ont accès aux plusieurs semaines suivantes, ce qui n'est pas une
+   bonne chose, sachant que nous pouvons modifier entre-temps le planning et
+   qu'il ne faudrait pas qu'eux réservent par exemple un hôtel alors qu'on va
+   les échanger de sites ». Le vendredi, l'équipe coche « planning validé » dans
+   le suivi, et c'est ce que cette partie va lire.
+
+   ON N'AFFIRME JAMAIS « VALIDÉ » SANS PREUVE. Trois états, et le doute est du
+   côté prudent :
+     — la base répond et la semaine y est      → « validé », il peut réserver ;
+     — la base répond et la semaine n'y est pas → « prévisionnel » ;
+     — la base ne répond pas                    → « prévisionnel », en le disant.
+   Se rabattre sur « validé » en cas de panne serait le pire des replis : une
+   coupure réseau ferait réserver un hôtel.
+
+   LE CACHE EXISTE POUR LE TERRAIN. Un technicien sur un poste sans réseau doit
+   pouvoir lire l'état de SA semaine. On garde donc la dernière réponse connue
+   pendant sept jours. Risque assumé, et Patrice l'a tranché : si une semaine
+   validée change, « nous préviendrons le technicien » — le téléphone reste plus
+   rapide que n'importe quel mécanisme.
+   ===================================================================== */
+const URL_SEMAINES_VALIDEES = 'https://suivi-telsam.pages.dev/api/public/semaines';
+const CACHE_VALIDATION_JOURS = 7;
+let semainesValidees = null;   // null = on ne sait pas (jamais « tout validé »)
+
+async function chargerSemainesValidees(){
+  try{
+    const r = await fetch(URL_SEMAINES_VALIDEES, { headers:{'Accept':'application/json'} });
+    if(!r.ok) throw new Error('reponse ' + r.status);
+    const d = await r.json();
+    if(!d || !Array.isArray(d.validees)) throw new Error('reponse inattendue');
+    semainesValidees = d.validees;
+    await kvSet('semaines_validees', { liste:d.validees, quand:Date.now() });
+    return;
+  }catch(e){ /* hors ligne ou base muette : on tente le cache */ }
+
+  const cache = await kvGet('semaines_validees');
+  if(cache && Array.isArray(cache.liste)
+     && (Date.now() - (cache.quand||0)) < CACHE_VALIDATION_JOURS*86400000){
+    semainesValidees = cache.liste;
+  } else {
+    semainesValidees = null;
+  }
+}
+
+function cleSemaine(weekNum, year){
+  return year + '-S' + String(weekNum).padStart(2,'0');
+}
+
+function majBandeauValidation(weekNum, year){
+  const el = document.getElementById('validBar');
+  if(!el) return;
+  if(semainesValidees === null){
+    el.className = 'valid-bar prev';
+    el.textContent = '⏳ Planning prévisionnel — impossible de vérifier pour le moment. Ne réserve rien.';
+    return;
+  }
+  if(semainesValidees.indexOf(cleSemaine(weekNum, year)) !== -1){
+    el.className = 'valid-bar ok';
+    el.textContent = '✅ Planning validé — tu peux réserver ton logement.';
+  }else{
+    el.className = 'valid-bar prev';
+    el.textContent = '⏳ Planning prévisionnel — ne réserve rien, ça peut encore changer.';
+  }
+}
+
 function render(){
   const {mon, sun, weekNum, year} = weekRange(currentOffset);
   document.getElementById('weekLbl').textContent = 'Semaine '+weekNum;
   document.getElementById('weekSub').textContent = fmtDate(mon)+' au '+fmtDate(sun)+' '+year;
   document.getElementById('weekTagNow').style.display = currentOffset===0 ? 'inline-block':'none';
   document.getElementById('weekTagNext').style.display = currentOffset===1 ? 'inline-block':'none';
+  majBandeauValidation(weekNum, year);
+  // Le bouton se grise au plafond : un bouton qui ne fait rien quand on appuie
+  // dessus laisse croire à une panne.
+  const btnSuiv = document.getElementById('nextWeek');
+  if(btnSuiv) btnSuiv.disabled = (currentOffset >= SEMAINES_DEVANT_MAX);
 
   const list=document.getElementById('cardList');
   const cards=[];
@@ -1023,7 +1111,15 @@ function render(){
 }
 
 document.getElementById('prevWeek').onclick=()=>{currentOffset--; render(); if(currentTab==='heures') loadAndRenderHours();};
-document.getElementById('nextWeek').onclick=()=>{currentOffset++; render(); if(currentTab==='heures') loadAndRenderHours();};
+/* PLAFOND A 6 SEMAINES DEVANT. Demande de Patrice du 03/09/2026 : « les techniciens
+   ont acces aux plusieurs semaines suivantes, ce qui n'est pas une bonne chose ».
+   Avant, ce bouton n'avait AUCUNE limite. On ne borne pas le passe : les feuilles
+   d'heures des semaines ecoulees doivent rester accessibles. */
+const SEMAINES_DEVANT_MAX = 6;
+document.getElementById('nextWeek').onclick=()=>{
+  if(currentOffset >= SEMAINES_DEVANT_MAX) return;
+  currentOffset++; render(); if(currentTab==='heures') loadAndRenderHours();
+};
 document.getElementById('switchBtn').onclick=async ()=>{
   if(accessMode === 'admin'){
     // Accès atelier : retour à la liste des noms, la session reste ouverte.

@@ -1,0 +1,116 @@
+<pre id="verdictTest" style="position:fixed;top:0;left:0;background:#fff;color:#000;z-index:99999;font:11px monospace;padding:4px;">en cours</pre>
+<script>
+/* TEST DU BANDEAU « planning valide / previsionnel » DANS L APPLI TECHNICIEN.
+ *
+ * A concatener apres index.html et a ouvrir avec Chrome --headless --dump-dom
+ * (cf. CLAUDE.md, « Comment tester ces deux depots sans Node »).
+ *
+ * CE QUI COMPTE ICI, c est le sens de l erreur : on ne doit JAMAIS afficher
+ * « valide » sans preuve. Chaque cas passant a donc son contre-exemple, et le
+ * cas de la panne reseau est teste explicitement — c est lui qui, mal traite,
+ * ferait reserver un hotel sur une semaine qui va changer. */
+(async function () {
+  const R = []; let ko = 0;
+  function ok(nom, cond, detail) {
+    R.push((cond ? 'OK   ' : 'ECHEC') + ' | ' + nom + (detail ? '  -> ' + detail : ''));
+    if (!cond) ko++;
+  }
+  function fin() {
+    R.push('---');
+    R.push(R.filter(l => l.startsWith('OK')).length + ' controle(s) passes, ' + ko + ' en echec');
+    R.push(ko ? 'VERDICT: ECHEC' : 'VERDICT: TOUT PASSE');
+    document.getElementById('verdictTest').textContent = R.join('\n');
+  }
+  for (let i = 0; i < 100 && typeof majBandeauValidation === 'undefined'; i++) {
+    await new Promise(r => setTimeout(r, 50));
+  }
+  if (typeof majBandeauValidation === 'undefined') {
+    document.getElementById('verdictTest').textContent = 'la page ne s est pas construite'; return;
+  }
+
+  const bar = document.getElementById('validBar');
+  ok('le bandeau existe dans la page', !!bar);
+  if (!bar) { fin(); return; }
+
+  // --- 1. la cle de semaine ------------------------------------------------
+  ok('la cle de semaine est au format de la base', cleSemaine(38, 2026) === '2026-S38', cleSemaine(38, 2026));
+  ok('les semaines a un chiffre sont completees', cleSemaine(7, 2026) === '2026-S07', cleSemaine(7, 2026));
+
+  // --- 2. les trois etats -------------------------------------------------
+  semainesValidees = ['2026-S38'];
+  majBandeauValidation(38, 2026);
+  ok('semaine validee : bandeau vert', bar.className.indexOf('ok') >= 0, bar.className);
+  ok('semaine validee : il peut reserver', /r.server/i.test(bar.textContent), bar.textContent);
+
+  majBandeauValidation(39, 2026);
+  ok('semaine NON validee : bandeau ambre', bar.className.indexOf('prev') >= 0, bar.className);
+  ok('semaine NON validee : on lui dit de ne rien reserver',
+     /ne r.serve rien/i.test(bar.textContent), bar.textContent);
+
+  semainesValidees = null;
+  majBandeauValidation(38, 2026);
+  ok('base injoignable : JAMAIS « valide », meme sur une semaine validee',
+     bar.className.indexOf('ok') === -1 && bar.className.indexOf('prev') >= 0, bar.className);
+  ok('base injoignable : on le DIT au technicien',
+     /impossible de v.rifier/i.test(bar.textContent), bar.textContent);
+
+  // --- 3. la lecture de la base ------------------------------------------
+  const vraiFetch = window.fetch;
+  const vraiKvGet = window.kvGet, vraiKvSet = window.kvSet;
+  let memoire = {};
+  window.kvGet = async (k) => memoire[k];
+  window.kvSet = async (k, v) => { memoire[k] = v; };
+
+  window.fetch = async () => ({ ok: true, json: async () => ({ validees: ['2026-S40'] }) });
+  await chargerSemainesValidees();
+  ok('la base repond : la liste est prise', JSON.stringify(semainesValidees) === '["2026-S40"]',
+     JSON.stringify(semainesValidees));
+  ok('et mise en cache pour le terrain', !!(memoire.semaines_validees && memoire.semaines_validees.liste));
+
+  // panne, cache frais -> on garde ce qu on savait
+  window.fetch = async () => { throw new Error('hors ligne'); };
+  semainesValidees = 'sentinelle';
+  await chargerSemainesValidees();
+  ok('panne + cache frais : on garde la derniere reponse connue',
+     JSON.stringify(semainesValidees) === '["2026-S40"]', JSON.stringify(semainesValidees));
+
+  // panne, cache perime -> on ne sait plus
+  memoire.semaines_validees = { liste: ['2026-S40'], quand: Date.now() - 30 * 86400000 };
+  await chargerSemainesValidees();
+  ok('panne + cache perime (30 j) : on ne sait plus, donc previsionnel',
+     semainesValidees === null, JSON.stringify(semainesValidees));
+
+  // reponse inattendue -> pareil, on ne sait pas
+  memoire = {};
+  window.fetch = async () => ({ ok: true, json: async () => ({ bidule: 1 }) });
+  await chargerSemainesValidees();
+  ok('reponse inattendue : on ne sait pas (et pas « tout valide »)', semainesValidees === null,
+     JSON.stringify(semainesValidees));
+
+  window.fetch = async () => ({ ok: false, status: 503, json: async () => ({}) });
+  await chargerSemainesValidees();
+  ok('base en panne (503) : on ne sait pas', semainesValidees === null, JSON.stringify(semainesValidees));
+
+  window.fetch = vraiFetch; window.kvGet = vraiKvGet; window.kvSet = vraiKvSet;
+
+  // --- 4. le plafond de 6 semaines --------------------------------------
+  ok('le plafond est bien de 6 semaines', SEMAINES_DEVANT_MAX === 6, String(SEMAINES_DEVANT_MAX));
+  const btn = document.getElementById('nextWeek');
+  const avant = currentOffset;
+  currentTech = (typeof TECHS !== 'undefined' && TECHS.length) ? TECHS[0] : null;
+  ok('un technicien a ete trouve pour le test', !!currentTech, String(currentTech));
+  if (currentTech) {
+    currentOffset = 0; render();
+    ok('a la semaine 0, le bouton suivant est actif', btn.disabled === false);
+    currentOffset = SEMAINES_DEVANT_MAX; render();
+    ok('au plafond, le bouton suivant est grise', btn.disabled === true);
+    btn.onclick();
+    ok('et un appui au plafond ne fait rien', currentOffset === SEMAINES_DEVANT_MAX, String(currentOffset));
+    currentOffset = -3; render();
+    ok('le passe n est PAS borne (feuilles d heures)', btn.disabled === false, String(currentOffset));
+  }
+  currentOffset = avant;
+
+  fin();
+})();
+</script>
