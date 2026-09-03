@@ -87,8 +87,10 @@ alors que le fichier partagé avait été modifié le matin même).
 **Le planning est un travail d'équipe dans Teams : Pierre Brillou, Christian Cazenave,
 Ahmed Hamouch, François Vidal et Patrice le modifient ensemble.** Ils sont aussi les seuls à le
 consulter au quotidien (le PDG y a accès). **Teams reste donc le maître** : la grille du suivi en
-est un reflet en lecture seule, et il ne faut pas proposer de la rendre modifiable tant que le
-suivi n'est pas devenu une vraie appli partagée (cf. section « Grille Planning » plus bas).
+est un reflet — **modifiable depuis le 02/09/2026 via la base commune** (cf. « ÉTAPE 1 »), mais un
+reflet : ce qu'on décide dans le suivi ne part PAS dans Teams et reste à y reporter. Cette ligne
+disait jusqu'au 03/09/2026 « lecture seule, ne pas proposer de la rendre modifiable » — c'était vrai
+avant l'étape 1, elle ne l'était plus.
 
 Structure de la feuille "Feuil1" :
 - 370 colonnes = 1 jour par colonne à partir du 1er janvier (col2 = 1er janvier ; formule :
@@ -239,10 +241,11 @@ donc sans lui les semaines antérieures à fin août n'auraient **aucun** lien c
 0 case liée sur 57 en S16, 55 sur 57 avec le repli). **Ne jamais ajouter un rapprochement par
 ressemblance de libellé** : c'est ce qui enverrait un jour vers le mauvais lot.
 
-**La lecture quotidienne n'est PAS encore branchée sur la tâche de 7h30.** La modification de la
-tâche planifiée a été refusée par le garde-fou de sécurité le 01/09/2026. Un fichier à double-cliquer
-a été préparé pour que Patrice le fasse lui-même :
-`scripts\Ajouter le planning a la veille du matin.cmd` (idempotent, il refuse d'ajouter deux fois).
+**La lecture quotidienne EST branchée sur la tâche de 7h30** — étape « Planning RTE (Teams) » de
+`matin.ps1`, volontairement l'avant-dernière (voir « La matinée automatique »). Cette ligne disait
+le contraire jusqu'au 03/09/2026, alors que la refonte de `matin.ps1` du 02/09 l'avait intégrée :
+une règle périmée dans ce fichier est aussi trompeuse qu'une règle absente.
+Le fichier `scripts\Ajouter le planning a la veille du matin.cmd` n'a donc plus d'objet.
 **L'action doit rester la DERNIÈRE de la chaîne** : c'est la seule qui ouvre Excel sur un fichier en
 ligne, donc la seule qui pourrait rester bloquée sur une demande d'authentification — en dernière
 position, un blocage ne retarderait ni la veille, ni le récap du matin, ni son envoi par mail.
@@ -812,10 +815,10 @@ chantier. L'avertissement « cette couleur sert à plusieurs lignes » se décle
 « LANGEAC - PRATCLAUX » partagent une couleur et n'ont rien à voir. Et cette règle récompense le bon
 geste : **annoter le planning fait disparaître l'avertissement, sans toucher au code.**
 
-Effet mesuré : cases ambiguës 73 → 53, et **présence publiée 12 → 14 chantiers** — Fleyriat
+Effet mesuré : cases ambiguës 73 → 53, et **présence publiée 12 → 14 chantiers**, puis **16** le soir même quand Patrice a écrit les trois numéros manquants dans Teams — Fleyriat
 alimente désormais le Gantt et la couverture PGO, ce qu'il ne faisait pas.
 
-**Restent 3 groupes signalés, tous sans aucun numéro dans leurs lignes** — à dire à Patrice, le
+**Restent 4 groupes signalés, tous sans aucun numéro dans leurs lignes** — à dire à Patrice, le
 remède est entre ses mains :
 - CERDAGNE 2 (deux groupes, 43 cases) ;
 - COLAYRAC-GUPIE (6 cases) ;
@@ -2275,6 +2278,38 @@ mieux vaut un doublon, qui se supprime en deux secondes, qu'un récap manquant q
 filtre, et le `+=` suivant échouait sur `op_Addition`. Déclenché le jour où l'historique est tombé
 à un seul élément : **plus aucune veille ne pouvait être marquée traitée**, donc le rappel serait
 resté allumé indéfiniment. Le `@()` doit envelopper le RÉSULTAT du filtre.
+
+
+### LE TROU DE LA CHAÎNE : ce qui est relu chaque matin n'est PAS publié (relevé le 03/09/2026)
+
+**Trouvé en auditant les règles à la demande de Patrice**, pas en le supposant : la tâche de 7h30
+lance bien `planning-rte.ps1 -Injecter` et `boites-posees.ps1`, qui réécrivent
+`suivi_chantiers_205.html` **et** `appli-techniciens/index.html`. Mais **aucun script ne commite ni
+ne pousse**. Or :
+
+- le suivi en ligne est construit par Cloudflare **depuis GitHub** ;
+- l'appli technicien est servie par GitHub Pages **depuis GitHub**.
+
+**Donc, tant que personne ne pousse, la relecture du matin ne sort pas de la machine de Patrice.**
+Les techniciens gardent le planning et les cases cochées de la dernière publication, et **rien ne
+le dit**. C'est le défaut de forme qui s'est répété toute la journée du 03/09 : un mécanisme dont
+le dernier maillon est humain et silencieux.
+
+**Ce n'est pas un oubli à corriger sans réfléchir.** Une publication automatique enverrait la
+lecture du planning aux 13 techniciens sans qu'aucun humain l'ait regardée — et le 03/09 la lecture
+a produit une attribution FAUSSE (Cantegrit au lieu de Rion des Landes) que seul l'œil de Patrice a
+rattrapée. Il y a donc un vrai argument pour garder quelqu'un dans la boucle.
+
+**Les deux voies, à faire trancher par Patrice** (posé le 03/09/2026, en attente) :
+1. **Publication automatique** en fin de chaîne, limitée aux lignes générées (`PLANNING_RTE`,
+   `PLANNING_TECH`, `POSES_APPLI`, `POSES_ORPHELINES`, `AVANCEMENT_DECLARE`) et à elles seules —
+   jamais un `git add -A`, qui emporterait un travail en cours.
+2. **Un rappel en tête du récap du matin** : « le planning a changé ce matin, il n'est pas encore
+   publié aux techniciens », avec le nombre de lignes en attente.
+
+Tant que ce n'est pas tranché, **penser à pousser après toute session qui touche au planning ou aux
+déclarations** — et le dire à Patrice, au lieu de le laisser croire que les techniciens ont la
+dernière version.
 
 ## Récap du matin — `veille/RECAP.html` (mis en place le 01/09/2026)
 
