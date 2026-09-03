@@ -644,21 +644,40 @@ aucune valeur en soi** : sa seule fonction est de dire « ces cases-là, c'est l
 peut donc la remplacer, à condition de rester stable sur la période regardée. Les deux premiers
 essais partaient de la couleur du fichier ; c'était la contrainte inutile.
 
-`PALETTE_PLANNING` : 12 teintes dans le registre exact de `.ganttBar` (fond franc, texte blanc,
-ombre discrète), attribuées **par affichage** dans l'ordre de première apparition — réserve d'abord
-(les chantiers qu'on manipule), puis les cases, puis les décisions. Deux couleurs sont
-**volontairement absentes** : le rouge vif et l'ambre des alertes, parce que dans cette vue rouge
-pâle = absence et ambre = avertissement ; les réutiliser pour un chantier brouillerait une lecture
-qui doit rester immédiate.
+`PALETTE_PLANNING` : 16 teintes dans le registre de `.ganttBar` (fond franc, texte blanc, ombre
+discrète). Deux couleurs sont **volontairement absentes** : le rouge vif et l'ambre des alertes,
+parce que dans cette vue rouge pâle = absence et ambre = avertissement ; les réutiliser pour un
+chantier brouillerait une lecture qui doit rester immédiate.
 
-**LA CLÉ DE COULEUR EST LA FICHE, PAS LE LIBELLÉ** (`cleTeinte`). Défaut vu à l'écran : le Poste de
-Portet ressortait **magenta en S36 et violet en S37**, parce que le planning le nomme autrement
-d'une semaine à l'autre. Deux couleurs pour le même chantier côte à côte, c'est le contraire du but.
-On classe donc par identifiant de fiche dès qu'on l'a. **Vérifié après correction : aucune fiche ne
-porte plus deux couleurs.** On ne retombe sur le libellé que pour les lignes qu'aucune fiche ne
-rattache — et **il ne faut PAS les rapprocher par ressemblance de texte** pour « finir le travail » :
-c'est la règle qui interdit d'envoyer un jour vers le mauvais lot. Ces lignes-là se règlent en
-annotant le numéro dans le planning, pas dans le code.
+**LA COULEUR EST FIXE PAR CHANTIER, ET NE CHANGE PLUS D'UNE SEMAINE SUR L'AUTRE.**
+Deuxième correction du 03/09/2026, sur remarque de Patrice : « ce serait quand même pas mal de
+garder les mêmes d'une semaine sur l'autre. Ce n'est pas grave de les changer quand on réintervient
+sur un chantier un ou deux mois plus tard, mais ça prête à confusion de les changer d'une semaine
+sur l'autre. »
+- La version précédente attribuait la palette **par affichage**, dans l'ordre d'apparition :
+  changer de semaine redistribuait tout, et un chantier passait du bleu au vert sans avoir bougé.
+- Désormais la teinte vient du **rang du chantier dans la liste de toutes les fiches, triée par
+  numéro** (`ordreChantiers`) : déterministe, identique quelle que soit la semaine, la machine ou le
+  moment. **Vérifié sur quatre semaines d'affilée : aucun chantier ne change de couleur.**
+- `ordreChantiers` se recalcule quand le nombre de fiches change — sans ça une fiche créée en cours
+  de session n'aurait pas de rang et retomberait sur le libellé.
+- Pour une ligne de planning qu'aucune fiche ne rattache, le rang est dérivé du **libellé**
+  (`_rangDuTexte`), donc stable aussi.
+
+**CE QUE CE CHOIX COÛTE, ET POURQUOI C'EST LE BON.** Avec 16 teintes et 71 fiches, deux chantiers
+partagent forcément une couleur et peuvent tomber dans la même vue. Mais le nom est écrit dans la
+bulle : une couleur partagée fait hésiter une seconde, une couleur qui change fait croire à un
+autre chantier. Patrice a tranché dans ce sens de lui-même. **Ne pas « améliorer » en revenant à une
+attribution par vue** — c'est précisément ce qu'on vient de retirer.
+
+*Défaut intermédiaire, réglé au passage : le Poste de Portet ressortait magenta en S36 et violet en
+S37, parce que le planning le nomme autrement d'une semaine à l'autre. La clé étant maintenant la
+fiche, le problème ne peut plus se poser. On ne retombe sur le libellé que pour les lignes
+qu'aucune fiche ne rattache — et **il ne faut PAS les rapprocher par ressemblance de texte** pour
+« finir le travail » : c'est la règle qui interdit d'envoyer un jour vers le mauvais lot. Ces
+lignes-là se règlent en annotant le numéro dans le planning, ou en créant la fiche et son entrée
+`TECH_RANGES` (ce qui a suffi pour Bollène-Plantades : la case est passée du libellé brut à
+« 26-071 — Bollène - Plantades », reliée et cliquable, sans toucher au planning).*
 
 La case redevient un fond neutre et c'est la **bulle** (`.plBulle`) qui porte la couleur — d'où
 aussi une case vide qui se distingue enfin d'une case remplie.
@@ -2476,6 +2495,21 @@ ci-dessus). Sauvegarde dans le scratchpad de la session, pas sur le Bureau.
     ensuite `Ã` = 0 ET `�` = 0, puis comparer fiche par fiche avec le dernier commit sain.
   - **Contrôle systématique après toute écriture sur un fichier accentué** : compter les `Ã` et
     les `�`. C'est une seule commande et ça aurait évité le commit fautif.
+- **LE PIÈGE DU `.ps1` SANS BOM NE CONCERNE PAS QUE LES COMPARAISONS DE NOMS — il abîme aussi tout
+  texte accentué que le script ÉCRIT.** Il est documenté plus haut pour `ClePersonne` (un
+  « François » qui ne correspond plus), mais je m'y suis fait prendre autrement le 03/09/2026 en
+  créant la fiche 26-071 : le script portait `nom = 'Bollène - Plantades'`, PowerShell 5.1 a lu le
+  fichier en ANSI, et **le mojibake est parti dans `SEED_DATA` des deux dépôts** (« BollÃ¨ne »,
+  « Â» »). Neuf séquences côté suivi, deux côté appli.
+  - **Parade** : soit écrire le `.ps1` **avec BOM UTF-8**, soit composer les accents
+    (`'Boll' + [char]0x00E8 + 'ne'`), soit — le plus simple — n'écrire que de l'ASCII dans le script
+    et poser les libellés accentués avec l'outil Edit après coup.
+  - **Ce qui l'a rattrapé** : le comptage systématique des `Ã` après écriture (règle ci-dessus).
+    Il valait 1 par fichier au lieu de 0. **Ce contrôle n'est pas une formalité : c'est la seule
+    chose qui a vu l'erreur.**
+  - **Réparation ciblée, pas globale** : remplacer uniquement les séquences `Ã¨ Ã© Â« Â»`, qui
+    n'existent jamais dans du français correct. Une réparation 1252→UTF-8 appliquée à tout le
+    fichier aurait cassé les accents SAINS des 70 autres fiches.
 - **PIÈGE POWERSHELL — une fonction qui affiche un message POLLUE sa valeur de retour.** Tout ce
   qu'une fonction émet part dans le flux de sortie : `"  OK  $libelle"` suivi de
   `return $texte.Replace(...)` renvoie **les deux**, et `$fiche = MaFonction ...` reçoit un
