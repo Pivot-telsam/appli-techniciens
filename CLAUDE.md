@@ -2280,6 +2280,75 @@ filtre, et le `+=` suivant échouait sur `op_Addition`. Déclenché le jour où 
 resté allumé indéfiniment. Le `@()` doit envelopper le RÉSULTAT du filtre.
 
 
+
+### Deux passages par jour, et la fin de la tâche qui clignotait (03/09/2026)
+
+**Trois choses tranchées par Patrice le 03/09/2026 au soir.**
+
+**1. Le débat sur la publication est CLOS, et c'est lui qui l'a fermé.** J'avais soulevé que la
+relecture du matin n'était pas poussée, donc pas vue par les techniciens. Sa réponse : « le planning
+ne changera que rarement. Une fois que nous validons le planning le vendredi, il ne bouge pas, ou
+alors c'est exceptionnel, et dans ce cas-là nous préviendrons nous-mêmes les techniciens et nous
+modifierons ensuite le planning. **Il n'y a pas de débat là-dessus.** » **Ne pas re-proposer une
+publication automatique.** Et il a raison sur le fond : la validation d'une semaine passe par la
+base, elle est donc vue **tout de suite** sans aucun push — c'est seulement le CONTENU du planning
+qui attend une publication, et il ne bouge presque pas.
+
+**2. La tâche « TELSAM - Envoi du recap » est DÉSACTIVÉE.** Elle repassait toutes les 10 minutes de
+7h30 à 13h00 : « j'ai des fois l'écran de Visual Planning, ou de Word, ou de Microsoft, un écran
+noir qui s'ouvre et qui se referme automatiquement. Ça m'a fait ça toute la matinée. » C'était bien
+elle — 34 lancements de `powershell.exe` dans la matinée, chacun pouvant faire clignoter une console
+même en `-WindowStyle Hidden`.
+
+**3. La chaîne tourne maintenant DEUX fois par jour : 7h30 et 13h00.** Sa demande : « qu'il y ait la
+veille du matin et la veille de treize heures, pour que tout se mette à jour deux fois par jour. »
+Fait en ajoutant un **second déclencheur à la tâche existante** (« TELSAM - Veille documents RTE »),
+pas en créant une seconde tâche : une seule chaîne, un seul endroit où regarder quand ça ne tourne
+pas. Vérifié après coup que le rattrapage (`StartWhenAvailable`) et le compte
+(`LogonType Interactive`, aucun mot de passe stocké) ont survécu à la modification.
+
+**Ce que ce second passage répare, en plus de ce qu'il a demandé** : le trou connu du 31/08/2026 —
+la veille prenait une photo à 7h30, et deux PGO arrivés à 8h55 plus une IST à 10h34 restaient
+invisibles jusqu'au lendemain. Avec le passage de 13h, ils remontent le jour même.
+
+**Effet à connaître** : le passage de 13h ouvre Excel (lecture du planning SharePoint), donc **une**
+fenêtre peut clignoter à 13h — au lieu de 34 dans la matinée.
+
+**L'archive du récap porte désormais l'heure** (`RECAP-2026-09-03-1634.html`). Sans ça le passage de
+13h **écrasait** l'archive du matin, alors que cette archive n'existe que pour comparer : on aurait
+perdu en silence la moitié de ce qu'elle sert à garder. Vérifié : l'ancienne
+`RECAP-2026-09-03.html` du matin est intacte à côté de la nouvelle.
+
+### POURQUOI LE MAIL DU RÉCAP N'ARRIVERA JAMAIS AINSI — Patrice utilise le NOUVEL Outlook
+
+Patrice : « je suis bien allé chercher mon rappel du matin, mais je n'ai jamais reçu le mail. »
+Diagnostiqué, pas supposé. Le journal montre **34 tentatives, 34 fois** « Outlook n'est pas ouvert :
+rien envoyé ». Et la détection était JUSTE : aucun processus `OUTLOOK.EXE` ne tournait.
+
+**La cause : il lit son courrier dans le NOUVEL Outlook pour Windows — `olk.exe`**
+(paquet `Microsoft.OutlookForWindows`, vérifié en liste de processus). Le nouvel Outlook **n'a
+aucune interface COM** : `Outlook.Application` ne peut pas lui parler, ni maintenant ni plus tard.
+L'Outlook classique est bien installé (`Office16\OUTLOOK.EXE`) mais **jamais lancé** — et le lancer
+par COM est le cas déjà écarté le 02/09/2026 : il démarre sans fenêtre, ne se connecte pas, et le
+message reste dans la boîte d'envoi.
+
+**Donc `recap-mail.ps1` est un cul-de-sac.** Le script reste dans le dépôt (il marcherait pour
+quelqu'un sous Outlook classique) mais **sa tâche est désactivée**. Ne pas essayer de le
+« réparer » : le problème n'est pas dans le script.
+
+**Ce qui est réellement faisable, mesuré :**
+
+| voie | verdict |
+| --- | --- |
+| **Rien de plus** — il ouvre le raccourci du Bureau, ce qu'il fait déjà | marche, zéro pièce en plus |
+| **Une bulle de notification Windows** à 7h30 et 13h00 | **testée sur ce PC le 03/09/2026, envoyée sans erreur** ; les notifications ne sont pas coupées. Reste à confirmer qu'il l'a vue |
+| Mail via un service externe (Resend/SendGrid) branché sur le relais Cloudflare | demande un compte et une clé de plus, et un mail venu d'un domaine extérieur vers telsam.com risque le courrier indésirable. Disproportionné |
+| Message Teams par Graph | demande une inscription d'application côté M365. Pas simple, et il vit déjà dans Teams — à ne creuser que s'il le demande |
+
+Le code d'une bulle, pour mémoire : WinRT `Windows.UI.Notifications`, `AppId`
+`{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe`. Aucun module à
+installer.
+
 ### LE TROU DE LA CHAÎNE : ce qui est relu chaque matin n'est PAS publié (relevé le 03/09/2026)
 
 **Trouvé en auditant les règles à la demande de Patrice**, pas en le supposant : la tâche de 7h30
@@ -2300,7 +2369,9 @@ lecture du planning aux 13 techniciens sans qu'aucun humain l'ait regardée — 
 a produit une attribution FAUSSE (Cantegrit au lieu de Rion des Landes) que seul l'œil de Patrice a
 rattrapée. Il y a donc un vrai argument pour garder quelqu'un dans la boucle.
 
-**Les deux voies, à faire trancher par Patrice** (posé le 03/09/2026, en attente) :
+**TRANCHÉ PAR PATRICE LE 03/09/2026, LE MÊME SOIR : ON NE PUBLIE PAS AUTOMATIQUEMENT.** « Le planning
+ne changera que rarement… il n'y a pas de débat là-dessus. » Voir la section « Deux passages par
+jour » ci-dessus. Les deux voies étudiées, gardées pour mémoire :
 1. **Publication automatique** en fin de chaîne, limitée aux lignes générées (`PLANNING_RTE`,
    `PLANNING_TECH`, `POSES_APPLI`, `POSES_ORPHELINES`, `AVANCEMENT_DECLARE`) et à elles seules —
    jamais un `git add -A`, qui emporterait un travail en cours.
