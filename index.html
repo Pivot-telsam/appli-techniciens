@@ -40,7 +40,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-04-6';
+var APP_VERSION = '2026-09-04-7';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -50,7 +50,7 @@ var APP_VERSION = '2026-09-04-6';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Bollène-Plantades (26-071) et Casteljaloux (26-044) ont maintenant leur bouton « Documents » : brief, et pour Casteljaloux le PDP et le PGO. Rappel utile sur Casteljaloux — le boîtier de l’entrée de poste est un WTC1,5B, pas un WTC2, et on n’y soude que les 12 premières fibres. Le brief le détaille.";
+var APP_NOUVEAUTE = "Rien de nouveau pour toi dans cette version : elle corrige un message qui s’affichait à tort côté atelier. Ton planning, tes documents et tes boutons n’ont pas changé.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1209,6 +1209,29 @@ function majBandeauValidation(weekNum, year, offset){
   if(typeof offset === 'number' && offset <= 0){
     el.className = 'valid-bar';
     el.textContent = '';
+    return;
+  }
+
+  /* PAGE OUVERTE EN LOCAL : dire POURQUOI, au lieu d'envoyer chercher une panne.
+   *
+   * Signalé par Patrice le 04/09/2026 : ses techniciens voyaient « validé » sur
+   * la semaine 37, lui voyait « impossible de vérifier » sur la MÊME semaine,
+   * en vue atelier, après avoir rechargé. Mesuré : l'adresse publique ne répond
+   * qu'à l'origine `https://pivot-telsam.github.io` (en-tête
+   * Access-Control-Allow-Origin), donc depuis un `index.html` ouvert en double-
+   * clic (origine `file://`) le navigateur BLOQUE la réponse — `fetch` échoue
+   * avec « Failed to fetch », `semainesValidees` reste null, et l'ancien message
+   * laissait croire à un incident réseau ou à une base en panne.
+   *
+   * On ne corrige PAS ça en élargissant l'autorisation côté serveur : cette
+   * adresse est la seule du suivi sans mot de passe, et la règle est de la garder
+   * aussi étroite que possible. On corrige le message.
+   *
+   * La propriété de sûreté ne bouge pas : on ne dit JAMAIS « validé » sans
+   * preuve. Une page locale ne peut pas prouver, donc elle prévient. */
+  if(semainesValidees === null && location.protocol === 'file:'){
+    el.className = 'valid-bar prev';
+    el.textContent = '⏳ Page ouverte depuis un fichier local — la validation ne peut pas être vérifiée ici. Ouvre l\'appli en ligne pour voir ce que voient les techniciens.';
     return;
   }
 

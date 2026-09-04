@@ -1155,6 +1155,44 @@ l'offset -1, mais la semaine suivante parle bien.
 restait à faire ; livrer le bandeau sans lui a produit exactement le défaut annonce - un bandeau
 qui promet un planning absent.
 
+### La vue atelier ouverte EN LOCAL ne peut pas vérifier la validation (04/09/2026)
+
+Patrice : « mes techniciens voient bien que leur planning pour la semaine prochaine est validé.
+Par contre, moi, sur la vue atelier, j'ai toujours le message d'alerte comme quoi le chantier
+n'est pas validé. Est-ce normal ? Pourtant, j'ai rechargé ma page ? »
+
+**Sa capture d'écran a tranché en une seconde, et c'est elle qui a évité une fausse piste.** Elle
+montrait **semaine 37** — la bonne — et le message « **impossible de vérifier pour le moment** »,
+pas « ne réserve rien, ça peut encore changer ». Ces deux phrases ambres ne disent pas la même
+chose : la première veut dire que la base n'a pas répondu, la seconde que la semaine n'est pas
+validée. **Sans cette distinction, le diagnostic aurait été « vous êtes sur la semaine 38 », ce qui
+était faux.** Garder les deux formulations distinctes.
+
+**La cause, mesurée** : `/api/public/semaines` répond toujours
+`Access-Control-Allow-Origin: https://pivot-telsam.github.io`, quelle que soit l'origine qui
+demande. Depuis un `index.html` ouvert en double-clic (origine `file://`), le navigateur **bloque**
+donc la réponse : `fetch` échoue en « Failed to fetch », `semainesValidees` reste `null`, et le
+bandeau annonçait un incident réseau alors qu'il n'y en avait aucun. Vérifié en jouant le `fetch`
+depuis une page `file://` : bloqué ; depuis l'origine publiée : 200.
+
+> **On ne corrige PAS ça en élargissant l'autorisation côté serveur.** `Origin: null` couvre tout
+> contexte bac-à-sable, donc l'autoriser ouvrirait cette adresse — la seule du suivi sans mot de
+> passe — à n'importe quelle page locale. La règle reste : garder l'exception aussi étroite que
+> possible. C'est le MESSAGE qu'on corrige.
+
+`majBandeauValidation` a donc une branche de plus, avant celle de `null` : si la page est en
+`file:`, elle dit **pourquoi** elle ne peut pas vérifier et renvoie vers l'appli en ligne. **La
+propriété de sûreté ne bouge pas** : on ne dit jamais « validé » sans preuve.
+
+**Éprouvé dans les quatre combinaisons** (semaine 37, offset +1) : local + base muette ⇒ nouveau
+message ; **en ligne + base muette ⇒ l'ancien message, celui du vrai incident, est conservé** ;
+base qui répond ⇒ « validé » dans les deux cas. Le `location` est passé en paramètre au harnais
+pour masquer le global et jouer les deux protocoles sans toucher au code de l'appli.
+
+**À redire à Patrice si le cas revient** : pour voir ce que voient les techniciens, il faut ouvrir
+l'appli **en ligne**, pas le fichier du dépôt. Le fichier local est ma copie de travail : il peut
+être en cours de modification, et il ne sait pas interroger la base.
+
 ### Testé — 64 contrôles, chacun avec son contre-exemple
 
 `partage/test-api-semaines.html` (27), `partage/bloc-test-validation-suivi.html` (16),
