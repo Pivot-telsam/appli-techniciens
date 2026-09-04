@@ -1574,12 +1574,73 @@ Dropbox le dossier App Tech, le brief, le PDP, le PGO, le sous-dossier Photos te
 - Quand un document ne peut être ni reconnu ni rapproché d'une référence, il est déclaré
   **« invérifiable »**, pas « absent », et le contrôle demande de renseigner `pdp.ref`/`pgo.ref`.
 
+**3. `hook-veille-prompt.ps1` rappelle les chantiers prioritaires à CHAQUE message** (ajouté le
+04/09/2026). Les deux mécanismes ci-dessus ne suffisaient pas, et voici la preuve.
+
+**LE CONTRÔLE AVAIT RAISON, ET PERSONNE NE L'A LU.** Le 04/09/2026 à 07h58,
+`controle-chantiers.json` signalait, en **prioritaire** :
+
+```
+26-003 Poste Cantegrit :
+   bouton Documents (documentsAppTech) ; bouton Depot photos (depotTerrain) ;
+   bouton Suivi (tachesVendues) ; dossierDropbox ; AUCUN dossier App Tech dans Dropbox
+```
+
+Trois techniciens y sont placés en S37 — **la semaine que Patrice venait de valider** — et en S38.
+C'est lui qui l'a découvert, en ouvrant le dossier Dropbox : « Peux-tu m'expliquer pourquoi quand
+je vais sur le dossier de cantegrit, je ne vois pas l'App Tech qui est créé ? Comment vont faire
+les techniciens pour le suivi, les photos, et caetera. Tu es censé le faire systématiquement dès
+que nouveau chantier est affecté au technicien. »
+
+Le mécanisme a donc parfaitement fonctionné : la faute est entière de mon côté. Mais la CAUSE est
+structurelle et déjà connue de ce fichier : **le résultat du contrôle n'apparaissait qu'une fois,
+au démarrage de session, et dans le récap.** Après quoi le traiter dépendait de ma mémoire — c'est
+mot pour mot le défaut qui avait fait oublier la veille deux fois (28 et 31/08) et `SEED_VERSION`
+deux fois avant elle. **Un signal affiché une fois vaut une promesse.**
+
+D'où l'extension du rappel insistant de la veille aux chantiers incomplets. Le hook a maintenant
+**deux sources et deux extincteurs séparés** :
+
+| source | ce qu'elle rappelle | extincteur |
+|---|---|---|
+| `veille/dernier.json` | PGO/PDP/IST nouveaux ou d'indice supérieur | `marquer-veille-traitee.ps1` |
+| `veille/controle-chantiers.json` | chantiers **prioritaires** incomplets | `marquer-chantiers-traite.ps1` |
+
+**QUATRE DÉCISIONS DE CONCEPTION, à ne pas défaire :**
+
+1. **Seuls les prioritaires.** Au 04/09/2026 : 48 chantiers actifs, **37 incomplets**, **4
+   prioritaires**. Rappeler les 37 à chaque message rendrait le rappel illisible en une matinée —
+   et un contrôle bruyant finit ignoré, ce qui est exactement le mal qu'on soigne. La règle de
+   lecture de Patrice (25/08/2026) s'applique ici : un chantier où personne ne va peut attendre.
+2. **Chaque source a son propre `try`.** Un `controle-chantiers.json` abîmé ne doit pas faire taire
+   le rappel de la veille — ce serait l'inverse du but. **Vérifié** en y mettant du JSON invalide :
+   la veille sort toujours, le bloc chantiers se tait.
+3. **La note reste obligatoire pour éteindre.** Sans elle, l'extincteur deviendrait un bouton
+   « faire taire ». Constater qu'un chantier ne demande rien EST un traitement — mais il faut
+   l'avoir constaté et l'écrire. `-Lister` montre sans marquer.
+4. **La sortie du hook est écrite en octets UTF-8.** Défaut vu le jour même dans le rappel reçu :
+   « NON TRAIT?E ». PowerShell 5.1 encode sa sortie standard dans la page de codes de la console,
+   pas en UTF-8 : le JSON était juste, son encodage non. Ne pas revenir à un `ConvertTo-Json`
+   rendu au pipeline.
+
+**Éprouvé dans les cinq sens** le 04/09/2026 : les deux blocs sortent sur l'état réel ; dossier de
+veille vide ⇒ zéro octet ; contrôle abîmé ⇒ la veille survit ; aucun prioritaire ⇒ pas de bloc
+chantiers mais la veille sort ; note trop courte ⇒ refus, `-Lister` ⇒ rien d'écrit.
+
+**ET UN DOUBLON ÉVITÉ DE JUSTESSE, qui vaut comme leçon.** Mon premier réflexe a été d'écrire un
+nouveau script de contrôle. Il a reproduit, en une heure, **exactement les trois faux positifs que
+`controle-chantiers.ps1` avait déjà corrigés le 02/09** : le PDP de Portet dont le nom ne contient
+pas « PDP », le « Plan de Prévention V2.pdf » de Bissy, et le dossier App Tech de Fleyriat placé au
+niveau du regroupement. Script supprimé. **Avant d'écrire un contrôle, chercher celui qui existe
+déjà — ce fichier le décrit — et se demander si le défaut est dans le contrôle ou dans le fait que
+personne ne le lit.** Ici, c'était le second.
+
 **Ce qui reste fait EN SESSION, et pourquoi.** Monter un dossier App Tech suppose de choisir le bon
 devis parmi plusieurs, de juger si une IST est bien de TELSAM, de lire le bon indice de PGO,
 d'écrire un brief sans rien de commercial. Ces jugements ne s'automatisent pas sans risque — c'est
 le même raisonnement que pour la veille (« une détection ratée coûte une journée, une copie
 automatique fausse met un document périmé entre les mains d'un technicien »). Ce qui est garanti,
-c'est **qu'un oubli ne peut plus passer inaperçu** : il bloque le commit, ou il ressort le matin.
+c'est **qu'un oubli ne peut plus passer inaperçu** : il bloque le commit, il ressort le matin, et il revient à chaque message tant qu'il n'est pas marqué traité.
 
 **À faire À CHAQUE nouveau chantier, sans attendre qu'il le demande.** Patrice l'a redit le
 28/08/2026 (« note bien la règle pour le faire systématiquement »). L'ordre :
