@@ -955,14 +955,26 @@ déjà, donc tout algorithme de « couleur la plus proche » choisirait Cantegri
 tolérance rendrait en plus ambigus des cas aujourd'hui nets. Le vrai correctif est **humain** : la
 case doit être recoloriée dans Teams avec `#bdd7ee`.
 
-**En attendant, l'arbitrage vit dans `TECH_RANGES`** (`c_poste_de_rion_des_la` → Benjamin SOUPA et
-Sid Ahmed BENZAMERA, 17 et 18/09), dans les deux dépôts. C'est le rôle de `TECH_RANGES` : ce que
-l'humain a tranché prime sur ce que la couleur raconte.
+**Sur le moment, l'arbitrage a vécu dans `TECH_RANGES`** (`c_poste_de_rion_des_la` → Benjamin
+SOUPA et Sid Ahmed BENZAMERA, 17 et 18/09), dans les deux dépôts. C'est le rôle de `TECH_RANGES` :
+ce que l'humain a tranché prime sur ce que la couleur raconte.
 
-**Ce qui reste ouvert et qu'il faut lui redemander** : les 14 et 15/09 portent le texte `CATEC`
-(une formation) sur fond vert-Portet, et le 16/09 le vert de Portet. Le PGO de Rion couvre pourtant
-TELSAM du 14 au 18/09. Lecture retenue faute de mieux : Rion les 17-18 seulement, la fenêtre du PGO
-étant plus large que la présence réelle. À confirmer.
+**RÉGLÉ LE 04/09/2026 — et la règle qui en sort.** Patrice a recolorié la case dans Teams. La
+ligne porte maintenant son numéro et le planning publie `26-030 POSTE DE RION DES LANDES` de
+lui-même, les 16, 17 et 18/09. **L'arbitrage a donc été retiré des deux dépôts.**
+
+> **Un arbitrage manuel se retire dès que le planning porte le numéro.** Tant qu'il survit, il
+> n'ajoute plus rien — mais le jour où nous enlevons quelqu'un du planning, lui continue de le
+> montrer au technicien. Un arbitrage qui survit à la ligne du planning finit par mentir, et il
+> mentira sans rien afficher d'anormal. Donc : à chaque `-Injecter`, comparer les arbitrages de
+> `TECH_RANGES` aux dates que le planning publie déjà, et supprimer ceux qui sont devenus
+> redondants. **Le retrait doit être prouvé, pas supposé** : le nombre de jours-personne et le
+> nombre « venus de la recopie manuelle » doivent être identiques avant et après. Le 04/09/2026 :
+> 170 et 15 dans les deux cas, les 15 étant exactement le trio Cantegrit.
+
+**La question des 14 et 15/09 reste ouverte** : ces deux jours portent le texte `CATEC` (une
+formation) sur fond vert-Portet. Le PGO de Rion couvre TELSAM du 14 au 18/09, plus large que la
+présence réelle. Le 16/09, en revanche, n'est plus une déduction : le planning le dit.
 
 
 ## Planning validé / prévisionnel (demandé par Patrice le 03/09/2026)
