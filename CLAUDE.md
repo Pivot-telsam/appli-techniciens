@@ -977,48 +977,61 @@ formation) sur fond vert-Portet. Le PGO de Rion couvre TELSAM du 14 au 18/09, pl
 présence réelle. Le 16/09, en revanche, n'est plus une déduction : le planning le dit.
 
 
-### L'erreur Didier PERRIN sur Cantegrit S38 (04/09/2026) — un arbitrage recopie la couleur, y compris quand elle est fausse
+### Didier PERRIN, Cantegrit et Portet (04/09/2026) — j'ai corrigé une donnée juste, faute d'avoir demandé DE QUELLE SEMAINE il parlait
 
-Patrice, après ma mise à jour du matin : « Didier Perrin n'est pas sur Cantegrit lundi il n'y a que
-Pascal Bonaventure et Hugues Viry.. Comment peux-tu te tromper ? C'est grave si j'envoie de
-mauvaises informations à l'application et donc au technicien. »
+Séquence exacte, elle vaut d'être relue en entier.
 
-Mesuré dans son classeur Teams, semaine 38, colonnes 258-262 :
+1. Le matin, j'annonce à Patrice : « Cantegrit (26-003) : Pascal BONAVENTURE rejoint Didier PERRIN
+   et Hugues VIRY, du lundi 14 au vendredi 18. » C'était **la semaine 38**, et c'était exact.
+2. Il répond : « Didier Perrin n'est pas sur Cantegrit **lundi**, il n'y a que Pascal Bonaventure
+   et Hugues Viry. Comment peux-tu te tromper ? C'est grave si j'envoie de mauvaises informations
+   à l'application et donc au technicien. »
+3. J'ai lu « lundi » comme le lundi de la semaine dont je venais de parler (le 14). **Il parlait du
+   lundi suivant, le 7 — la semaine 37.** Et sur la semaine 37, il avait raison : Didier est en vert,
+   sur Portet `26-051`, ce que l'appli affichait déjà correctement.
+4. J'ai donc **retiré Didier de Cantegrit sur la semaine 38, où il y est réellement**. J'ai cassé une
+   donnée juste pour répondre à une objection qui portait sur une autre semaine.
+5. Sa capture d'écran a tranché : elle s'arrêtait au vendredi 11/09, donc elle ne montrait pas la
+   semaine dont je parlais. C'est ce détail qui a permis de comprendre le malentendu.
+
+> **RÈGLE 1 — quand Patrice conteste une affectation, établir la semaine AVANT de toucher quoi que
+> ce soit.** Un jour de la semaine sans son numéro de jour (« lundi ») est ambigu dès que la
+> conversation porte sur plusieurs semaines, et le planning en montre six. Demander, ou nommer les
+> deux lectures possibles — jamais modifier les données sur une interprétation.
+
+> **RÈGLE 2 — toujours écrire la semaine ET la date.** « lundi 14/09 (semaine 38) », jamais « lundi ».
+> Vaut pour mes messages, pour `APP_NOUVEAUTE` et pour les récapitulatifs. C'est cette imprécision
+> qui a produit tout le malentendu, et elle m'a coûté deux corrections dans le mauvais sens.
+
+**Ce que la mesure disait, et qui était juste** — semaine 38, colonnes 258-262 :
 
 | Case | Couleur | `ColorIndex` |
 |---|---|---|
 | Pascal BONAVENTURE (L10), les 5 jours | `#9bc2e6` | 37 |
-| **Didier PERRIN (L11), les 5 jours** | **`#9bc2e6`** | **37** |
+| Didier PERRIN (L11), les 5 jours | `#9bc2e6` | 37 |
 | Hugues VIRY (L22), les 5 jours | `#9bc2e6` | 37 |
 | ligne-projet L34 « … Cantegrit: Epissures + Recettes : FO comptage » | `#9bc2e6` | 37 |
 
-Les trois cases sont **rigoureusement identiques** : aucune lecture, aussi fine soit-elle, ne peut
-mettre deux de ces personnes sur Cantegrit et pas la troisième. Le fichier dit que Didier y est.
+Les trois cases sont rigoureusement identiques : aucune lecture ne peut mettre deux de ces personnes
+sur Cantegrit et pas la troisième. En semaine 37, la même mesure donne Didier à `#00ff00` = L33 =
+`26-051` Portet. Les deux lectures étaient bonnes ; c'est moi qui ai mélangé les semaines.
 
-**CE QUE J'AI FAIT DE TRAVERS, ET QUI N'EST PAS UNE ERREUR DE LECTURE.** La ligne L34 ne porte pas
-de numéro cette semaine-là (sa jumelle de S37 porte `26-003`). Le planning ne pouvait donc PAS la
-publier : l'avertissement « ligne que l'appli ne pourra pas montrer » la signalait, et cet
-avertissement **protégeait le technicien**. En posant l'arbitrage dans `TECH_RANGES` pour rattraper
-la ligne, j'ai transformé une ligne invisible en trois chantiers affichés — dont un faux. Sans
-l'arbitrage, Didier n'aurait rien vu ; avec, il voyait un chantier où il ne va pas.
+**DÉNOUEMENT — et c'est le vrai enseignement technique.** Patrice a écrit `26-003` dans la ligne
+Cantegrit de la semaine 38. Effet mesuré immédiatement : les libellés sans numéro passent de 96 à
+95, l'avertissement « ligne que l'appli ne pourra pas montrer » disparaît, et surtout le planning
+publie **170 jours-personne dont 0 venus de la recopie manuelle**. Tous les arbitrages `TECH_RANGES`
+de la semaine 38 sont donc devenus inutiles et ont été retirés des deux dépôts (Pascal 42→37 dates,
+Hugues 41→36) : preuve que le retrait ne coûte rien, 170 et 0 avant comme après.
 
-> **RÈGLE. Un arbitrage `TECH_RANGES` sur une ligne sans numéro ne se pose pas d'après la couleur.**
-> La couleur est précisément ce qui n'a pas pu être vérifié — sinon la ligne aurait un numéro et le
-> planning se débrouillerait seul. Donc : nommer à Patrice les personnes que la couleur désigne, et
-> attendre sa confirmation avant d'écrire. Une ligne non rattachée est un trou visible dans l'appli
-> (« pas de chantier »), et un trou est moins grave qu'un faux chantier : le technicien qui ne voit
-> rien appelle, celui qui voit Cantegrit part à Cantegrit.
+> **Un numéro écrit dans la ligne du planning vaut mieux que n'importe quel arbitrage de ma part.**
+> Un arbitrage est un doublon manuel qu'il faut ensuite penser à retirer ; le numéro, lui, règle le
+> cas définitivement et pour toutes les personnes que Patrice ajoutera plus tard sur la ligne. Donc :
+> devant une ligne non rattachée, **demander le numéro d'abord**, et ne poser un arbitrage que s'il
+> ne peut pas être obtenu.
 
-**Correction appliquée le 04/09/2026** : Didier PERRIN retiré des 5 jours de S38 dans les deux
-dépôts (25 dates → 20 sur `c_y2edi4th`), Pascal et Hugues conservés. Preuve : 170 jours-personne et
-15 « venus de la recopie » avant, **165 et 10 après** — les 5 jours de Didier ne venaient que de
-`TECH_RANGES`, le planning ne les remet pas. L'avertissement du script nomme désormais Didier sur
-ces 5 cases : c'est le signal que **la couleur est encore à corriger dans Teams**.
-
-**Ce qui reste à trancher avec lui** : où est Didier PERRIN du 14 au 18/09, et les 14-15/09 de
-Benjamin SOUPA et Sid Ahmed BENZAMERA, dont les cases sont vert-Portet (`#00ff00`, donc `26-051`)
-mais portent le texte `CATEC câbles BRC` / `CATEC` — une formation, pas un chantier. L'appli les
-montre aujourd'hui sur Portet ces deux jours.
+**Confirmé par lui le 04/09/2026** : Benjamin SOUPA et Sid Ahmed BENZAMERA sont bien sur Portet
+`26-051` les lundi 14 et mardi 15/09, malgré le texte `CATEC câbles BRC` / `CATEC` écrit dans les
+cases. Le texte est une précision, pas un chantier concurrent : la couleur reste la référence.
 
 ## Planning validé / prévisionnel (demandé par Patrice le 03/09/2026)
 
