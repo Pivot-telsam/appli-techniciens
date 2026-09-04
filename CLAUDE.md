@@ -970,12 +970,55 @@ lui-même, les 16, 17 et 18/09. **L'arbitrage a donc été retiré des deux dép
 > `TECH_RANGES` aux dates que le planning publie déjà, et supprimer ceux qui sont devenus
 > redondants. **Le retrait doit être prouvé, pas supposé** : le nombre de jours-personne et le
 > nombre « venus de la recopie manuelle » doivent être identiques avant et après. Le 04/09/2026 :
-> 170 et 15 dans les deux cas, les 15 étant exactement le trio Cantegrit.
+> 170 et 15 dans les deux cas (chiffres du matin, avant la correction décrite juste en dessous).
 
 **La question des 14 et 15/09 reste ouverte** : ces deux jours portent le texte `CATEC` (une
 formation) sur fond vert-Portet. Le PGO de Rion couvre TELSAM du 14 au 18/09, plus large que la
 présence réelle. Le 16/09, en revanche, n'est plus une déduction : le planning le dit.
 
+
+### L'erreur Didier PERRIN sur Cantegrit S38 (04/09/2026) — un arbitrage recopie la couleur, y compris quand elle est fausse
+
+Patrice, après ma mise à jour du matin : « Didier Perrin n'est pas sur Cantegrit lundi il n'y a que
+Pascal Bonaventure et Hugues Viry.. Comment peux-tu te tromper ? C'est grave si j'envoie de
+mauvaises informations à l'application et donc au technicien. »
+
+Mesuré dans son classeur Teams, semaine 38, colonnes 258-262 :
+
+| Case | Couleur | `ColorIndex` |
+|---|---|---|
+| Pascal BONAVENTURE (L10), les 5 jours | `#9bc2e6` | 37 |
+| **Didier PERRIN (L11), les 5 jours** | **`#9bc2e6`** | **37** |
+| Hugues VIRY (L22), les 5 jours | `#9bc2e6` | 37 |
+| ligne-projet L34 « … Cantegrit: Epissures + Recettes : FO comptage » | `#9bc2e6` | 37 |
+
+Les trois cases sont **rigoureusement identiques** : aucune lecture, aussi fine soit-elle, ne peut
+mettre deux de ces personnes sur Cantegrit et pas la troisième. Le fichier dit que Didier y est.
+
+**CE QUE J'AI FAIT DE TRAVERS, ET QUI N'EST PAS UNE ERREUR DE LECTURE.** La ligne L34 ne porte pas
+de numéro cette semaine-là (sa jumelle de S37 porte `26-003`). Le planning ne pouvait donc PAS la
+publier : l'avertissement « ligne que l'appli ne pourra pas montrer » la signalait, et cet
+avertissement **protégeait le technicien**. En posant l'arbitrage dans `TECH_RANGES` pour rattraper
+la ligne, j'ai transformé une ligne invisible en trois chantiers affichés — dont un faux. Sans
+l'arbitrage, Didier n'aurait rien vu ; avec, il voyait un chantier où il ne va pas.
+
+> **RÈGLE. Un arbitrage `TECH_RANGES` sur une ligne sans numéro ne se pose pas d'après la couleur.**
+> La couleur est précisément ce qui n'a pas pu être vérifié — sinon la ligne aurait un numéro et le
+> planning se débrouillerait seul. Donc : nommer à Patrice les personnes que la couleur désigne, et
+> attendre sa confirmation avant d'écrire. Une ligne non rattachée est un trou visible dans l'appli
+> (« pas de chantier »), et un trou est moins grave qu'un faux chantier : le technicien qui ne voit
+> rien appelle, celui qui voit Cantegrit part à Cantegrit.
+
+**Correction appliquée le 04/09/2026** : Didier PERRIN retiré des 5 jours de S38 dans les deux
+dépôts (25 dates → 20 sur `c_y2edi4th`), Pascal et Hugues conservés. Preuve : 170 jours-personne et
+15 « venus de la recopie » avant, **165 et 10 après** — les 5 jours de Didier ne venaient que de
+`TECH_RANGES`, le planning ne les remet pas. L'avertissement du script nomme désormais Didier sur
+ces 5 cases : c'est le signal que **la couleur est encore à corriger dans Teams**.
+
+**Ce qui reste à trancher avec lui** : où est Didier PERRIN du 14 au 18/09, et les 14-15/09 de
+Benjamin SOUPA et Sid Ahmed BENZAMERA, dont les cases sont vert-Portet (`#00ff00`, donc `26-051`)
+mais portent le texte `CATEC câbles BRC` / `CATEC` — une formation, pas un chantier. L'appli les
+montre aujourd'hui sur Portet ces deux jours.
 
 ## Planning validé / prévisionnel (demandé par Patrice le 03/09/2026)
 
