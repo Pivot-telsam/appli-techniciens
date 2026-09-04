@@ -3579,3 +3579,90 @@ nouveaux textes sont présents, les anciens absents, zéro caractère abîmé.
     tel quel sur le disque. Deux fichiers identiques paraissaient alors différer **à chaque
     ligne** (2927 lignes d'écart) et le hook bloquait tout. Utiliser `git cat-file blob`, qui rend
     les octets bruts, et neutraliser les `\r` des deux côtés.
+
+## Onglet « Affaires » — le cycle de vie commercial (mis en place le 04/09/2026)
+
+**UNE AFFAIRE = UN CHANTIER. Tranché par Patrice le 04/09/2026**, après un premier retour où je
+proposais l'inverse (« une affaire = un devis »). **Ma proposition était FAUSSE et ne doit pas
+revenir** : le n° de devis n'est pas unique. `TELSAM_CC_RTE_25107` désigne DEUX devis réels —
+Bradascou (26-054) et Fleyriat (26-055) — et `25115` deux autres — DATA4 (26-065) et Bissy
+(26-064), qui a même une commande client « Dev25115 ». L'Excel contourne en réécrivant `25106` et
+`25114`, alors que `25106` est le devis d'Arbresles-Charpennay et que `25114` n'existe pas.
+**J'ai failli « corriger » les fiches sur la foi de l'Excel : c'est Dropbox qui a tranché en faveur
+des fiches.** Le n° de chantier `26-XXX` est la seule clé unique.
+
+**Une affaire porte donc 1..n devis, et son étape s'AGRÈGE** — jamais celle d'une ligne. Cantegrit
+26-003 porte quatre devis : un PERDU à 65 100 €, deux GAGNE, un sans statut. Six affaires sur 41
+sont dans ce cas.
+
+### La donnée — `AFFAIRES_RTE` et `scripts/affaires-rte.ps1`
+
+Même nature que `PLANNING_RTE` et `POSES_APPLI` : **refaite de zéro à chaque passage**, vit **à
+côté** de `SEED_DATA` (donc **pas de `SEED_VERSION` à bumper** et aucun état local des collègues
+effacé). Ne jamais y écrire à la main. 38 Ko pour 41 affaires.
+
+- Source : `C:\Users\patrice.pivot\Desktop\SUIVI RTE TELECOM - mise a jour_3.xlsx`. **C'est ce
+  fichier qui fait foi, plus `SUIVI RTE & TELECOM.xlsx`** — il ajoute une colonne **`F N° Chantier`**,
+  donc **toutes les colonnes suivantes sont décalées d'un rang** (N° Devis en G, Montant en H,
+  statut en AO, PV EN COURS en AR…).
+- **Le classeur est lu en DÉZIPPANT le `.xlsx`, jamais via Excel COM** : Patrice peut l'avoir
+  ouvert, rien n'est verrouillé et rien n'est écrit dans son fichier. La feuille est trouvée par
+  son nom, pas par `sheet1.xml`.
+- **Seuls les numéros `26-` sont pris** (`-Prefixe`). Les préfixes **21- à 24- sont une suite par
+  ligne** posée sur l'historique (`22-001`, `22-002`… dans l'ordre du fichier, y compris sur des
+  devis perdus) : ce sont des identifiants de ligne, pas des n° de chantier. 325 lignes écartées,
+  et **la vue le dit** au lieu de les taire. **2025 n'a aucun numéro** (0 sur 152 lignes).
+- Les colonnes de dates sont converties **colonne par colonne** : un montant comme `46144` tomberait
+  sinon dans la plage des dates.
+
+### CE QUE LA VUE REFUSE DE FAIRE — et pourquoi chaque refus a coûté un essai
+
+1. **Elle ne laisse jamais croire qu'elle est complète.** Bandeau permanent : les 28 affaires
+   vivantes sans numéro, les 15 chantiers actifs sans ligne numérotée (comptés **en direct sur les
+   fiches**, pour rester justes si une fiche est ajoutée), les 325 lignes écartées.
+2. **L'étape « Accord verbal » n'est PAS calculée.** Aucune colonne ne la porte. La deviner depuis
+   « GAGNE » mélangerait l'accord et la commande — la vue dit qu'elle n'est pas suivie.
+3. **Un vide n'est pas un manque.** Trois états : renseigné, **sans objet**, manquant.
+   `afRenseigne()` rejette `absent`, `NA`, `?`, `pas sur PGO`, et **toute phrase du genre « à priori
+   non concerné »** — sans ça la consignation de Portet criait « à recaler » sur un chantier qui n'en
+   a pas. Un voyant qui crie à tort finit par ne plus être lu.
+4. **Une date invraisemblable reste du texte.** `afDate()` borne l'année à 2000-2100 : le fichier
+   contient la coquille `17/06/206` (PGO de Portet), qui devenait l'an 206 — donc une date
+   « largement passée » — et **faisait basculer le chantier en « travaux en cours » sur une faute de
+   frappe**. Trouvé par le banc d'essai, pas par relecture.
+5. **On n'affirme jamais « Facturé » sur un montant inconnu.** Il faut que TOUS les devis gagnés
+   aient leur montant. Cantegrit 26-003 sortait « Facturé » avec 3 345 € de devis chiffré et
+   58 345 € facturés.
+6. **Les écarts entre le fichier commercial et le suivi sont DITS, jamais arbitrés.** C'est ce que
+   la vue apporte et que ni l'Excel ni le suivi ne savent dire seuls : **12 affaires** en écart, dont
+   9 marquées « Devis envoyé » alors que des heures y ont été passées ou que des techniciens y sont
+   placés (Givors 26-060 : 49 h). La cause n'est pas un défaut de lecture — sur ces affaires **la
+   seule ligne numérotée est un devis TS**, donc l'étape décrit le TS et pas le chantier. Deviner
+   « en fait c'est en travaux » serait le vert mensonger que ce fichier interdit. Bandeau rouge en
+   tête de vue + bloc dans la fiche, avec les deux corrections possibles laissées à Patrice.
+
+### Ce qui est volontairement absent de cette première version
+
+- **Aucune saisie** : la vue est en lecture seule. Une donnée commerciale partagée doit attendre la
+  base commune (cf. « ÉTAPE 1 ») — sinon deux personnes s'écrasent sans le voir, exactement le
+  défaut de l'Excel qu'on veut supprimer.
+- **Aucun blocage** : les points de passage sont des **voyants**. On regarde d'abord lesquels crient
+  à tort, on ne transforme en barrage que ce qui le mérite. Mesuré dans son fichier : l'acte de
+  sous-traitance est vide sur 664 lignes sur 763, le « PV en cours » sur 760 — des gates durs
+  bloqueraient presque toutes les affaires dès le premier matin.
+- **Pas de glisser-déposer** : il sert une dizaine de fois dans la vie d'une affaire, la lecture
+  vingt fois par jour. À reparler après usage.
+
+### Testé — `partage/bloc-test-affaires.html`, 49 contrôles, 0 échec
+
+Concaténé à la vraie page et joué en Chrome `--headless` (`chantiers` rempli depuis `SEED_DATA`,
+IndexedDB ne répondant pas sous `--virtual-time-budget`). **Chaque contrôle a son contre-exemple** :
+le devis PERDU de 65 100 € n'entre pas dans les montants **et** les gagnés y entrent bien ; Givors
+est signalé en écart **et** Lacanau (aucune activité) ne l'est pas ; « à priori non concerné » n'est
+pas une valeur **et** « signé le 12/09 » en est une. Les deux défauts des points 4 et 5 ci-dessus
+ont été trouvés par ce banc d'essai.
+
+**Pièges de rendu respectés** : rien en `onclick=` dans le HTML (les libellés portent apostrophes et
+accents, et `escapeHtml` de ce fichier n'échappe pas les guillemets) ; les lignes ne portent qu'un
+**index** résolu via `afAffairesAffichees`, posée **avant** le rendu ; la recherche rend le focus et
+la position du curseur, sinon le champ le perd à chaque lettre.
