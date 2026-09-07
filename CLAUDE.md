@@ -3993,6 +3993,79 @@ partie du travail, le contourner ne le fait pas.* Le troisième était un faux �
 « dates vides en dernier » jugeait le vide sur la chaîne brute alors que le tri le juge sur la clé
 de tri, si bien qu'une date illisible (« ? ») comptait pour pleine.
 
+### LE DÉFAUT LE PLUS GRAVE DE CET ONGLET — la virgule (07/09/2026)
+
+**Trouvé par Patrice à l'œil, pas par un contrôle**, en relisant Cantegrit : « le V3, il n'y a pas
+de montant. Le reste à facturer est de zéro. Comment se fait-il que tout soit mélangé ? »
+
+**La cause.** Le XML d'un `.xlsx` écrit **toujours** ses nombres avec un **point** décimal, quelle
+que soit la langue d'Excel. Cette machine est en **fr-FR**, où `[double]::TryParse` **sans culture
+explicite attend une virgule**. `"112502.79"` était donc refusé et rendait `$null`, **en silence**.
+Un entier passait, un montant à centimes non.
+
+**L'ampleur, mesurée** : **278 montants de devis perdus sur 587** (8 935 298 €), plus 137
+« Factu partiel » et 135 « Restant à facturer ». Cantegrit affichait **3 345 € de devis pour
+58 345 € facturés** ; Portet annonçait « aucun montant » alors que son devis vaut 136 219,55 €.
+
+**Pourquoi c'était pire qu'une panne franche** : la vue montrait une donnée **à moitié juste**. Les
+affaires à montants ronds étaient exactes, celles à centimes fausses — rien ne distinguait les deux.
+
+**Le correctif, et ses deux moitiés :**
+1. `NombreInvariant()` parse en **culture invariante**, toujours. *Ne jamais revenir à un
+   `TryParse` à un seul argument dans ce fichier.*
+2. **Il faut accepter les DEUX séparateurs.** Le garde-fou ci-dessous a trouvé, dès son premier
+   passage, la ligne 578 : `"21215,60"` avec une **virgule** — celle-là est une chaîne tapée à la
+   main par Patrice, pas un nombre du XML. Une lecture qui n'accepterait que le point la perdrait
+   aussi sûrement.
+3. **GARDE-FOU** : toute case d'argent **non vide** qui ne donne pas un nombre est comptée
+   (`argentIllisible`) et le script **crie en rouge**. Une règle sans mécanisme ne tient pas.
+
+**CE QUE LA CORRECTION A FAIT DISPARAÎTRE, ET C'EST LA PREUVE :**
+- **Givors 26-060** n'est plus « en écart ». Depuis le 04/09 la vue signalait « 49 h passées alors
+  que le fichier ne donne aucun devis gagné », et **j'avais conclu que la cause était un devis TS —
+  c'était faux**. La vraie cause est la règle suivante.
+- **Cantegrit** n'affiche plus « facturé au-delà du devis chiffré » : l'écart n'existait que parce
+  que le devis de 112 502,79 € était perdu.
+
+### CE QUI FAIT QU'UN DEVIS EST ACCEPTÉ : LA COMMANDE (règle de Patrice, 07/09/2026)
+
+« Tu devrais faire la somme de tous les devis en prenant compte le devis accepté. **Je suis basé sur
+le numéro de commande.** » Je ne regardais que la colonne « statut » = `GAGNE`.
+
+Mesuré sur les lignes 26- : **58 portent une vraie commande, 48 seulement sont marquées GAGNE**.
+**14 devis réellement commandés étaient donc ignorés** — dont Givors, dont la ligne porte la
+commande `4500810332` avec une colonne statut vide.
+
+- `afAccepte(d)` : **pas clos** ET (`cdeRte` ou `cdeCli` renseigné **OU** statut `GAGNE`).
+- **L'union, pas la commande seule** : 4 devis sont marqués GAGNE sans commande arrivée
+  (« Attente avenant », « Devis envoyé »). Les écarter perdrait ce que son fichier affirme.
+- **Un devis clos reste clos.** Vérifié : aucune ligne PERDU/REFUS/ANNULE ne porte de commande, donc
+  les deux critères ne se contredisent jamais aujourd'hui — mais si cela arrivait, « clos » gagne.
+- **La commande se lit dans `cdeRte`/`cdeCli`, jamais dans la case brute** : celle-ci contient
+  souvent une phrase (« Devis envoyé »), et `afRenseigne` la prenait pour une valeur — l'affaire
+  passait en « commande reçue » alors que la case disait l'inverse.
+
+**« Facturé en partie » est devenu un statut à part** (13 au lieu de 12). Cantegrit sortait
+« Facturé » avec 57 502,79 € encore à facturer : le vert mensonger, sur de l'argent.
+
+**« Perdu mais soldé »** — sa question. Sa colonne « Soldé O/N » vaut OUI sur un devis PERDU (c'est
+ainsi qu'il clôt une ligne perdue) et la fiche affichait « soldé », qui veut dire *payé*. On écrit
+désormais **« clos »** sur un devis fermé.
+
+**LEÇON DE MÉTHODE, LA PLUS IMPORTANTE DE LA JOURNÉE.** Le banc d'essai passait au **vert** sur ces
+chiffres faux : ses contrôles avaient été écrits le 04/09 **à partir de ce que la page affichait**
+(« total = 3345 », « reste = 0 », « son devis gagné n'a AUCUN montant »). Un test rédigé depuis la
+sortie observée ne teste rien — il **fige le défaut** et lui donne l'apparence d'une règle. Huit
+contrôles ont dû être réécrits, et leurs valeurs attendues viennent maintenant **du classeur**.
+Deux garde-fous ajoutés : les montants à centimes sont lus (62 affaires en portent), et le V3 de
+Cantegrit vaut bien 112 502,79 € — écrit en dur, pour que la disparition crie.
+
+*Piège de banc d'essai rencontré ici :* une exception dans un `(async function(){…})()` devient une
+promesse rejetée **avalée en silence** — le harnais restait sur « en cours » sans rien dire. Et mon
+extraction du verdict reprenait le mot `verdictTest` présent aussi dans le source du script, donc
+elle affichait le code au lieu du résultat : **j'ai cru à un plantage qui n'existait pas**. Lire le
+premier bloc `<pre>` et lui seul (`partage/lire-verdict.sh` dans le scratchpad).
+
 **RESTE À FAIRE, et à ne pas commencer sans Patrice** : les 4 questions du 04/09 encore ouvertes
 (l'onglet remplace-t-il l'appli Facturation ? qui est responsable de quelle colonne ? quand
 arrête-t-on l'Excel ? les affaires vivantes non numérotables), plus la réponse sur le devis TS de La
