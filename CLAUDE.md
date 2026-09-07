@@ -3681,10 +3681,22 @@ reste par dézippage) :
 - **Le classeur est lu en DÉZIPPANT le `.xlsx`, jamais via Excel COM** : Patrice peut l'avoir
   ouvert, rien n'est verrouillé et rien n'est écrit dans son fichier. La feuille est trouvée par
   son nom, pas par `sheet1.xml`.
-- **Seuls les numéros `26-` sont pris** (`-Prefixe`). **LES PRÉFIXES 21- À 25- NUMÉROTENT LES
-  ANCIENS DEVIS DE « DATA », L'ANCIENNE ENTITÉ DU GROUPE** — dit par Patrice le 07/09/2026 :
-  « j'ai numéroté les anciens devis (data). c'est notre ancienne entité, tu peux les laisser de
-  côté ». 412 lignes écartées, et **la vue le dit** au lieu de les taire.
+- **Seuls les numéros `26-` sont pris** (`-Prefixe`) : la vue ne montre que **l'année en cours**.
+
+  **LE PRÉFIXE EST L'ANNÉE, PAS L'ENTITÉ — corrigé par Patrice le 07/09/2026.**
+  Sa phrase : « j'ai donné le chiffre 25 aux vieux devis de data parce que nous avions encore cette
+  entreprise à ce moment-là. Depuis, nous sommes passés chez Telsam en 2025. C'est pour ça qu'en
+  2025 il y a des devis Telsam et des devis data. »
+
+  *J'avais écrit ici que « 21- à 25- numérotent les anciens devis de DATA », et j'ai construit une
+  question entière là-dessus (« faut-il mélanger les devis TELSAM de 2025 dans la série 25- ? »).
+  La question n'avait pas lieu d'être.* Si les séries 21- à 24- sont à 100 % sur des devis
+  `DATACC`, c'est simplement que DATA était l'entreprise à l'époque ; **2025 est l'année de la
+  bascule et porte donc les deux**. **NE PAS RÉÉCRIRE « 25- = DATA »** : le préfixe dit l'année,
+  l'entité se lit dans le numéro du devis.
+  Vérifié dans le fichier : sur 475 numéros, **437 ont pour préfixe l'année de leur ligne**, et les
+  38 autres portent l'année **suivante** — un devis de fin 2022 numéroté `23-`, un devis de 2025
+  numéroté `26-`. C'est logique : le numéro suit l'année où le chantier se fait.
   - **C'est vérifiable dans le fichier, et ça a été vérifié** : les séries 21-, 22-, 23- et 25-
     sont à **100 % sur des devis `DATACC…`**, la série 26- à **100 % sur des devis `TELSAMCC…`**.
     Seule la série 24- fait exception, avec **3 lignes `TELSAMCC` sur 146**.
@@ -3846,6 +3858,140 @@ il a été mis à jour plutôt que laissé en échec permanent).
 **Deux défauts ont été trouvés par ces bancs** (le statut inconnu du point 2, et une prémisse fausse
 de mon propre test sur le doublon 25107) **et un troisième par la capture d'écran** (les textes
 d'aide) — aucun des trois n'aurait été vu par relecture.
+
+### LOT 3 — dates, jauge, tri/filtres, création d'affaire (07/09/2026)
+
+Patrice : « il manque encore pas mal de choses pour que nous puissions nous en servir » — les dates
+prévisionnelles, « une petite jauge, un pourcentage de l'avancement par chantier, quelque chose de
+visuel, efficace et discret », « qu'on puisse filtrer et trier tous les champs, ça c'est
+important », et « qu'on puisse créer un nouveau chantier, nous ne pouvons pas le faire ».
+
+**Ses trois arbitrages** : dates = **le prévisionnel de l'Excel seulement** (j'avais proposé d'y
+ajouter le planning réel et la couverture PGO) ; **tri et filtres retenus** d'une fois sur l'autre ;
+**on commence par l'affaire**, sans n° de chantier.
+
+**CE QUE LA MESURE A DIT AVANT DE CODER — c'est elle qui a dicté la forme de la jauge.**
+Quatre sources d'avancement possibles, aucune ne couvre les 53 affaires :
+
+| ce qu'on mesurerait | disponible le 07/09/2026 |
+|---|---|
+| travail réellement fait (cases cochées) | 19 chantiers outillés, **5 avec une déclaration** |
+| heures passées / prévues | 30 |
+| facturé / devis | 22 chiffrées, 9 facturées |
+| boîtes posées / au devis | 22 renseignées, **2** posées |
+
+D'où **deux couches**, et pas une :
+1. **une barre de cycle en douze crans**, sous le nom, 3 px — le rang du statut. Couvre les 53, ne
+   peut pas mentir (elle montre le statut posé, rien de déduit), et reste discrète ;
+2. **le pourcentage physique** dans sa propre colonne triable, **là où il existe seulement**.
+
+**LES HEURES N'ENTRENT PAS DANS LA JAUGE, ET C'EST UN REFUS RAISONNÉ.** Elles couvriraient 30
+affaires au lieu de 5 — mais le réalisé compte chaque technicien et le prévu non, donc une jauge en
+heures dépasse 100 % sur un chantier à moitié fait. Elles restent dans l'onglet Heures.
+
+**`AVANCEMENT_CHANTIERS`, publiée par `scripts/boites-posees.ps1`.** Les deux moitiés de
+l'information vivent dans **l'appli** (`tachesVendues` et `AVANCEMENT_DECLARE`) : le suivi n'en voit
+aucune. Le calcul se fait donc là où la donnée est, une seule fois — même principe que
+`presence`/`techRanges`. Trois règles dedans :
+- **un pylône déclaré hors de la liste vendue ne compte pas** : il est mis à part (`hors`) et dit.
+  Sans ça Fleyriat sortait à **123 %** dans ma première version ;
+- **« en cours » vaut une demie**, ni zéro ni un — sinon la jauge saute d'un cran à chaque bouton ;
+- **un chantier sans tâches vendues n'a PAS 0 %, il n'a RIEN** (« — »). Un zéro se lirait « rien
+  n'a été fait » alors qu'il veut dire « personne n'a coché ». Et **un 0 % réel** (chantier outillé,
+  aucune case cochée : 14 cas) est **écrit en gris** avec la phrase qui le dit — vu à l'écran.
+
+**LES COLONNES SONT DÉCRITES UNE FOIS (`AF_COLONNES`), ET TOUT EN DÉCOULE** : en-tête, ligne de
+filtres, clé de tri, cellule. Écrire les treize cellules à la main puis ajouter le tri par-dessus
+aurait garanti qu'une colonne finisse triable sur autre chose que ce qu'elle affiche.
+- **Une case vide va toujours en dernier, DANS LES DEUX SENS.** Trier par date prévisionnelle en
+  croissant remplirait sinon le haut de l'écran des 7 affaires qui n'en ont pas.
+- Les choix des filtres à liste sont **construits sur la donnée**, jamais écrits en dur.
+- Tri et filtres vivent dans **IndexedDB, donc par personne** : ce sont des préférences d'affichage,
+  les mettre dans la base commune imposerait le tri de l'un aux six autres.
+
+**LES DATES PRÉVISIONNELLES DISENT PEU, ET LA VUE NE LE CACHE PAS.** Mesuré : début renseigné sur
+46 affaires sur 53, fin sur 43, et surtout **29 fenêtres entièrement passées** contre 4 à venir. Une
+fenêtre passée est affichée en gris avec son infobulle. C'est déjà la raison pour laquelle la
+cascade d'étapes saute « commande reçue » et « vérifs ».
+
+**CRÉER UNE AFFAIRE — et le piège du bouton qui existait déjà.**
+Le bouton « + Nouveau chantier » de la barre du haut **crée une fiche dans IndexedDB seulement** :
+invisible pour les collègues, effacée au prochain `SEED_VERSION`. Patrice avait raison de dire
+qu'on ne pouvait pas le faire. **Ne pas le confondre avec le nouveau bouton de l'onglet Affaires.**
+
+- **Une affaire naît SANS n° de chantier**, sous une clé `af_xxxxxxxx` tirée au sort **côté
+  serveur** (une clé fournie par le navigateur permettrait d'écraser une affaire en devinant son
+  identifiant). C'est l'arbitrage de Patrice du 04/09 : « un devis pas encore gagné n'a pas de n° de
+  chantier et ne doit pas en recevoir » — 182 lignes sur 758 n'ont jamais donné de chantier.
+- **`numeroter` DÉPLACE la ligne**, il ne la copie pas : laisser les deux vivre ferait apparaître
+  l'affaire deux fois avec deux saisies qui divergent. Il **refuse** si le numéro visé porte déjà
+  une saisie, si la source a déjà un vrai numéro, ou si le format est faux. Le journal est écrit
+  **des deux côtés**, sinon l'historique paraîtrait commencer le jour de la numérotation.
+- Le **prochain numéro libre** est calculé sur les fiches **ET** les affaires du fichier **ET** les
+  affaires créées : le seul maximum des fiches redonnerait un numéro déjà pris dans l'Excel.
+- **Une ligne de saisie sans `nom` n'est pas une affaire créée** — les 53 lignes de l'Excel ont une
+  saisie sans nom, les compter comme créées les afficherait deux fois.
+
+**Ce qui reste de mon côté, et pourquoi** : lire le devis, calculer le prévisionnel, relever boîtes
+et tâches vendues, monter le dossier App Tech, créer la demande de photos. Ce ne sont pas des étapes
+mécaniques — juger qu'une IST est bien de TELSAM *et* validée par RTE est ce qui évite d'envoyer un
+technicien dans un poste où il n'est pas autorisé.
+
+**Testé — 211 contrôles, 0 échec** : `test-api-affaires.html` (64), `bloc-test-saisie-affaires.html`
+(88), `bloc-test-affaires.html` (59). Deux défauts trouvés par les bancs, **et deux par la capture
+d'écran** (le 0 % muet, et le pavé d'avertissement qui repoussait le tableau hors de l'écran).
+*Piège de harnais rencontré : une fausse base D1 qui répond la même ligne à toutes les requêtes ne
+peut pas éprouver `numeroter`, qui en interroge deux (« la source existe ? » puis « la cible est
+libre ? ») — mes quatre premiers ÉCHEC étaient des faux. D'où `firstPar`, qui répond selon les
+paramètres.*
+
+### LOT 4 — TOUT est numéroté (07/09/2026), et ce que ça change
+
+**Demande de Patrice, qui renverse sa règle du 04/09** : « j'aimerais plutôt que l'on numérote tous
+les chantiers, **même ceux qui sont perdus**, cela nous aidera pour les statistiques plus tard.
+Ils seront comme cela tous répertoriés. »
+
+**149 numéros écrits dans `SUIVI RTE TELECOM - mise a jour_3.xlsx`.** Le fichier passe de 476 à
+625 lignes numérotées, et l'onglet Affaires de **53 à 131 affaires**. Surtout : **plus aucune
+affaire vivante sans numéro** (il y en avait 14 le matin, 28 le 04/09) — c'était le but.
+
+Méthode d'écriture : celle du 07/09 au matin, reprise telle quelle (sauvegarde dans le scratchpad,
+script en pur ASCII, **tous les garde-fous joués AVANT la première écriture** — libellé et n° de
+devis comparés sans accent, case cible réellement vide — chaque cellule **relue** après écriture,
+`Save()` seulement à la fin). Contrôle après coup avec son contre-exemple : 625 numérotées, 3
+laissées de côté, 0 converti en date, 0 doublon sur deux chantiers différents.
+
+**TROIS LIGNES LAISSÉES SANS NUMÉRO, volontairement** : elles ressemblent à des TS d'affaires déjà
+numérotées, et un numéro neuf scinderait l'affaire en deux. À arbitrer par Patrice :
+`TELSAMCC25019` ARGIA-HERNANI, `TELSAMCC25129V2` CANTEGRIT, `TELSAMCC26111` DONZAC-LESQUIVE LOT 2.
+
+**CE QUE ÇA CASSAIT, ET QUI EST CORRIGÉ :**
+1. **`nextNumero()` aurait donné un numéro DÉJÀ ATTRIBUÉ.** Il prenait le maximum des seules
+   fiches (71) alors que le fichier va maintenant à 149 : le bouton « + Nouveau chantier » aurait
+   proposé `26-072`, et **deux chantiers auraient porté le même numéro** — définitif, un numéro ne
+   se réutilise jamais. Il regarde désormais les fiches, `AFFAIRES_RTE` **et** les affaires créées.
+   `afProchainNumero()` n'est plus qu'un appel à `nextNumero()` : **un seul endroit calcule**, deux
+   fonctions qui font le même calcul finissent par diverger.
+2. **« 78 numéros sans fiche » n'est plus une ANOMALIE, c'est le résultat voulu.** Le script criait
+   78 fois ; il ne signale plus que celles qui **mériteraient** une fiche — gagnées et non soldées
+   (3 le 07/09 : `26-077`, `26-080`, `26-086`) — et compte les autres en une ligne. Champ
+   `sansFicheVivantes`. **Un contrôle bruyant finit ignoré.**
+3. **La vue disait « anciens devis de DATA »** pour les préfixes écartés : faux depuis la
+   correction ci-dessus. Elle dit maintenant « les années précédentes ».
+
+**À SIGNALER À PATRICE, ET C'EST SA DÉCISION** : les 149 numéros n'ont été écrits que dans
+`mise a jour_3`. Le classeur **maître ne porte plus que 25 des 131 numéros de l'année** — l'écart
+entre ses deux fichiers s'est beaucoup creusé. La vue l'annonce (« 177 de ces numéros ne sont pas
+encore dans… »), mais lequel garder reste son choix : ne pas consolider tout seul
+(cf. [[feedback_fichiers_de_travail_de_patrice]]).
+
+**Testé — 215 contrôles, 0 échec.** Cinq contrôles ont dû être RÉÉCRITS parce qu'ils encodaient
+des chiffres devenus faux, et **deux d'entre eux échouaient sur un résultat réussi** : « les
+affaires vivantes sans numéro sont annoncées » (il n'y en a plus) et « 53 affaires » (il y en a
+131). *Un test qui vérifie l'ancien état fait échouer le banc sur un succès — le corriger fait
+partie du travail, le contourner ne le fait pas.* Le troisième était un faux ÉCHEC de ma part :
+« dates vides en dernier » jugeait le vide sur la chaîne brute alors que le tri le juge sur la clé
+de tri, si bien qu'une date illisible (« ? ») comptait pour pleine.
 
 **RESTE À FAIRE, et à ne pas commencer sans Patrice** : les 4 questions du 04/09 encore ouvertes
 (l'onglet remplace-t-il l'appli Facturation ? qui est responsable de quelle colonne ? quand
