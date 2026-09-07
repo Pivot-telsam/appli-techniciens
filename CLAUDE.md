@@ -4066,6 +4066,48 @@ extraction du verdict reprenait le mot `verdictTest` présent aussi dans le sour
 elle affichait le code au lieu du résultat : **j'ai cru à un plantage qui n'existait pas**. Lire le
 premier bloc `<pre>` et lui seul (`partage/lire-verdict.sh` dans le scratchpad).
 
+### L'AUDIT QUE PATRICE A DEMANDÉ (07/09/2026) — et ce qu'il a trouvé
+
+Sa phrase, après le défaut de la virgule : **« Non, je pense que c'est toi qui vas regarder si tu
+n'as pas fait d'autres erreurs. »** J'avais terminé en l'invitant à continuer de vérifier — c'est
+lui rendre mon travail. **Ne pas refaire ça** : après un défaut trouvé par lui, l'audit est à moi.
+
+**LA MÉTHODE QUI A MARCHÉ : recalculer par un chemin indépendant, et comparer.**
+Les 131 affaires ont été recalculées **depuis le classeur** par un script qui ne partage **aucune
+fonction** avec celui de production, puis comparées à ce que la page publie, sur quatre dimensions
+(montant HT, facturé, reste, nombre de devis retenus). **0 écart** — et le contre-exemple prouve que
+la comparaison sait dire non. `scratchpad/audit.ps1` + `compare.html`, à reprendre tels quels.
+
+**CE QUE L'AUDIT A TROUVÉ DANS MON CODE :**
+1. **`[double]'112502,79'` rend 11250279**, sans erreur. Le CAST PowerShell utilise la culture
+   invariante, donc **une virgule y est lue comme un séparateur de milliers** : le miroir exact du
+   défaut du matin, en pire (une valeur cent fois trop grande au lieu d'une valeur absente).
+   Vérifié : les trois autres sites de cast du dépôt reçoivent des nombres, jamais des chaînes.
+2. **`parseFloat('12 500,50')` rend 12** côté page — un espace suffit à diviser un montant par
+   mille. D'où `afNombre()`, qui normalise et **rend `null` plutôt que `NaN`** (un NaN se propage en
+   silence dans les additions et ressort en « — » sans qu'on sache pourquoi).
+3. **Une phrase prise pour un numéro de commande.** `« Projet en 2028 »` contient une année, donc la
+   séparation en faisait une référence client — et **depuis que la commande vaut acceptation, cela
+   comptait le devis et son montant**. Règle ajoutée : un segment qui contient un espace **et** un
+   mot de deux lettres ou plus est du texte. Contre-exemples qui doivent rester des références :
+   `920086240 / 913053066?`, `913149925 / Q.0128590.3.40`, `F-26-0892`.
+4. **Mon propre outil d'audit portait le défaut qu'il cherchait** : `Export-Csv` écrit `62003,5` en
+   fr-FR, et mon comparateur JavaScript lisait `parseFloat('62003,5') = 62003` — **29 faux écarts**.
+   Un outil de contrôle doit être écrit en format neutre, sinon il mesure sa propre langue.
+
+**CE QUE L'AUDIT A TROUVÉ DANS LA DONNÉE — dit, jamais arbitré :**
+- **4 affaires portent « perdu / annulé » dans la case du NUMÉRO DE COMMANDE**, colonne statut vide
+  ou « EN ATTENTE » : `26-091`, `26-123`, `26-126`, `26-145`. Elles restent donc comptées comme
+  vivantes. **On ne les ferme pas tout seul** — le mot est dans la mauvaise colonne, et clore une
+  affaire sur une note serait exactement le genre de décision qui ne m'appartient pas.
+- **1 incohérence de montants** : `26-047`, 11 250 € − 0 € devrait faire 11 250 €, la case
+  « restant à facturer » dit 9 800 €. Les 103 autres lignes vérifiables sont cohérentes.
+- 12 lignes portent une **année** au lieu d'une date prévisionnelle (`2028`, `Fin 2028`,
+  `2027 ou 2028`) : affichées telles quelles, triées avec les cases vides.
+
+État après audit : 15 écarts signalés sur 131 affaires, 0 affaire acceptée sans montant, 0 montant
+négatif. **228 contrôles, 0 échec.**
+
 **RESTE À FAIRE, et à ne pas commencer sans Patrice** : les 4 questions du 04/09 encore ouvertes
 (l'onglet remplace-t-il l'appli Facturation ? qui est responsable de quelle colonne ? quand
 arrête-t-on l'Excel ? les affaires vivantes non numérotables), plus la réponse sur le devis TS de La
