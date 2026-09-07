@@ -4173,3 +4173,172 @@ la sortie standard** (c'est voulu, cf. le défaut d'encodage du 04/09) — donc 
 capture **une chaîne vide** et tout contrôle par expression régulière dessus paraît échouer. Mes deux
 premiers « ECHEC » étaient donc des faux : la sortie brute affichée à l'écran prouvait l'inverse.
 **Lire la sortie réelle, ne pas conclure sur une capture vide.**
+
+## Trois demandes de Patrice du 07/09/2026 — congé paternité, cible du crayon, et le côté « glamour »
+
+Ses mots : « il faudrait rajouter les congés paternité… un technicien n'a pas pu remplir ses congés
+car il n'y a pas la possibilité dans l'appli » ; « il est très difficile d'appuyer sur la petite
+croix quand on veut créer une note en bas à droite des cases » ; « ce suivi n'est pas très
+glamour… j'aimerais que les bulles fassent peut-être un peu plus bulle, quelque chose de plus fun
+qui donne envie de l'utiliser… c'est important pour que nous puissions travailler sereinement ».
+
+### 1. Congé paternité — LE MENU N'ÉTAIT PAS LE PROBLÈME, LA FEUILLE OFFICIELLE L'ÉTAIT
+
+**Le modèle Excel de feuille d'heures n'a AUCUNE ligne « paternité ».** Ses étiquettes sont
+imprimées dans le classeur (`sharedStrings.xml` relu : Formation, Administratif, Réunion
+hiérarchique, Contribution agence, Qualité, Congés, RTT, Férié, Arrêt Maladie, Accident du travail,
+Garde d'enfants, Chômage — et rien d'autre). On ne peut donc pas en inventer une sans que le modèle
+change du côté de Karine et Pierre.
+
+**CE QUI A ÉTÉ ÉCARTÉ, ET POURQUOI** — les rangs 25 à 38 du modèle sont des lignes chantier libres,
+sans étiquette : y écrire « CONGÉS PATERNITÉ » aurait été tentant. C'est faux, et faux en silence :
+la cellule `B45` du modèle calcule l'**Activité** par `SUM(R12:R17)+SUM(R25:R38)`, donc ces heures
+d'absence auraient été comptées comme du **temps travaillé**, et le récap FH aurait vu apparaître un
+chantier fantôme sans numéro de devis.
+
+**CE QUI EST FAIT** : les heures partent sur la ligne **« Congés » (ligne 18)**, la seule case
+d'absence payée existante, ET la mention part **automatiquement** dans les commentaires de la
+feuille (`J47`), devant ce que le technicien a écrit :
+`CONGÉS PATERNITÉ (à ne pas décompter des congés payés) : 21 h (Lun, Mar, Mer) — <son texte>`.
+
+**La mention n'est pas décorative, c'est elle qui empêche l'erreur de paie.** Sans elle, Karine
+verrait des heures sur la ligne « Congés » et décompterait des CP à tort. Elle est **calculée**,
+jamais tapée : un technicien qui oublierait de l'écrire ne peut pas provoquer l'erreur.
+
+**LE DÉFAUT QUE ÇA CRÉAIT, ET LE CORRECTIF** : deux codes de l'appli visent désormais la MÊME ligne
+du modèle. `applyPayloadToSheetXML` écrivait absence par absence, donc la seconde **écrasait** la
+première — 3 h de CP + 7 h de paternité le même lundi donnaient 7 h, et 3 h disparaissaient sans
+rien signaler. Les heures sont maintenant **additionnées par cellule avant d'être écrites**
+(`totauxAbsences`). Ne pas revenir à une écriture absence par absence.
+
+Mécanique : un code d'`ABSENCE_CODES` peut porter `mention` (ce qui part dans les commentaires) et
+`aide` (la phrase montrée au technicien sous le titre de l'absence, pour qu'il ne s'étonne pas de ne
+pas voir « paternité » sur le document officiel). **Le jour où le modèle gagne une vraie ligne
+« paternité », il suffit de changer `row` et de retirer `mention`.**
+
+*À signaler à Patrice, c'est sa décision et pas la mienne : demander à Karine si elle préfère une
+ligne dédiée dans le modèle. Tant qu'elle n'existe pas, la mention est le meilleur compromis —
+visible par un humain, et jamais silencieuse.*
+
+Le planning Teams, lui, connaît déjà le cas : `CP Paternité` y est en rouge (ColorIndex 3) et la
+grille du suivi le lisait déjà (`/^(CP|RTT|cong|c pater|AM|recup|VM|Visite Med)/i`).
+
+### 2. La cible du crayon de note — mesurée, pas estimée
+
+Elle faisait **15 × 16 px**, pastille comprise : sous les 24 px conseillés pour une cible, et il
+fallait viser au pixel dans une case de 40 px de haut. Elle fait maintenant **35 × 27 px**, soit
+quatre fois la surface, **sans agrandir la pastille visible** (23 × 19 px) — un bouton plus gros
+répété 190 fois à l'écran referait le damier illisible que le survol évite.
+
+Le moyen est un pseudo-élément transparent (`.plNoteBtn::after`) : il appartient au bouton pour le
+pointeur mais ne se voit pas. Il déborde **vers la gauche et vers le haut uniquement**, pour ne pas
+empiéter sur la croix de retrait (`.plX`), qui vit dans le coin opposé — mesuré, 20 px les séparent.
+
+**La mesure ne se fait PAS sur le rectangle dessiné** : on balaie la zone point par point avec
+`elementFromPoint`, c'est-à-dire on demande au navigateur qui recevrait le clic. Deux harnais
+versionnés, chacun avec ses contre-exemples : `partage/bloc-test-cible-note.html` (la cible est
+grande, ET le haut de la case appartient toujours à la bulle, ET le coin bas-gauche à la case) et
+`partage/bloc-test-cible-croix.html` (la croix de retrait reçoit toujours ses propres clics).
+
+**PIÈGE DE BANC D'ESSAI, à connaître avant d'en écrire un autre** : `elementFromPoint` rend `null`
+pour tout point **hors de la fenêtre**. Sans `scrollIntoView` préalable, mes trois premiers
+contrôles paraissaient échouer tandis que les deux contre-exemples paraissaient **passer** — sur du
+vide. Un contrôle qui interroge un point hors écran ne prouve rien.
+
+### 3. « Que les bulles fassent un peu plus bulle »
+
+Une demande de goût, traduite en trois choses précises : coin plus rond (11 px au lieu de 6),
+**reflet** (dégradé clair en haut, ombre en bas) qui donne le volume, et **soulèvement au survol**
+(`translateY(-1.5px) scale(1.02)`). Les pastilles de la réserve suivent le même registre — ce sont
+les mêmes objets, on les déplace d'un endroit à l'autre.
+
+**LE PIÈGE À NE PAS RÉINTRODUIRE : la couleur du chantier se pose en `background-color`, JAMAIS en
+raccourci `background`.** Le reflet est un `background-image` ; un raccourci l'effacerait et la
+bulle redeviendrait plate sans que rien ne le signale. Vaut pour le rendu des cases, des pastilles,
+et pour `.plAbsence .plBulle` / `.plTexte .plBulle`.
+
+### 3 bis. La palette du planning — CE QUE LA MESURE A DIT, ET UN MÉCANISME RETIRÉ
+
+Patrice : « il y a des couleurs comme le violet et le bleu qui sont très proches ». Écart perceptif
+(ΔE, sur les 120 paires de la palette) :
+
+| | paire la plus proche |
+|---|---|
+| ancienne palette | **ΔE 6,8** — le cyan `#1f7f9f` et le pétrole `#0f6f8a` étaient à peu près la même couleur ; puis bleu/indigo 15,6 ; violet/pourpre 17,3 |
+| nouvelle palette | **ΔE 18,2**, et cinq teintes seulement dans le secteur bleu → violet, contre sept avant |
+
+**La paire qu'il a citée mesurait ΔE 28,6 — donc PAS la plus proche du lot.** Ce n'est pas lui qui
+se trompe, c'est la mesure : ΔE sous-estime les écarts de teinte dans les bleus. Le chiffre sert à
+écarter les cas manifestes, **il ne remplace pas son œil** (cf.
+[[feedback_verifier_a_l_ecran_pas_dans_le_repere]]).
+
+**UN MÉCANISME ESSAYÉ, MESURÉ, ET RETIRÉ — ne pas le refaire.** J'avais ajouté une notion de
+« famille » de teinte pour que la répartition évite de placer deux voisines dans la même quinzaine.
+Mesuré sur les 50 quinzaines de l'année : **36 paires de même famille avant, 35 après.** Aucun gain,
+et pour cause — huit familles ne suffisent pas quand une quinzaine porte jusqu'à 14 chantiers
+simultanés, le principe des tiroirs impose la réutilisation. Ça coûtait en revanche de la stabilité
+(46 chantiers déplacés de leur couleur habituelle au lieu de 24). **C'est la palette qui règle le
+problème, pas la répartition.** Le glouton est donc revenu à l'identique : préférence, puis première
+teinte libre. Contrôle inchangé : **0 collision dans la grille sur 37 quinzaines**.
+
+Les 16 teintes portent toutes du texte blanc à ≥ 4,5:1 — à revérifier avant d'en éclaircir une.
+Les 8 teintes de secours sont plus proches des 16 premières (paire la plus proche des 24 : ΔE 10,8)
+et **c'est inévitable** : après seize teintes bien réparties il ne reste plus de place franche dans
+le registre « assez foncé pour porter du blanc ». Acceptable là et nulle part ailleurs — elles ne
+servent qu'aux pastilles de la réserve, qui portent leur nom écrit dessus.
+
+### 3 ter. L'onglet Affaires — des teintes VIVES qui s'ajoutent, sans toucher aux alertes
+
+« Avec ses couleurs pastels, ça reste quand même un petit peu triste. »
+
+**Les variables `--vif-*` sont AJOUTÉES, pas substituées.** Les `--*-bg` / `--*-border` portent les
+**alertes** du suivi, où le rouge et l'ambre ont un sens précis : les saturer aurait rendu la page
+criarde là où elle doit rester calme, et affaibli le contraste des vrais avertissements. Les
+`--vif-*` ne servent qu'à ce qu'on **lit** (pastilles d'étape, jauges, tuiles), jamais à ce qui
+**alerte**.
+
+- **le liseré gauche de 4 px des listes déroulantes de statut** porte la couleur pleine. Le fond
+  pastel reste nécessaire — c'est un menu, on y lit du texte toute la journée — mais il ne suffisait
+  pas à distinguer douze étapes : d'une ligne à l'autre, quatre tons pâles se confondaient. **Ne pas
+  remplacer le fond pastel par de la couleur pleine**, le texte deviendrait illisible ;
+- **chaque tuile de filtre porte la couleur de SON étape** (`afTu-<cls>`, la classe de couleur que
+  le statut porte déjà — on ne réinvente pas de correspondance ici, les deux finiraient par se
+  contredire). La rangée devient du même coup la légende des couleurs du tableau, au lieu d'être
+  huit cadres identiques ;
+- jauges du cycle en dégradé (4 px, toujours « visuel, efficace et discret » comme il l'avait
+  demandé), survol de ligne teinté de bleu et non de gris (le gris se confondait avec l'en-tête).
+
+`.afEtape` n'est plus utilisé par aucun rendu depuis que la liste déroulante a remplacé la pastille
+(lot 2) — CSS mort, laissé en place, à retirer un jour.
+
+### Vérifié
+
+**Suivi : 223 contrôles, 0 échec** (`bloc-test-couleurs` 9, `bloc-test-affaires` 74,
+`bloc-test-saisie-affaires` 90, `bloc-test-notes` 22, `bloc-test-validation-suivi` 16, plus les deux
+harnais de cible 6 + 6), syntaxe des deux blocs `<script>` compilée.
+**Appli : 17 contrôles** dans `scripts/test-conges-paternite.html`, 0 échec.
+**Et à l'écran**, ce que ni l'un ni l'autre n'aurait montré : la grille avant/après, la vue Affaires,
+et la feuille d'heures d'un technicien avec « Congés paternité » et « Congés » côte à côte.
+
+### DEUX HARNAIS DE L'APPLI ÉTAIENT DÉJÀ ROUGES AVANT CETTE SESSION — dont un qui compte
+
+Vérifié en les rejouant sur le `index.html` du dernier commit : **mêmes échecs**, ils ne viennent pas
+de cette session.
+
+1. `test-planning-appli` — « la semaine +2 est servie aussi » attend ≥ 6 personnes, en trouve **0**.
+   **Ce n'est pas un défaut** : le planning Teams est **vide à partir du 21/09** (compté :
+   13 cases le 07/09, 13 le 14/09, 0 ensuite). C'est la vérité du fichier, et le contrôle encode un
+   chiffre figé quand S38 était la semaine +2. **À réécrire pour qu'il compare à ce que le bloc
+   publié place réellement, pas à un nombre gravé.**
+2. `test-planning-appli` — « bloc neutralisé : repli complet sur `TECH_RANGES` » attend ≥ 8, trouve
+   **3**. **CELUI-LÀ EST UNE VRAIE INFORMATION, à porter à Patrice.** Le filet existe pour qu'un
+   échec de `planning-rte.ps1` ne laisse pas les techniciens devant « rien de prévu ». Or les
+   arbitrages `TECH_RANGES` ont été retirés à mesure que le planning portait les numéros — règle
+   qu'il a lui-même posée le 04/09 — donc **le filet ne couvre plus que 3 personnes sur 11**. Le
+   filet s'est aminci comme conséquence directe d'une bonne règle. **C'est à lui de décider** s'il
+   veut le regarnir ; ne pas abaisser le seuil du test en silence, ce serait effacer le signal.
+3. `test-validation` — « base injoignable : on le DIT au technicien » : le harnais ne joue pas la
+   branche `file:` ajoutée le 04/09. Test à mettre à jour, pas de défaut.
+
+**Un banc d'essai rouge en permanence finit ignoré, exactement comme un contrôle qui crie au loup.**
+Ces trois-là sont à solder.

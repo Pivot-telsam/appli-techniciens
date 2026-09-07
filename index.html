@@ -40,7 +40,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-07-1';
+var APP_VERSION = '2026-09-07-2';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -50,7 +50,7 @@ var APP_VERSION = '2026-09-07-1';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Nouveaux PGO sur Cross-Sausset (ind.50) et Casteljaloux (ind.6.1) : ils sont à jour dans tes Documents. Tes dates de travaux ne changent pas.";
+var APP_NOUVEAUTE = "Le congé paternité se saisit maintenant dans ta feuille d'heures : « Ajouter une absence » puis « Congés paternité ».";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1311,6 +1311,18 @@ document.getElementById('switchBtn').onclick=async ()=>{
    MA FEUILLE D'HEURES
    ===================================================================== */
 
+/* Les `row` sont les lignes du MODÈLE OFFICIEL de feuille d'heures (celui que
+   Karine et Pierre reçoivent) : leurs étiquettes sont imprimées dans le
+   classeur, on ne peut donc pas en inventer une nouvelle sans que le modèle
+   change de son côté.
+   D'où le cas du CONGÉ PATERNITÉ (demandé par Patrice le 07/09/2026, après
+   qu'un technicien n'ait pas pu saisir le sien) : le modèle n'a pas de ligne
+   pour lui. Ses heures partent donc sur la ligne « Congés », la seule case
+   « absence payée » existante, ET la mention part automatiquement dans les
+   commentaires de la feuille (`mention`) — sinon la paie lirait des CP et
+   décompterait des jours de congés à tort. La mention n'est pas décorative :
+   c'est elle qui empêche l'erreur. Le jour où le modèle gagne une vraie ligne
+   « paternité », il suffit de changer `row` ici et de retirer `mention`. */
 const ABSENCE_CODES = [
   {key:'formation', label:'Formation', row:12},
   {key:'administratif', label:'Administratif', row:13},
@@ -1318,6 +1330,9 @@ const ABSENCE_CODES = [
   {key:'contribution', label:'Contribution agence', row:15},
   {key:'qualite', label:'Qualité', row:17},
   {key:'conges', label:'Congés', row:18},
+  {key:'paternite', label:'Congés paternité', row:18,
+   mention:'CONGÉS PATERNITÉ (à ne pas décompter des congés payés)',
+   aide:'Le modèle officiel n’a pas de ligne « paternité » : tes heures partent sur la ligne « Congés » et la mention est ajoutée automatiquement dans les commentaires, pour que la paie ne les compte pas comme des CP.'},
   {key:'rtt', label:'RTT', row:19},
   {key:'ferie', label:'Férié', row:20},
   {key:'maladie', label:'Arrêt maladie', row:21},
@@ -1589,13 +1604,17 @@ function renderHoursUI(){
     + chantiersHtml + addChantierHtml + '</div>';
 
   const absencesHtml = e.absences.map((abs, idx)=>{
-    const label = (ABSENCE_CODES.find(a=>a.key===abs.key)||{}).label || abs.key;
+    const code = ABSENCE_CODES.find(a=>a.key===abs.key) || {};
+    const label = code.label || abs.key;
     const toggles = JOURS.map((lbl,d)=>{
       const val = abs.jours && abs.jours[d];
       return '<input class="h-num" type="number" inputmode="decimal" min="0" step="0.5" placeholder="'+lbl+'" value="'+(val!=null?val:'')+'" oninput="updateAbsenceHour('+idx+','+d+',this.value)">';
     }).join('');
     return '<div class="h-absence-row">'
       + '<div class="h-absence-title"><span>'+escapeHtml(label)+'</span><button class="h-del-btn" onclick="removeAbsence('+idx+')">🗑</button></div>'
+      // Dire au technicien ce que la feuille fera de sa saisie : il a le droit de
+      // s'étonner de ne pas voir « paternité » sur le document officiel.
+      + (code.aide ? '<div class="h-hint">'+escapeHtml(code.aide)+'</div>' : '')
       + '<div class="h-days-grid">'+toggles+'</div>'
       + '</div>';
   }).join('');
@@ -1726,13 +1745,22 @@ function applyPayloadToSheetXML(xml, payload){
     });
   });
 
+  /* ON ADDITIONNE AVANT D'ÉCRIRE, une case à la fois. Deux codes de l'appli
+     peuvent viser la MÊME ligne du modèle officiel — c'est le cas de « Congés »
+     et « Congés paternité », faute de ligne dédiée dans le classeur. En
+     écrivant absence par absence, la seconde écrasait la première et des heures
+     disparaissaient de la feuille sans rien signaler. */
+  const totauxAbsences = {};                     // 'D18' -> heures cumulées
   (payload.absences||[]).forEach(abs=>{
     const row = ABSENCE_ROWS[abs.key];
     if(!row) return;
     DAY_COLS.forEach((cols, d)=>{
       const h = abs.jours && abs.jours[d];
-      if(h) xml = setNumberCellXML(xml, cols.j+row, h);
+      if(h) totauxAbsences[cols.j+row] = (totauxAbsences[cols.j+row] || 0) + h;
     });
+  });
+  Object.keys(totauxAbsences).forEach(addr=>{
+    xml = setNumberCellXML(xml, addr, totauxAbsences[addr]);
   });
 
   DAY_COLS.forEach((cols, d)=>{
@@ -1810,6 +1838,19 @@ function buildExportPayload(mon, weekNum){
     }
     if(Object.keys(jours).length) absences.push({ key:'contribution', jours });
   }
+  /* Les absences qui n'ont pas de ligne à elles dans le modèle officiel se
+     signalent dans les commentaires, DEVANT ce que le technicien a écrit : sans
+     cette phrase, la paie verrait des heures sur la ligne « Congés » et
+     décompterait des CP. La mention est calculée, jamais tapée — un technicien
+     qui oublie de l'écrire ne doit pas pouvoir provoquer l'erreur. */
+  const mentions = absences.map(a=>{
+    const code = ABSENCE_CODES.find(c=> c.key===a.key);
+    if(!code || !code.mention) return null;
+    const total = Object.keys(a.jours).reduce((s,d)=> s + a.jours[d], 0);
+    const jours = JOURS.filter((lbl,d)=> a.jours[d]).join(', ');
+    return total ? code.mention + ' : ' + total + ' h (' + jours + ')' : null;
+  }).filter(Boolean);
+  const commentaires = mentions.concat(hoursEntry.commentaires ? [hoursEntry.commentaires] : []).join(' — ');
   return {
     version: 1,
     technicien: currentTech,   // nom complet tel qu'il figure en colonne A du recap RH
@@ -1820,7 +1861,7 @@ function buildExportPayload(mon, weekNum){
     vehiculeMode: hoursEntry.vehiculeMode||null,
     km: hoursEntry.km||null,
     immat: hoursEntry.immat||null,
-    commentaires: hoursEntry.commentaires||'',
+    commentaires,
     signatureText: nomTitle+' '+prenomTitle,
     sheetName: 'S'+weekNum+'-'+nom.toUpperCase()+'_'+prenomTitle.replace(/\s+/g,''),
   };
