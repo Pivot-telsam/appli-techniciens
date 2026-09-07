@@ -1527,6 +1527,33 @@ d'heures). Objectif de Patrice : noter ce même numéro dans le Planning RTE à 
 chantier, pour que le rapprochement planning ↔ fiche devienne mécanique au lieu d'être fait à
 l'œil. Renommage Dropbox et annotation du planning en cours de sa part, progressivement.
 
+**Le 07/09/2026, Patrice a numéroté 2025 : `25-001` à `25-085` dans la colonne F.** Ce ne sont
+**PAS** des n° de chantier au sens de `26-0XX` : comme 21- à 24-, **ce sont les anciens devis de
+« DATA », l'ancienne entité du groupe** — « tu peux les laisser de côté ». L'onglet Affaires les
+écarte, et le dit. **Ne pas les reprendre comme clé de fiche, ni renommer un dossier Dropbox
+avec.** Détail et vérification (DATACC vs TELSAMCC) dans la section « Onglet Affaires ».
+
+Il a aussi numéroté **12 chantiers de plus en `26-`** ce jour-là, tous sur des lignes datées 2025 :
+`26-002`, `26-016`, `26-019`, `26-031`, `26-036-2`, `26-052`, `26-053`, `26-054`, `26-055`,
+`26-064`, `26-065`, `26-066`. **Vérifiés un par un contre les fiches : les 12 concordent** (libellé
+Excel ↔ nom de fiche). Effet mesuré sur l'onglet Affaires : 41 → **53 affaires**, et les affaires
+vivantes sans numéro 28 → **14**.
+
+**DEUX NUMÉROS 25- ÉTAIENT UTILISÉS DEUX FOIS — tranché par Patrice et corrigé le 07/09/2026.**
+Il garde le numéro pour Joncquière et pour La Perche, les deux autres chantiers en reçoivent un
+neuf à la suite de la série :
+
+| n° | ligne | chantier | décision |
+|---|---|---|---|
+| `25-045` | 385 | LA JONCQUIERES - ST CEZAIRE (DATACC25060) | **garde 25-045** |
+| `25-086` | 383 | LS GENAS - MIONS (DATACC25056) | numéro neuf |
+| `25-065` | 405 | TOURETS LA PERCHE-LA TOUR DE CAROL (DATACC25084) | **garde 25-065** |
+| `25-087` | 406 | LS PEYBER CHRIST - QUIRIN 1&2 (DATACC25085) | numéro neuf |
+
+Un même numéro sur **plusieurs lignes du même chantier** reste normal : une affaire porte 1..n
+devis. Le doublon n'en était un que parce que les libellés désignaient deux chantiers différents —
+c'est le test à refaire (`même numéro + libellés différents`), pas « même numéro ».
+
 ## Chantiers à plusieurs lots / sous-chantiers — RÈGLE (cas Chaineau-Cordy-Lamotte, 21/08/26)
 Certains chantiers sont découpés en plusieurs lots attribués à des sous-traitants différents
 (ex. Chaineau-Cordy-Lamotte : LOT 1 RODA / LOT 2 SELT dans Dropbox). Décision de Patrice (21/08/26) :
@@ -3601,25 +3628,84 @@ Même nature que `PLANNING_RTE` et `POSES_APPLI` : **refaite de zéro à chaque 
 côté** de `SEED_DATA` (donc **pas de `SEED_VERSION` à bumper** et aucun état local des collègues
 effacé). Ne jamais y écrire à la main. 38 Ko pour 41 affaires.
 
-- Source : `C:\Users\patrice.pivot\Desktop\SUIVI RTE TELECOM - mise a jour_3.xlsx`. **C'est ce
-  fichier qui fait foi, plus `SUIVI RTE & TELECOM.xlsx`** — il ajoute une colonne **`F N° Chantier`**,
-  donc **toutes les colonnes suivantes sont décalées d'un rang** (N° Devis en G, Montant en H,
-  statut en AO, PV EN COURS en AR…).
+- Source : **`C:\Users\patrice.pivot\Desktop\SUIVI RTE & TELECOM.xlsx`** (le classeur maître),
+  **complété par** `SUIVI RTE TELECOM - mise a jour_3.xlsx`. Les deux portent la colonne
+  **`F N° Chantier`**, donc **toutes les colonnes suivantes sont décalées d'un rang** (N° Devis en
+  G, Montant en H, statut en AO, PV EN COURS en AR…).
+  *Cette ligne disait jusqu'au 07/09/2026 que `mise a jour_3` faisait foi « plus `SUIVI RTE &
+  TELECOM.xlsx` » : c'était vrai le 04/09, quand seule la copie portait la colonne F.*
+- **DEUX CLASSEURS, ET C'EST VOLONTAIRE (07/09/2026).** Patrice numérote la colonne F
+  progressivement, et son travail s'est retrouvé réparti sur deux fichiers : **le maître porte la
+  série 25- entière plus 28 numéros 26-**, la copie `mise a jour_3` porte **les 26- des lignes de
+  2026** que le maître n'a pas encore. Comparés **cellule par cellule** le 07/09/2026 : les deux
+  feuilles sont **identiques sauf la colonne F**, et **sur aucune ligne elles ne se contredisent**
+  — l'une est vide là où l'autre porte un numéro. Donc :
+  - on lit le maître et on **complète** avec la copie, ligne par ligne, **uniquement quand F y est
+    vide** (paramètre `-Complement`, mettre `''` le jour où le maître portera tout) ;
+  - le nombre de numéros empruntés est **publié** (`empruntes`) et **la vue le dit** : l'emprunt se
+    voit, et la ligne disparaît d'elle-même quand un seul classeur porte toute la colonne ;
+  - une contradiction éventuelle est **annoncée**, jamais arbitrée en silence — le maître gagne, et
+    la vue nomme les deux numéros. Éprouvé en fabriquant une contradiction, puis en restaurant la
+    donnée réelle ;
+  - **ne jamais écrire dans les classeurs de Patrice pour « consolider » sans qu'il le demande** :
+    lequel garder est sa décision (cf. [[feedback_fichiers_de_travail_de_patrice]]).
+
+**CE QUI A ÉTÉ ÉCRIT DANS SES CLASSEURS LE 07/09/2026, À SA DEMANDE** (« j'avais oublié le fichier
+mis à jour 3, tu peux le compléter avec celui que je viens de te renvoyer ») :
+- dans **`mise a jour_3`** : **102 cellules** de la colonne F recopiées depuis le maître (87 de la
+  série 25-, 15 de la série 26-). Ce fichier porte donc désormais **toute** la numérotation (476
+  cellules) ;
+- dans le **maître** : **les 2 corrections de doublon** seulement (F383, F406). Il **manque encore
+  34 cellules** — les 26- des lignes de 2026, que seul `mise a jour_3` porte. Patrice n'a pas
+  demandé de les y écrire : à proposer, pas à décider.
+
+**LA MÉTHODE D'ÉCRITURE, à reprendre telle quelle** (Excel COM, le seul moyen d'écrire ; la lecture
+reste par dézippage) :
+1. **vérifier l'absence de verrou `~$` et qu'Excel ne tourne pas**, et faire une **copie de
+   sauvegarde dans le scratchpad** — pas sur le Bureau (cf. la règle des `_backup_`) ;
+2. **le script d'écriture est en PUR ASCII.** Premier essai perdu sur ce piège déjà documenté :
+   `Worksheets.Item("Suivi Activité")` écrit avec son accent dans un `.ps1` sans BOM est lu en
+   ANSI, devient `ActivitÃ©`, et Excel répond `DISP_E_BADINDEX`. La feuille se trouve par motif
+   sans accent (`suiviactivit`), l'en-tête se compare **sans le caractère `°`** ;
+3. **la colonne F porte un format de DATE (`jj/mm/aaaa`) alors que ses valeurs sont du TEXTE.** On
+   ne touche pas au format de Patrice, mais **chaque cellule est relue après écriture** et le
+   script refuse d'enregistrer si Excel a converti la valeur (`$relu -isnot [string]`) ;
+4. **garde-fous avant d'écrire une cellule** : le libellé (colonne D) doit être **identique dans
+   les deux classeurs** sur cette ligne, la cellule cible doit être **réellement vide**, et pour
+   une correction la valeur trouvée doit être **celle qu'on croit remplacer**. Un seul écart et
+   **rien n'est enregistré** — `$wb.Save()` n'est appelé qu'à la toute fin ;
+5. **contrôle après coup, avec son contre-exemple** : les deux classeurs restent **identiques hors
+   colonne F** (0 écart mesuré), plus aucun numéro 25- sur deux chantiers différents, aucun numéro
+   du maître ne manque dans `mise a jour_3` — **et le contre-exemple qui prouve que le contrôle
+   sait dire non** : le maître, lui, en manque bien encore 34.
 - **Le classeur est lu en DÉZIPPANT le `.xlsx`, jamais via Excel COM** : Patrice peut l'avoir
   ouvert, rien n'est verrouillé et rien n'est écrit dans son fichier. La feuille est trouvée par
   son nom, pas par `sheet1.xml`.
-- **Seuls les numéros `26-` sont pris** (`-Prefixe`). Les préfixes **21- à 24- sont une suite par
-  ligne** posée sur l'historique (`22-001`, `22-002`… dans l'ordre du fichier, y compris sur des
-  devis perdus) : ce sont des identifiants de ligne, pas des n° de chantier. 325 lignes écartées,
-  et **la vue le dit** au lieu de les taire. **2025 n'a aucun numéro** (0 sur 152 lignes).
+- **Seuls les numéros `26-` sont pris** (`-Prefixe`). **LES PRÉFIXES 21- À 25- NUMÉROTENT LES
+  ANCIENS DEVIS DE « DATA », L'ANCIENNE ENTITÉ DU GROUPE** — dit par Patrice le 07/09/2026 :
+  « j'ai numéroté les anciens devis (data). c'est notre ancienne entité, tu peux les laisser de
+  côté ». 412 lignes écartées, et **la vue le dit** au lieu de les taire.
+  - **C'est vérifiable dans le fichier, et ça a été vérifié** : les séries 21-, 22-, 23- et 25-
+    sont à **100 % sur des devis `DATACC…`**, la série 26- à **100 % sur des devis `TELSAMCC…`**.
+    Seule la série 24- fait exception, avec **3 lignes `TELSAMCC` sur 146**.
+  - La série 25- est apparue le **07/09/2026** (`25-001` à `25-085`, sans trou), posée dans l'ordre
+    des lignes ; **le préfixe ne suit pas l'année** (`25-011` est sur une ligne de 2023). Les vrais
+    numéros 26-, eux, ne sont **pas** dans l'ordre des lignes (r345 = 26-031, r381 = 26-007,
+    r423 = 26-055). *Mon raisonnement du matin — « une suite par ligne » — était juste sur la forme
+    mais passait à côté de la raison : ce sont les devis d'une autre entité.*
+  - **Ne pas reprendre un numéro 21- à 25- comme clé de fiche, et ne pas proposer de renommer un
+    dossier Dropbox avec.**
+  - **La liste des préfixes écartés est construite depuis la donnée, jamais écrite en dur** : un
+    intitulé « 21- à 24- » aurait continué de s'afficher en cachant 87 lignes.
 - Les colonnes de dates sont converties **colonne par colonne** : un montant comme `46144` tomberait
   sinon dans la plage des dates.
 
 ### CE QUE LA VUE REFUSE DE FAIRE — et pourquoi chaque refus a coûté un essai
 
-1. **Elle ne laisse jamais croire qu'elle est complète.** Bandeau permanent : les 28 affaires
-   vivantes sans numéro, les 15 chantiers actifs sans ligne numérotée (comptés **en direct sur les
-   fiches**, pour rester justes si une fiche est ajoutée), les 325 lignes écartées.
+1. **Elle ne laisse jamais croire qu'elle est complète.** Bandeau permanent : les affaires vivantes
+   sans numéro (28 le 04/09/2026, **14 le 07/09** — leur **répartition par année est comptée**, plus
+   annoncée de mémoire), les chantiers actifs sans ligne numérotée (comptés **en direct sur les
+   fiches**, pour rester justes si une fiche est ajoutée), les lignes écartées et leurs préfixes.
 2. **L'étape « Accord verbal » n'est PAS calculée.** Aucune colonne ne la porte. La deviner depuis
    « GAGNE » mélangerait l'accord et la commande — la vue dit qu'elle n'est pas suivie.
 3. **Un vide n'est pas un manque.** Trois états : renseigné, **sans objet**, manquant.
