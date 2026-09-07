@@ -3666,3 +3666,49 @@ ont été trouvés par ce banc d'essai.
 accents, et `escapeHtml` de ce fichier n'échappe pas les guillemets) ; les lignes ne portent qu'un
 **index** résolu via `afAffairesAffichees`, posée **avant** le rendu ; la recherche rend le focus et
 la position du curseur, sinon le champ le perd à chaque lettre.
+
+### `controleDifferre` — un arbitrage de Patrice doit faire TAIRE le contrôle (07/09/2026)
+
+**Les DEUX lignes prioritaires du contrôle de 07h55 étaient des faux positifs**, et chacune avait sa
+raison déjà écrite dans la donnée :
+
+- **26-009 Aure-Lannemezan** : une alerte de la fiche disait mot pour mot, depuis l'arbitrage de
+  Patrice du 04/09/2026, « *ne pas traiter cette ligne du contrôle des chantiers comme un manque à
+  combler* » — le PDP n'entre dans App Tech que lorsque l'intervention est datée, et le planning ne
+  place personne (seule la couverture PGO 07/09→09/10 rendait la ligne prioritaire).
+  **Le contrôle criait quand même : il ne lit pas les alertes.**
+- **26-071 Bollène-Plantades** : `mesureTouret = true`, et la note de la fiche comme le libellé du
+  planning concordent (« mesures de 3 tourets le lundi matin, déroulage par Bouygues à partir de
+  mardi »). Ce fichier dit déjà qu'un statut `nc` est **normal** en phase mesure de tourets, et
+  TELSAM ne revient en poste qu'au raccordement des 7 WTC2, après 8 semaines d'appro.
+
+**Un contrôle qui crie après un arbitrage déjà rendu apprend à ne plus être lu** — c'est exactement
+le mal que ce script existe pour éviter, et le remède est un mécanisme, pas ma mémoire.
+
+**Le champ, sur la fiche du suivi** : `controleDifferre: { raison, jusqua }`. `jusqua` au format
+`JJ/MM/AA`, vide si la reprise n'a pas de date connue.
+
+**QUATRE BORNES, chacune nécessaire :**
+1. **Il est posé À LA MAIN, jamais déduit** — même règle que `perimetre.pdpSurPlace`. Un différé est
+   une décision de Patrice ; je ne fais que l'inscrire quand il l'a rendue.
+2. **Un différé daté qui expire redevient prioritaire**, avec la mention de son échéance dans les
+   manques. Sans ça un différé oublié masquerait un vrai manque pour toujours — le même piège qu'un
+   arbitrage `TECH_RANGES` qui survit à la ligne du planning.
+3. **Un différé ne disparaît pas du rapport** : le chantier sort des prioritaires et entre dans la
+   liste `differes` de `controle-chantiers.json` (nouveau compteur `differes`). Le rappel de
+   `hook-veille-prompt.ps1` en donne **le nombre en une ligne**, seulement quand il y a par ailleurs
+   un vrai prioritaire — on ne cache jamais sans le dire, mais on ne remplace pas un bruit par un
+   autre.
+4. **Zéro prioritaire ⇒ aucun rappel**, même s'il reste des différés : ils vivent dans le récap du
+   matin, pas à chaque message.
+
+**Vérifié dans les deux sens le 07/09/2026** : état réel ⇒ 0 prioritaire, 2 différés, et le hook ne
+sort aucun bloc chantiers ; puis **contre-examen sur une COPIE** (`-Base` dans le scratchpad, différé
+de 26-071 antidaté au 01/09) ⇒ 26-071 redevient prioritaire avec « le differé du contrôle est échu »,
+la ligne « pour mémoire » nomme 26-009, et le vrai `controle-chantiers.json` n'a pas bougé.
+
+**PIÈGE DE BANC D'ESSAI rencontré ici** : `hook-veille-prompt.ps1` écrit ses octets **directement sur
+la sortie standard** (c'est voulu, cf. le défaut d'encodage du 04/09) — donc `& .\hook… | Out-String`
+capture **une chaîne vide** et tout contrôle par expression régulière dessus paraît échouer. Mes deux
+premiers « ECHEC » étaient donc des faux : la sortie brute affichée à l'écran prouvait l'inverse.
+**Lire la sortie réelle, ne pas conclure sur une capture vide.**
