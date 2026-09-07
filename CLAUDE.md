@@ -3729,15 +3729,129 @@ reste par dézippage) :
 
 ### Ce qui est volontairement absent de cette première version
 
-- **Aucune saisie** : la vue est en lecture seule. Une donnée commerciale partagée doit attendre la
-  base commune (cf. « ÉTAPE 1 ») — sinon deux personnes s'écrasent sans le voir, exactement le
-  défaut de l'Excel qu'on veut supprimer.
+- ~~**Aucune saisie**~~ — **LEVÉ LE 07/09/2026, cf. « LOT 2 » ci-dessous.** La vue était en lecture
+  seule en attendant la base commune ; la base est là, la saisie y vit.
 - **Aucun blocage** : les points de passage sont des **voyants**. On regarde d'abord lesquels crient
   à tort, on ne transforme en barrage que ce qui le mérite. Mesuré dans son fichier : l'acte de
   sous-traitance est vide sur 664 lignes sur 763, le « PV en cours » sur 760 — des gates durs
   bloqueraient presque toutes les affaires dès le premier matin.
 - **Pas de glisser-déposer** : il sert une dizaine de fois dans la vie d'une affaire, la lecture
   vingt fois par jour. À reparler après usage.
+
+### LOT 2 — la vue devient saisissable (07/09/2026)
+
+Demande de Patrice : les **deux numéros de commande** (RTE et client) séparés, des **menus
+déroulants**, une **vue par chantier**, **l'affectation** (« affaire suivie par »), et un **menu
+déroulant de statut** qui ouvre une **fenêtre de saisie** au changement (« si un devis est envoyé,
+tu nous marques devis envoyé, ça nous donne une pop-up et nous remplissons de suite le numéro du
+devis »). **« C'est toi qui définis le statut. Ne te fie pas à ce qui est marqué sur le suivi. »**
+
+**Ses cinq arbitrages du 07/09/2026**, tous appliqués :
+1. le premier numéro est la **commande RTE**, le second la **commande du client** — « oui quand il
+   y a un client » (donc chez un client RTE en direct il n'y en a qu'un) ;
+2. **un seul menu déroulant**, pas deux étages. Pour La Curbans (un devis gagné + un devis en
+   attente), « le devis en attente doit être un devis de TS, je vais me renseigner » — **question
+   ouverte, à ne pas trancher seul** ;
+3. « suivie par » = **les 4 qui gèrent les travaux** : Brillou, Cazenave, Hamouch, Vidal.
+   **Sans Carine Rambaud, sans Guillaume Heras, et sans Patrice lui-même** ;
+4. **« Soldé » = « Terminé »** sur la fiche chantier ;
+5. **saisie dans la base partagée**, et **tout le monde peut modifier**.
+
+**LA DONNÉE — la colonne unique de l'Excel est SÉPARÉE, sans jamais rien jeter.**
+La colonne I « N°Commande Client » porte les deux numéros dans une seule case
+(`4500807063 / 920087601`, 30 cases sur 64), et la colonne J « COMMANDE » n'est que la **recopie du
+premier segment** (30 fois sur 35) — colonne redondante, non reprise. Lecture vérifiée par client :
+RTE en direct ⇒ **un** numéro (`6100…`, parfois `4500…` chez RTE ARTERIA) ; sous-traitance ⇒ **deux**,
+le `4500…` de RTE puis le numéro propre du client (`920…` OMEXOM/VINCI, `24…`/`BOOOO…` INEO,
+`900…`/`9001…` BOUYGUES ES, `C511…` EIFFAGE, `POSZ…` RODA, `P.079…` OMEXOM FG).
+
+- **ON NE DÉCOUPE PAS SUR LE « / ».** CTEAM (26-070) écrit `12/2026/464`, qui est **UN** numéro : un
+  découpage naïf le cassait en trois (vu à l'écran avant d'écrire la version retenue). On **cherche**
+  le numéro RTE par son motif — 10 chiffres commençant par 45 ou 61 — et ce qui reste est la
+  commande du client.
+- **16 cases sur 64 ne contiennent pas un numéro mais une phrase** (« Devis envoyé », « Attente
+  commande », « Attente avenant », « PERDU », « RTE demande à AXIANS de refaire les mesures ») : la
+  case du numéro servait aussi de statut. C'est exactement ce que le menu déroulant supprime, et ce
+  texte est **conservé** (`cdeTexte`, affiché dans la fiche), pas jeté.
+- **La case brute reste dans `cdeClient`**, telle que Patrice l'a tapée, et un montant entre
+  parenthèses ou un « attente AV1 » part dans `cdeNote`. **Un contrôle de conservation des chiffres**
+  compare l'avant et l'après case par case ; il **n'arrête pas le script** (la case brute est gardée,
+  un arrêt priverait l'équipe de tout l'onglet) mais le doute est publié (`cdeIncertaines`) et **la
+  vue le dit**. Mesuré le 07/09/2026 : **0 chiffre perdu sur 63 cases**.
+- **L'affectation existe déjà dans l'Excel** : colonne V « NOM », en initiales — `CC` = Christian
+  CAZENAVE, `PB` = Pierre Brillou, `FV` = François VIDAL, `AH` = Ahmed HAMOUCH. Renseignée sur
+  **17 affaires sur 53** seulement : point de départ, jamais vérité. La traduction initiales → noms
+  vit **dans la page** (`AF_INITIALES`), pas dans le script, qui reste en pur ASCII.
+
+**LES DOUZE STATUTS** (`AF_STATUTS`), construits sur ce que son fichier dit réellement — les 16
+phrases ci-dessus donnent la liste des états qu'il écrit à la main :
+`a_chiffrer`, `devis_envoye`, `en_nego`, `attente_cde`, `cde_recue`, `pret`, `travaux`,
+`travaux_finis`, `a_facturer`, `facture`, `soldee`, `perdue`.
+**À TENIR EN PHASE AVEC `STATUTS` DANS `functions/api/affaires.js`** — l'API refuse tout statut hors
+liste, une dérive donnerait un refus incompréhensible. Le banc d'essai compare les deux listes.
+
+**SEPT DÉCISIONS QUI ONT CHACUNE UNE RAISON, à ne pas défaire :**
+
+1. **Le statut posé à la main GAGNE, le calculé devient une remarque.** Sans ça Patrice ne pourrait
+   pas corriger un statut faux, ce qui est tout l'objet de sa demande ; à l'inverse, jeter le calculé
+   ferait perdre le croisement Excel/suivi, la seule chose que cette vue apporte. Le désaccord
+   s'affiche « fichier : … » sous la liste, et en clair dans la fiche.
+2. **Un statut inconnu en base ne passe PAS pour une saisie.** Défaut trouvé par le banc d'essai :
+   `saisi: !!brut` valait vrai même pour une valeur hors liste — la ligne se disait « posée à la
+   main » en affichant en réalité le statut calculé, et la mention « calculé » disparaissait.
+3. **La fenêtre de saisie est TOUJOURS PASSABLE.** Bloquer un changement de statut sur un numéro
+   qu'on n'a pas sous la main ferait renoncer au changement, et le statut resterait faux — ce qu'on
+   cherche justement à supprimer. « Le statut compte, le numéro suivra. »
+4. **Un statut qui n'a rien à demander n'ouvre AUCUNE fenêtre** (`travaux`, `soldee`, `pret`…).
+   Une fenêtre pour rien fait cliquer dans le vide et on finit par éviter la liste déroulante.
+5. **Un doublon de numéro PRÉVIENT, il ne refuse jamais.** `TELSAMCC25107` désigne deux devis réels
+   (Bradascou et Fleyriat) : refuser rejetterait une saisie juste, taire laisserait passer une faute
+   de frappe. *À savoir : dans l'Excel les 64 références sont uniques — Patrice a contourné en
+   renumérotant Fleyriat en 25106. Le risque de doublon vient donc de ce qui sera TAPÉ.*
+6. **« Soldé ⇒ Terminé » est DÉRIVÉ, jamais écrit dans la fiche.** Les fiches vivent dans IndexedDB,
+   poste par poste, et sont remises à zéro à chaque `SEED_VERSION` : une écriture y serait invisible
+   pour les six autres et effacée à la mise à jour suivante. `appliquerSoldees()` dérive donc
+   `termine` du statut partagé à chaque chargement — **dans les deux sens** (repasser en travaux
+   décoche), et **seulement ce que la dérivation a coché elle-même** (une fiche terminée à la main
+   reste terminée).
+7. **Le mode est DIT, jamais deviné.** Hors ligne, les listes déroulantes sont **désactivées** et un
+   bandeau l'annonce. Une liste qui a l'air de marcher sans rien enregistrer est pire que pas de
+   liste du tout.
+
+**AUCUN TEXTE D'AIDE N'EST UN NUMÉRO RÉEL.** Première version, vue **à l'écran** : les exemples des
+cases étaient de vrais numéros du fichier (`4500810332` = Givors, `920087601` = Dambron-Voves,
+`2604186` = une vraie facture). Grisés dans une case vide, ils se lisaient comme une valeur
+renseignée — sur la fiche d'Aure-Lannemezan on croyait lire la commande RTE d'un autre chantier.
+**Aucun contrôle chiffré ne pouvait le voir** ; c'est la capture d'écran qui l'a montré, et un
+contrôle a été ajouté depuis (avec son contre-exemple). Même règle que les mots de passe d'exemple
+du 02/09/2026 : un exemple doit être **impossible** à confondre, pas seulement improbable.
+
+**LES DEUX PAVÉS D'AVERTISSEMENT SE REPLIENT** (`<details>`). À 16 affaires en écart, ils occupaient
+tout le haut de la page et le tableau — l'outil — commençait sous la ligne de flottaison. La ligne de
+titre reste toujours visible et porte le compte ; le détail des écarts est ouvert d'emblée tant qu'il
+tient en cinq lignes. **Ne pas les supprimer pour « alléger »** : ce qu'ils disent est ce que la vue
+apporte de plus utile.
+
+**Ce qui a été touché** : `scripts/affaires-rte.ps1` (séparation des commandes + colonne V),
+`functions/api/affaires.js` (nouveau), `partage/schema.sql` (tables `affaire` et `journal_affaire`,
+`schema_version` = 5), `suivi_chantiers_205.html` (constantes, fenêtre, vue, CSS).
+**Les deux tables sont créées par le code au premier appel** — aucune manip pour Patrice, même
+principe que `assurerColonneNote`.
+
+**Testé — 161 contrôles, 0 échec**, chacun avec son contre-exemple :
+`partage/test-api-affaires.html` (39, fausse base D1), `partage/bloc-test-saisie-affaires.html`
+(62, sur le vrai code de la page), `partage/bloc-test-affaires.html` (59 + 1, rejoué sans
+régression — son contrôle du filtre lisait la pastille `.afEtape` que la liste déroulante remplace,
+il a été mis à jour plutôt que laissé en échec permanent).
+**Deux défauts ont été trouvés par ces bancs** (le statut inconnu du point 2, et une prémisse fausse
+de mon propre test sur le doublon 25107) **et un troisième par la capture d'écran** (les textes
+d'aide) — aucun des trois n'aurait été vu par relecture.
+
+**RESTE À FAIRE, et à ne pas commencer sans Patrice** : les 4 questions du 04/09 encore ouvertes
+(l'onglet remplace-t-il l'appli Facturation ? qui est responsable de quelle colonne ? quand
+arrête-t-on l'Excel ? les affaires vivantes non numérotables), plus la réponse sur le devis TS de La
+Curbans. **L'ordre de tri met les affaires les plus avancées en tête** (héritage du lot 1) : à lui
+demander s'il préfère l'inverse, ce sont les affaires en attente qui demandent une action.
 
 ### Testé — `partage/bloc-test-affaires.html`, 49 contrôles, 0 échec
 
