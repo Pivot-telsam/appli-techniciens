@@ -4342,3 +4342,152 @@ de cette session.
 
 **Un banc d'essai rouge en permanence finit ignoré, exactement comme un contrôle qui crie au loup.**
 Ces trois-là sont à solder.
+
+## Veille du 08/09/2026 — l'IST indice B de Cantegrit, et deux chantiers sans fiche
+
+### 26-003 Cantegrit — IST INDICE B : reçue, TOUJOURS PAS VALIDÉE, et l'échéance est lundi
+
+Indice B déposé le 07/09/2026 à 15h47 (`.docx` 15h43 + `.pdf` 15h47, 13 pages) dans
+`Postes\Cantegrit 26-003\Documents Telsam`. C'est bien une IST **TELSAM** (29 occurrences sur le
+texte compacté), rédigée par TELSAM, C. CAZENAVE et Pascal BONAVENTURE chargé de travaux. Elle
+remplace l'indice A du 31/08.
+
+**ELLE N'EST PAS VALIDÉE PAR RTE, et cette fois c'est MESURÉ, pas « apparemment ».** Le tableau
+« Validation RTE » (section i, page 13) a été lu **cellule par cellule via Word COM** sur le
+`.docx` : 6 lignes, en-tête `Date | Nom | GMR | Modifications | Signature`, puis **5 lignes vides
+sur 5**, et surtout **ZÉRO image dans ce tableau** — donc pas même une signature scannée, ce que
+l'extraction de texte seule n'aurait pas pu exclure.
+
+> **LA MÉTHODE À REPRENDRE POUR TOUTE IST** : ouvrir le `.docx` en lecture seule par Word COM,
+> retrouver le tableau par son en-tête (`GMR`), lire ses cellules, **et compter
+> `tb.Range.InlineShapes.Count`**. Le compte d'images est ce qui transforme « le texte est vide »
+> en « il n'y a rien, texte ni signature ». Sur le PDF seul on ne peut que constater l'absence de
+> texte, et une IST signée à la main aurait une signature en image.
+
+Conséquences appliquées : `ist.indice` porté de A à **B** dans le suivi (l'appli ne stocke pas
+l'indice IST, rien à y changer), `valideRTE` reste **false**, **rien copié dans App Tech**, alerte
+réécrite en URGENT — le PGO ind.6 exige une IST sur la phase **14/09 → 02/10**, qui commence
+**lundi 14/09 (semaine 38)** avec trois techniciens placés. `SEED_VERSION` v150.
+
+### Deux PGO sur des chantiers qui n'ont AUCUNE fiche — décision de Patrice
+
+**CRENEY - TROYES — c'est le point à traiter.** `PGO_20260703_RTE_TROYES-EST_ind5.xlsx`, **V5 du
+07/09/2026**, dont l'objet de la mise à jour est littéralement « **ajout date TELSAM** ».
+Opération : « RTE - TROYES EST - Remplacement du poteau béton n°29 ». Ligne 47 de l'onglet `PGO` :
+
+| début | fin | entreprise | rôle | consignation | intervention |
+|---|---|---|---|---|---|
+| 28/09/26 | 09/10/26 | **TELSAM** | A1EC HT&BT | oui | Contrôle avant et après pose du canton pyl 28-pyl 29, **pose de boîtiers WTC2** |
+
+Aucune fiche n'existe, donc : pas de numéro, pas de boîtes relevées, pas de prévisionnel, pas de
+dossier App Tech, pas de tâches vendues. **Créer la fiche et attribuer un numéro est une DÉCISION**
+(règle des noms provisoires + le numéro se communique à Patrice) : signalé, rien créé.
+
+**CHAUSSE - REVIGNY — à confirmer, et je ne peux pas trancher seul.** Deux PGO du 07/09 à 17h50
+(`SEPT 2026` et `OCT DEC 2026`), ligne 225 kV CHAUSSEE REVIGNY. TELSAM figure dans la légende des
+entreprises (avec SEMI France, EGERI, DESSOLIN) et le bloc porte « Date révision : 07/09/2026 ».
+Le PGO octobre-décembre contient une phase **TRAVAUX OPTIQUES** — déroulage / réglage / ancrage au
+portique, raccordements optiques, test liaison optique, **test réflectométrie des tourets** — qui
+est notre métier.
+
+> **MAIS l'extraction de texte d'un PDF en TABLEAU ne préserve pas la correspondance
+> ligne ↔ entreprise.** L'ordre de lecture du PDF n'est pas l'ordre visuel : les phases sortent
+> groupées (`ASSEMBLAGES LEVAGES | SEMI SEMI SEMI | TRAVAUX SUR CABLES | SEMI SEMI SEMI | TRAVAUX
+> OPTIQUES`) et la colonne entreprise de la phase optique ne sort pas. Je **ne peux affirmer ni
+> que ces lignes sont pour TELSAM, ni le contraire.** À confirmer par Patrice ou par la source
+> Excel du SPS. Ne pas conclure sur le comptage d'occurrences seul : TELSAM y apparaît 1 fois,
+> mais SEMI France aussi, et SEMI a manifestement des lignes.
+
+Faux positifs déjà tranchés, pour mémoire : PGO Casteljaloux ind.6.1 (ma propre copie du 07/09),
+IST `APS3T5108` Cantegrit (celle d'INEO, règle du 27/08), PPSPS `3H223` Cross-Sausset (celui
+d'INEO, question au SPS toujours ouverte), NDS Fleyriat (7e jour du même `.docx` identique au
+`.pdf`).
+
+## La palette du planning, TROISIÈME passe (08/09/2026) — et la mesure qui a débloqué le sujet
+
+Patrice, après la deuxième passe : « les couleurs, je les aime bien, j'aime bien le léger dégradé
+et le petit effet quand on passe la souris. Le problème, c'est qu'**on a encore trop de couleurs
+proches côte à côte, des bleus et des violets qui se chevauchent**. Il faudrait vraiment
+**trancher** pour qu'on ait du bleu à côté du rouge ou du jaune. »
+
+### CE QUE J'AVAIS PRIS POUR UNE CONTRAINTE, ET QUI N'EN ÉTAIT PAS
+
+Les deux premières passes cherchaient **seize** teintes distinctes, parce que ce fichier annonçait
+« jusqu'à 14 chantiers simultanés dans la grille ». **Remesuré le 08/09/2026, quinzaine par
+quinzaine sur les 50 de l'année : le maximum réel est 10, et la MÉDIANE est 5.** Une seule
+quinzaine à 10, trois à 9, quatre à 8 — **90 % des quinzaines tiennent en 8 couleurs ou moins.**
+*Le chiffre de 14 écrit plus haut dans ce fichier est donc périmé : c'est 10.*
+
+Or seize teintes « assez foncées pour porter du blanc » ne peuvent PAS être toutes éloignées :
+c'est ce qui entassait cinq à sept tons dans le secteur bleu → violet. **La contrainte n'était pas
+la palette, c'était mon hypothèse sur le besoin.**
+
+### DIX TEINTES FRANCHES, ET LE ROUGE ET L'OR RÉADMIS
+
+Écart perceptif minimum (ΔE) de la palette : **6,8** (origine) → **18,2** (2ᵉ passe) → **27,7**
+(celle-ci). Dix couleurs qui portent chacune un nom que tout le monde emploie : rouge, or, olive,
+vert, bleu, violet, pourpre, magenta, brun, ardoise.
+
+**Le rouge et l'or sont réadmis à la demande explicite de Patrice, et ce n'est pas une régression
+sur la règle qui les excluait.** Le registre sépare ce que la teinte ne sépare pas : une absence
+(CP, CP paternité) est un fond **pâle** à texte foncé, une note un fond **pâle** ambre ; un
+chantier est une bulle **saturée** à texte blanc. **Si un jour une case CP se confond avec une
+bulle rouge, c'est le fond pâle qu'il faut éclaircir, pas le rouge qu'il faut retirer.**
+
+**L'ordre de `PALETTE_PLANNING` n'est pas décoratif** : la couleur préférée est `rang % 10`, donc
+deux chantiers de numéros voisins prennent deux entrées voisines de la liste — elle alterne
+chaud/froid pour que ces deux-là soient toujours franchement différents. Ne pas la retrier.
+
+### LA MESURE QUI A TROUVÉ LE DÉFAUT RESTANT — et qu'il faut refaire à chaque retouche
+
+Un minimum de palette élevé ne prouve rien si les deux teintes les plus proches tombent toujours
+ensemble. Le contrôle qui compte est donc : **parmi les couleurs qui se retrouvent RÉELLEMENT dans
+la même quinzaine, quelle est la paire la plus proche ?** (580 paires sur les 50 quinzaines.)
+
+| | pire paire à l'écran | paires sous ΔE 25 |
+|---|---|---|
+| premier jet du 08/09 | **16,4** (vert `#17805A` / turquoise `#00857A`) | 19 sur 580 |
+| après réordonnancement des secours | **23,4** (rouge brique / orange brûlé) | **6 sur 580** |
+
+La cause du 16,4 : un chantier qui court sur plusieurs mois voisine avec **plus de dix** étiquettes
+au total, épuise les dix franches, et prenait alors la PREMIÈRE teinte de secours — qui était un
+turquoise voisin du vert. **`PALETTE_SECOURS_PLANNING` est donc ordonnée par un glouton max-min** :
+à chaque rang, la teinte dont la distance minimale au noyau ET aux secours déjà placées est la plus
+grande (36,7 puis 31,7 puis 26,2…). La grille ne consomme que ses premières entrées : ce sont elles
+qui doivent être franches. **Ne pas retrier cette liste par goût.**
+
+### CE QUE LE GRAPHE EXIGE VRAIMENT — 24 teintes, et pourquoi
+
+`_grapheTeintes.maxPrises` = **24** : autour de l'étiquette la plus contrainte, 24 teintes sont
+déjà prises. Ce n'est pas le maximum par quinzaine (10) qui dimensionne la palette, c'est le
+**degré du graphe** : un chantier qui revient toute l'année a jusqu'à **158 voisins** (`c_y2edi4th`),
+et comme il garde UNE couleur pour l'année entière, tous doivent différer de lui. Le nombre
+chromatique dépasse donc largement la clique maximale. C'est pour ça que la grille descend dans
+les secours et qu'il reste 6 paires sous 25.
+
+> **LA SORTIE EXISTE, ET PATRICE L'A DÉJÀ AUTORISÉE SANS LE SAVOIR.** Sa règle du 03/09/2026 était
+> plus étroite que ce que le code applique : « ce n'est pas grave de les changer quand on
+> réintervient sur un chantier un ou deux mois plus tard, **mais ça prête à confusion de les
+> changer d'une semaine sur l'autre** ». Le code, lui, fige une couleur par chantier **pour
+> l'année**. En colorant par **plage continue de semaines** au lieu de par chantier, le graphe
+> redevient un graphe d'intervalles : son nombre chromatique retombe à la clique maximale, soit
+> **10** — exactement le noyau franc, et plus aucune descente dans les secours.
+> Coût : un chantier qui revient après une interruption peut changer de teinte — ce qu'il autorise.
+> Garde-fou obligatoire : **une nouvelle plage ne démarre qu'après un trou de 3 semaines ou plus**,
+> pour que deux plages du même chantier ne soient JAMAIS visibles ensemble (la vue en montre deux).
+> **À proposer à Patrice, pas à décider seul** : c'est sa règle de stabilité qu'on assouplit.
+
+### Vérifié
+
+**Suivi : 224 contrôles, 0 échec** — dont `bloc-test-couleurs` passé de 9 à 10 contrôles.
+**0 collision de couleur dans la grille sur 37 quinzaines**, et la couleur ne bouge pas quand on
+tourne les semaines. Prix payé, mesuré : 38 chantiers sur 58 changent de teinte une fois (24 avant,
+conséquence attendue de `% 10` au lieu de `% 16`).
+
+**UN CONTRÔLE A DÛ ÊTRE RÉÉCRIT, et c'est le cas d'école.** `bloc-test-couleurs` vérifiait que
+Bollène et Fleyriat réclamaient la **même couleur préférée** (rangs 70 et 54 : `70 % 16 == 54 % 16`)
+— c'était le contre-exemple qui prouvait que l'évitement travaillait vraiment. Avec dix teintes,
+`70 % 10 ≠ 54 % 10` : ces deux fiches ne se disputent plus rien, et **le banc échouait sur un
+succès**. Le contre-exemple cherche maintenant **dans la donnée** un couple qui partage sa couleur
+préférée ET une quinzaine, puis vérifie qu'il a bien été séparé. Figer un couple d'identifiants
+dans un test, c'est le condamner au prochain changement de palette.
