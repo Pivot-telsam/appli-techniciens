@@ -4491,3 +4491,93 @@ Bollène et Fleyriat réclamaient la **même couleur préférée** (rangs 70 et 
 succès**. Le contre-exemple cherche maintenant **dans la donnée** un couple qui partage sa couleur
 préférée ET une quinzaine, puis vérifie qu'il a bien été séparé. Figer un couple d'identifiants
 dans un test, c'est le condamner au prochain changement de palette.
+
+## 26-117 Creney - Troyes, créé le 08/09/2026 — et cinq pièges payés d'un coup
+
+Chantier apparu par la veille : le PGO ind.5 du 07/09 (V5, objet « ajout date TELSAM ») nous place
+du **28/09 au 09/10**, et aucune fiche n'existait. Sous-traitance de **SEMI FRANCE** (commande
+client F-26-0892, AST signé) sur l'opération RTE « TROYES EST — Remplacement du poteau béton n°29 ».
+Devis TELSAM/CC/RTE/26100, 8 275 € HT. 2 WTC2 THYM à fournir et poser (pyl 28 et 29), 74 h / 9,3 j.
+
+### 1. LE NUMÉRO EXISTAIT DÉJÀ, ET `nextNumero()` NE POUVAIT PAS LE SAVOIR
+
+`nextNumero()` proposait **26-150**. Le chantier portait déjà **26-117** dans le fichier
+commercial, parmi les 149 numéros que Patrice a écrits le 07/09. Créer 26-150 aurait scindé
+l'affaire en deux, avec deux saisies qui divergent — et un numéro ne se réutilise jamais.
+
+> **RÈGLE — avant d'attribuer un numéro à un chantier qui n'a pas de fiche, le CHERCHER dans
+> `AFFAIRES_RTE`** (par libellé ET par n° de devis). L'absence de fiche ne veut pas dire l'absence
+> de numéro : depuis le 07/09/2026, le fichier commercial numérote 131 affaires pour 72 fiches.
+> `nextNumero()` sert à créer une affaire NEUVE, pas à retrouver celle qui existe.
+
+### 2. TROIS ALERTES QUI NE DISAIENT RIEN DEPUIS CINQ JOURS — et c'était moi
+
+`alertHtml()` lit `a.level` et `a.text`. En créant la fiche 26-071 Bollène le 03/09, je les avais
+écrites `niveau` / `texte` : les trois alertes s'affichaient **`⚠️ ` suivi de rien** — dont
+« aucun PDP ni PGO reçu à ce jour » sur un chantier actif. Corrigé, et un contrôle ajouté au
+harnais : **aucune alerte ne doit manquer son champ `text`.** Il aurait crié dès le 03/09.
+
+*Les 67 autres alertes du fichier étaient justes : c'est le genre de faute qu'une relecture ne voit
+pas, parce que le JSON reste valide et la page ne plante pas.*
+
+### 3. `perl -CSD -i -pe` AVEC DU TEXTE ACCENTUÉ DOUBLE L'ENCODAGE
+
+« boîtiers » est parti en `boÃ®tiers` dans les **deux** dépôts, et « pylônes » en `pylÃ´nes`.
+Le comptage systématique des `Ã` après écriture — et lui seul — l'a vu. Réparation **ciblée** sur
+les deux séquences fautives, jamais une conversion 1252→UTF-8 globale qui aurait cassé les accents
+sains des 71 autres fiches.
+
+> **Pour écrire du texte accentué dans ces fichiers : l'outil Edit, ou `[IO.File]::WriteAllText`
+> avec un `UTF8Encoding $false`.** Ni `perl -CSD -i`, ni `Set-Content`, ni un `.ps1` sans BOM.
+> La méthode qui a bien marché ici : le script pose des repères ASCII (`ACCENT_NOM`, `ACCENT_AL1`…),
+> puis l'outil Edit les remplace par le vrai texte. Contrôle final : `grep -c 'Ã'` = 0.
+
+### 4. LE DEVIS EST EN POLICE EMBARQUÉE — et `OLEFormat.Object` est NUL en lecture seule
+
+L'extraction de texte du PDF du devis rend **zéro** occurrence de `WTC`, `TELSAM` ou `TOTAL` :
+14 polices embarquées, les caractères ne se décodent pas. Le tableau vit dans le **classeur Excel
+incrusté** du `.doc` — mais `InlineShapes.Item(2).OLEFormat.Object` renvoie **`$null`** sur un
+document ouvert en lecture seule.
+
+> **La séquence qui marche** : copier le `.doc` dans le scratchpad (jamais le fichier de Patrice),
+> l'ouvrir **en écriture**, appeler `$sh.OLEFormat.Activate()`, PUIS lire `OLEFormat.Object` et
+> parcourir `UsedRange`. Ici : 55 lignes, les 11 articles et le total.
+
+### 5. NE JAMAIS VÉRIFIER UN PDF QU'ON VIENT DE GÉNÉRER EN LE RÉOUVRANT DANS WORD
+
+J'ai cru trois fois de suite avoir un brief cassé — numéros de section disparus, une puce collée à
+la ligne précédente, « mesurées au / sol » coupé en deux, un `/` parasite. **Le document était
+bon ; c'est la relecture qui était fausse.** Word *reconvertit* un PDF à l'ouverture : il
+transforme les retours à la ligne VISUELS en paragraphes, fusionne, et fabrique des glyphes.
+Et `Content.Text` n'inclut jamais les numéros de liste automatiques — donc « 0 numéro sur 5 » ne
+prouvait rien.
+
+> **La bonne vérification** : enregistrer le MÊME document en `.docx` dans le scratchpad, à côté du
+> PDF et dans la même opération, puis relire le **témoin `.docx`** — aucune conversion, donc aucun
+> artefact. Résultat ici : 31 paragraphes pour 31 lignes source, **0 écart**, les 5 titres
+> numérotés, 14 puces, 6 triangles, 1 page.
+>
+> **Et construire le document par insertion d'un SEUL bloc** (`$doc.Content.InsertAfter` avec les
+> lignes jointes par `\r`), puis mise en forme **par index de paragraphe**. La saisie par
+> `Selection.TypeText` fusionnait réellement deux lignes — c'est la méthode déjà recommandée plus
+> haut pour les `.docx`, elle vaut aussi pour un document créé de zéro. Contrôle **avant**
+> `SaveAs2` : chaque paragraphe doit être égal à sa ligne source, sinon on n'enregistre pas.
+
+### Ce qui reste à faire sur ce chantier
+
+1. **Patrice : rendre le lien de partage du dossier App Tech PUBLIC + mot de passe.** Vérifié après
+   création : `audience: no_one`, `password_protected: false` — le bouton Documents ne s'ouvre donc
+   pas encore chez le technicien.
+2. **Le PDP.** Il n'y en a AUCUN, et l'article 1 du devis vend un « plan de prévention ligne ».
+   Alerte rouge sur la fiche, et le brief lui-même dit au technicien de ne pas partir sans vérifier.
+   À réclamer à SEMI France.
+3. Aucune NDS ni MO TELSAM sur ce chantier.
+
+### Chausse - Revigny — toujours ouvert, et je ne peux pas trancher
+
+Deux PGO du 07/09 sur un chantier sans fiche. Le PGO octobre-décembre porte une phase **TRAVAUX
+OPTIQUES** (déroulage, raccordements optiques, test liaison, réflectométrie des tourets) et TELSAM
+est dans la légende des entreprises avec « Date révision : 07/09/2026 ». **Mais l'ordre de lecture
+d'un PDF en tableau ne préserve pas la correspondance ligne ↔ entreprise** : SEMI France n'y
+apparaît qu'une fois aussi, et elle a manifestement des lignes. À confirmer par Patrice ou par la
+source Excel du SPS. **Ne pas créer de fiche sur cette base.**
