@@ -4821,8 +4821,56 @@ qui les as proposées. »** Il a raison, et cette fois la distinction est nette 
 > — **Diluer** les teintes saturées vers le blanc : tout se resserre contre le blanc, l'écart
 > co-visible tombe à **1,4** (à 8 % de teinte) et reste à **5,9** même à 40 %. Voie morte.
 > — **Régénérer** à clarté constante, `oklch(0.84 0.10 H)`, seule la nuance H changeant : la place
-> se rouvre, écart co-visible **8,5** et plus aucune paire sous 8.
+> se rouvre, écart co-visible **13,2** et plus aucune paire sous 11.
 > Les deux donnent des cases « claires ». Une seule est lisible.
+
+### TROIS NIVEAUX DE CLARTÉ — la correction qui a suivi, et la question de Patrice qui l'a trouvée
+
+**Sa question, capture à l'appui : « pourquoi, alors qu'on a plein de couleurs différentes en
+réserve, tu choisis deux couleurs très proches côte à côte ? C'est illisible. »** Les deux cases
+qu'il montrait, empilées l'une sur l'autre : Cantegrit `#c9d285` et Portet `#c8ba4d`.
+
+**Mesuré : ΔE 10,0 — au-dessus du seuil de 8 que le banc exigeait, et pourtant illisible.** Ce sont
+**deux olives à 12° d'écart de nuance**. Le chiffre passait, l'œil non.
+
+> **LA CAUSE EST STRUCTURELLE, ET ELLE VAUT POUR TOUTE PALETTE GÉNÉRÉE : à clarté et saturation
+> constantes, N teintes réparties sur le cercle des nuances sont forcément voisines deux à deux.**
+> 26 teintes = 14° d'écart : la palette contenait trois verts pâles et six roses-orangés pâles. Le
+> glouton max-min ordonnait bien les dix premières (36° d'écart), mais la grille descend jusqu'au
+> 18ᵉ rang — et là, les voisines de nuance se retrouvent côte à côte.
+> **Le remède n'est pas d'ajouter des nuances, c'est d'ajouter un AXE.**
+
+**Trois niveaux de clarté, et les nuances écartées de 40° À L'INTÉRIEUR d'un niveau :**
+
+| niveau | clarté / saturation | nuances |
+|---|---|---|
+| clair | `oklch(0.87 0.09 H)` | 0, 40, 80, 120, 160, 200, 240, 280, 320 |
+| soutenu | `oklch(0.76 0.14 H)` | 20, 60, 100, 140, 180, 220, 260, 300, 340 + miel H=75 |
+| profond | `oklch(0.70 0.152 H)` | 10, 100, 190, 280, et cinq d'appoint plus bas |
+
+Deux teintes de nuance voisine ne sont donc **jamais** à la même clarté, et la clarté devient un
+second indice que l'œil lit avant la nuance. Résultat, sur les mêmes 894 paires co-visibles :
+
+| | pire paire co-visible | paires sous 15 | à court de teintes |
+|---|---|---|---|
+| une seule clarté (26 teintes) | 8,5 | 87 | 0 |
+| **trois clartés (30 teintes)** | **13,2** | **13** | **0** |
+
+Et le couple que Patrice a montré passe de **10,0 à 38,2**.
+
+**LE NOMBRE DE TEINTES N'EST PAS UN DÉTAIL** : descendu à 22, le contrôle
+`aucune etiquette de grille a court de teintes` est passé de 0 à **8 étiquettes à court**, puis à 2,
+avant de revenir à 0 à 30 teintes. Les teintes claires sont plus serrées que les anciennes saturées,
+donc il en faut **plus**, pas moins. **Ne pas raccourcir ces listes pour « faire propre ».**
+
+**Le niveau profond est à `L=0.70`, et pas plus bas** : à `L=0.68` l'encre `var(--text)` tombait à
+**4,497:1** sur l'or — juste sous la norme. Le plancher mesuré est maintenant 4,61:1.
+
+**RÉPONSE HONNÊTE À L'AUTRE MOITIÉ DE SA QUESTION** : le répartiteur optimise sur « même
+quinzaine », pas sur « lignes voisines dans la grille ». Il ne sait donc pas que Cantegrit et Portet
+sont collés verticalement. Avec cette palette, ça ne se voit plus — la pire paire **physiquement
+collée** mesure 17,4 — mais si le défaut revenait, c'est là qu'il faudrait chercher : pondérer le
+graphe par l'adjacence réelle des cases, et non ajouter encore des teintes.
 
 **Ce qui est en service** (`PALETTE_PLANNING` + `PALETTE_GRILLE_APPOINT` + `PALETTE_SECOURS_PLANNING`,
 toutes remplacées) :
@@ -4855,16 +4903,16 @@ la palette saturée (pire paire ≥ 13, ≤ 15 paires sous 15, ≤ 125 sous 20, 
 plus l'exigence « les 15 teintes portent du blanc à 4,5:1 ». À clarté 0,84 le registre est plus
 resserré et le blanc ne tient évidemment plus : les garder aurait fait **échouer le banc sur un
 succès**, les retirer aurait supprimé la garde-fou. Ils sont donc recalibrés sur ce qui est mesuré
-(≥ 8 / 0 paire sous 8 / ≤ 100 sous 15 / ≥ 8), l'exigence de blanc est retournée en **exigence
-d'encre foncée** (26/26, minimum 6,58:1), et deux contrôles sont ajoutés : chaque teinte a son
+(≥ 11 / 0 paire sous 11 / ≤ 100 sous 15 / ≥ 11), l'exigence de blanc est retournée en **exigence
+d'encre foncée** (30/30, minimum 4,61:1), et deux contrôles sont ajoutés : chaque teinte a son
 liseré, et **le blanc ne tiendrait sur aucune** — le contre-exemple qui prouve que le registre a
 bien changé.
 **Et le contre-exemple qui compte** porte maintenant son propre CIEDE2000 (la table
 `_ECART_TEINTES` du fichier est pré-calculée sur la palette et ne sait rien dire d'une couleur
 diluée) : il mesure la palette **diluée**, la voie essayée et retirée, et exige qu'elle soit deux
-fois pire. Elle donne **1,6 contre 8,5**.
+fois pire. Elle donne **1,6 contre 13,2**.
 
-**Vérifié — 265 contrôles, 0 échec**, et à l'écran sur les semaines 37 et 38.
+**Vérifié — 265 contrôles, 0 échec**, et à l'écran : les semaines 37-38, et la quinzaine la plus chargée de l'année (semaine 23, 15 chantiers).
 
 ### B' A ÉTÉ ESSAYÉE, POUSSÉE, ET RETIRÉE LE JOUR MÊME — ne pas y revenir
 
