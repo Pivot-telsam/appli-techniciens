@@ -4821,8 +4821,29 @@ qui les as proposées. »** Il a raison, et cette fois la distinction est nette 
 > — **Diluer** les teintes saturées vers le blanc : tout se resserre contre le blanc, l'écart
 > co-visible tombe à **1,4** (à 8 % de teinte) et reste à **5,9** même à 40 %. Voie morte.
 > — **Régénérer** à clarté constante, `oklch(0.84 0.10 H)`, seule la nuance H changeant : la place
-> se rouvre, écart co-visible **13,2** et plus aucune paire sous 11.
+> se rouvre, écart co-visible **12,3** et plus aucune paire sous 11.
 > Les deux donnent des cases « claires ». Une seule est lisible.
+
+### LA PALETTE EN SERVICE EST LITTÉRALEMENT CELLE DE L'EXEMPLE B — arrêter de la régénérer
+
+**Patrice, quatrième fois : « La palette ne correspond pas du tout à ce que tu m'avais montré sur
+les exemples, notamment nous avons fait le choix de l'exemple B, b prime même. Du coup, il me faut
+ces couleurs-là. »**
+
+> **LA FAUTE DE MÉTHODE, ET C'EST LA LEÇON DE LA JOURNÉE.** À chaque retour j'ai *régénéré* une
+> palette « meilleure au sens de la mesure » au lieu de **reprendre les valeurs exactes de la
+> maquette qu'il avait validée**. Trois palettes différentes en une journée, toutes défendables au
+> chiffre, aucune n'étant celle qu'il avait choisie. **Quand une maquette est validée, on en copie
+> les valeurs. On ne les réoptimise pas.** Une mesure sert à écarter un choix avant de le montrer,
+> pas à remplacer un choix déjà fait.
+
+**Le noyau des dix teintes est donc exactement l'exemple B** : `oklch(0.84 0.10 H)`, H = 0, 36, 72,
+108, 144, 180, 216, 252, 288, 324 — calculé avec la fonction `oklch()` de
+`maquette-charte/maquette.html` elle-même, pour qu'il n'y ait aucun écart possible. Écart minimal
+entre ces dix : **11,9**, le chiffre annoncé pour la variante B.
+Les vingt autres (appoint et secours) sont des **extensions** à d'autres clartés, sur des nuances
+intercalées — elles ne servent qu'après les dix, et elles ne changent pas ce que Patrice voit
+d'habitude.
 
 ### TROIS NIVEAUX DE CLARTÉ — la correction qui a suivi, et la question de Patrice qui l'a trouvée
 
@@ -4856,7 +4877,7 @@ second indice que l'œil lit avant la nuance. Résultat, sur les mêmes 894 pair
 | une seule clarté (26 teintes) | 8,5 | 87 | 0 |
 | **trois clartés (30 teintes)** | **13,2** | **13** | **0** |
 
-Et le couple que Patrice a montré passe de **10,0 à 38,2**.
+Et le couple que Patrice a montré passe de **10,0 à 56,3**.
 
 **LE NOMBRE DE TEINTES N'EST PAS UN DÉTAIL** : descendu à 22, le contrôle
 `aucune etiquette de grille a court de teintes` est passé de 0 à **8 étiquettes à court**, puis à 2,
@@ -4864,7 +4885,7 @@ avant de revenir à 0 à 30 teintes. Les teintes claires sont plus serrées que 
 donc il en faut **plus**, pas moins. **Ne pas raccourcir ces listes pour « faire propre ».**
 
 **Le niveau profond est à `L=0.70`, et pas plus bas** : à `L=0.68` l'encre `var(--text)` tombait à
-**4,497:1** sur l'or — juste sous la norme. Le plancher mesuré est maintenant 4,61:1.
+**4,497:1** sur l'or — juste sous la norme. Le plancher mesuré est maintenant 4,85:1.
 
 **RÉPONSE HONNÊTE À L'AUTRE MOITIÉ DE SA QUESTION** : le répartiteur optimise sur « même
 quinzaine », pas sur « lignes voisines dans la grille ». Il ne sait donc pas que Cantegrit et Portet
@@ -4904,13 +4925,13 @@ plus l'exigence « les 15 teintes portent du blanc à 4,5:1 ». À clarté 0,84 
 resserré et le blanc ne tient évidemment plus : les garder aurait fait **échouer le banc sur un
 succès**, les retirer aurait supprimé la garde-fou. Ils sont donc recalibrés sur ce qui est mesuré
 (≥ 11 / 0 paire sous 11 / ≤ 100 sous 15 / ≥ 11), l'exigence de blanc est retournée en **exigence
-d'encre foncée** (30/30, minimum 4,61:1), et deux contrôles sont ajoutés : chaque teinte a son
+d'encre foncée** (30/30, minimum 4,85:1), et deux contrôles sont ajoutés : chaque teinte a son
 liseré, et **le blanc ne tiendrait sur aucune** — le contre-exemple qui prouve que le registre a
 bien changé.
 **Et le contre-exemple qui compte** porte maintenant son propre CIEDE2000 (la table
 `_ECART_TEINTES` du fichier est pré-calculée sur la palette et ne sait rien dire d'une couleur
 diluée) : il mesure la palette **diluée**, la voie essayée et retirée, et exige qu'elle soit deux
-fois pire. Elle donne **1,6 contre 13,2**.
+fois pire. Elle donne **1,6 contre 12,3**.
 
 **Vérifié — 265 contrôles, 0 échec**, et à l'écran : les semaines 37-38, et la quinzaine la plus chargée de l'année (semaine 23, 15 chantiers).
 
@@ -5048,6 +5069,33 @@ Seul celui d'Affaires est posé, depuis `AFFAIRES_RTE.affaires.length`.*
 
 **Vérifié en plus des 263 contrôles** : les dix vues ouvertes une par une — titre juste, onglet
 marqué, vue affichée, **zéro erreur JavaScript** — et aucun identifiant `btnView*` en double.
+
+### « LES ÉCRITURES SONT FLOUES, COMME HACHURÉES » — c'était `opacity`, et c'est un piège Windows
+
+Signalé deux fois par Patrice avant que j'en trouve la vraie cause. La première fois j'ai incriminé
+DM Sans et je l'ai retirée du corps de texte : c'était **une** cause, pas **la** cause.
+
+> **`opacity` SUR DU TEXTE FAIT PERDRE LE LISSAGE CLEARTYPE.** Un élément avec `opacity < 1` crée
+> une couche de composition ; le texte y est alors lissé en niveaux de gris au lieu du lissage
+> sous-pixel de Windows, et il paraît **flou et comme hachuré** — exactement le mot de Patrice.
+> Même effet avec `transform`, `filter` et `will-change`.
+> **RÈGLE : dans les vues denses, un texte atténué se fait avec une COULEUR, jamais avec
+> `opacity`.** Corrigés : `.plNum` (.72), `.plNote` (.85), `.plChipCompte` (.85), `.plValidOff`
+> (.75), `.plValidQui` (.8) — tous passés à une couleur pleine. Les deux `opacity` restantes sont
+> sur le bouton de note (un `+` au survol), pas sur du texte à lire.
+
+### LA BARRE LATÉRALE — logo et icônes
+
+« Le bandeau sur le côté n'est pas terminé. Le sigle TELSAM en haut est complètement mangé. »
+Deux choses, toutes les deux vraies :
+- **il manquait les icônes** que la maquette montrait. Les dix vues n'avaient que leur libellé, ce
+  qui donnait une colonne de texte nu. Un seul jeu, trait de 1,5 px, dessiné dans le fichier ;
+- **le logotype était posé en `mask`** sur un aplat blanc. Il sortait rogné, et un masque crée en
+  plus une couche de composition pour rien. **Le SVG extrait du `.ai` porte déjà ses tracés en
+  blanc : un `background-image` suffit**, avec `contain` qui garantit qu'il n'est jamais coupé. Il
+  est aussi passé de 88×21 à 112×26 — à la taille précédente il était présent mais illisible.
+  *Et `align-items:flex-end` sur `.navMarque`, pas `baseline` : le porteur du logo n'a pas de texte,
+  donc pas de ligne de base, et en `baseline` il partait vers le haut.*
 
 ### Ce qui reste de la charte, et n'est PAS fait
 
