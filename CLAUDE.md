@@ -4810,6 +4810,62 @@ en liseré d'onglet actif.
 > qu'on la confronte au planning réel. Une palette se juge sur ce qui se retrouve ensemble à
 > l'écran, pas sur ses paires théoriques.
 
+### LA PALETTE EN SERVICE EST CLAIRE, GÉNÉRÉE — C'est l'« exemple B » de la maquette
+
+**Patrice, après le retour à la bulle saturée : « tu m'as remis les anciennes couleurs, ce que je ne
+veux pas ! Je veux celles que tu m'as proposées dans l'exemple B, exactement celles-là, c'est toi
+qui les as proposées. »** Il a raison, et cette fois la distinction est nette :
+
+> **UNE PALETTE CLAIRE GÉNÉRÉE N'EST PAS UNE PALETTE SATURÉE ÉCLAIRCIE.** C'est la confusion qui a
+> coûté la journée entière du 08/09/2026, et elle est facile à refaire.
+> — **Diluer** les teintes saturées vers le blanc : tout se resserre contre le blanc, l'écart
+> co-visible tombe à **1,4** (à 8 % de teinte) et reste à **5,9** même à 40 %. Voie morte.
+> — **Régénérer** à clarté constante, `oklch(0.84 0.10 H)`, seule la nuance H changeant : la place
+> se rouvre, écart co-visible **8,5** et plus aucune paire sous 8.
+> Les deux donnent des cases « claires ». Une seule est lisible.
+
+**Ce qui est en service** (`PALETTE_PLANNING` + `PALETTE_GRILLE_APPOINT` + `PALETTE_SECOURS_PLANNING`,
+toutes remplacées) :
+- **10 teintes franches** à `oklch(0.84 0.10 H)`, nuances H = 30, 212, 114, 294, 168, 72, 350, 258,
+  140, 50. **L'ordre vient d'un glouton max-min en CIEDE2000**, pas du goût : H=30 d'abord, puis à
+  chaque rang la nuance la plus éloignée des précédentes. Les dix premières sont donc les plus
+  franches, et c'est elles que la grille sert d'abord. **Ne pas retrier ces listes.**
+- **5 d'appoint** à la même clarté (H = 190, 322, 92, 12, 234) ;
+- **11 de secours à `oklch(0.78 0.13 H)`**, soit un cran plus foncées et plus saturées. **Ce n'est
+  pas un détail de goût, c'est ce qui a réglé le dernier défaut** : à clarté égale, 26 nuances
+  claires ne peuvent pas toutes être distinctes — l'écart minimal tombait à 4,2 et 4 paires
+  co-visibles restaient sous 8 (deux verts). En donnant aux secours une **clarté plus basse**, la
+  clarté devient un second indice en plus de la nuance : minimum 7,4 sur la palette, **8,5 en
+  co-visible, 0 paire sous 8**, et l'encre tient encore 6,6:1. C'est exactement le mécanisme que
+  l'ancienne palette utilisait avec ses teintes d'appoint sombres.
+- **`LISERE_DE`** donne à chaque fond son liseré, la MÊME nuance à `oklch(0.50 0.15)`. Il fait le
+  bord gauche de 4 px de la bulle et n'est **jamais du texte** (3,2:1 sur son fond : bon pour un
+  trait, pas pour une lettre). L'encre reste `var(--text)`. **Toute teinte ajoutée à l'une des trois
+  listes doit recevoir sa ligne dans cette table**, sinon la bulle perd son bord — et elle le perd
+  sans que rien ne le signale, la case restant simplement plate.
+
+**LA RÉSERVE DU BAS SUIT LA GRILLE** (`.plChip` passe par `styleBulleChantier`). Patrice l'a relevé :
+« les chantiers non affectés en bas sont restés de l'ancienne couleur ». Le raisonnement du 03/09
+(« une pastille est un bouton nommé, elle peut rester saturée ») était juste isolément et faux dans
+l'ensemble : un même chantier doit avoir la même apparence dans la case et dans la pastille qu'on
+fait glisser dessus, sinon on doute qu'il s'agisse du même.
+
+**QUATRE CONTRÔLES DU BANC ONT DÛ ÊTRE RÉÉCRITS, et c'est légitime** — ils encodaient les seuils de
+la palette saturée (pire paire ≥ 13, ≤ 15 paires sous 15, ≤ 125 sous 20, couple Rion/Fleyriat ≥ 20)
+plus l'exigence « les 15 teintes portent du blanc à 4,5:1 ». À clarté 0,84 le registre est plus
+resserré et le blanc ne tient évidemment plus : les garder aurait fait **échouer le banc sur un
+succès**, les retirer aurait supprimé la garde-fou. Ils sont donc recalibrés sur ce qui est mesuré
+(≥ 8 / 0 paire sous 8 / ≤ 100 sous 15 / ≥ 8), l'exigence de blanc est retournée en **exigence
+d'encre foncée** (26/26, minimum 6,58:1), et deux contrôles sont ajoutés : chaque teinte a son
+liseré, et **le blanc ne tiendrait sur aucune** — le contre-exemple qui prouve que le registre a
+bien changé.
+**Et le contre-exemple qui compte** porte maintenant son propre CIEDE2000 (la table
+`_ECART_TEINTES` du fichier est pré-calculée sur la palette et ne sait rien dire d'une couleur
+diluée) : il mesure la palette **diluée**, la voie essayée et retirée, et exige qu'elle soit deux
+fois pire. Elle donne **1,6 contre 8,5**.
+
+**Vérifié — 265 contrôles, 0 échec**, et à l'écran sur les semaines 37 et 38.
+
 ### B' A ÉTÉ ESSAYÉE, POUSSÉE, ET RETIRÉE LE JOUR MÊME — ne pas y revenir
 
 **Patrice, en voyant la grille livrée : « les couleurs ne sont absolument pas celles que tu m'as
