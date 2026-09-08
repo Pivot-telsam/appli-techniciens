@@ -4810,7 +4810,41 @@ en liseré d'onglet actif.
 > qu'on la confronte au planning réel. Une palette se juge sur ce qui se retrouve ensemble à
 > l'écran, pas sur ses paires théoriques.
 
-### CE QUI EST FAIT : LA VARIANTE B'
+### B' A ÉTÉ ESSAYÉE, POUSSÉE, ET RETIRÉE LE JOUR MÊME — ne pas y revenir
+
+**Patrice, en voyant la grille livrée : « les couleurs ne sont absolument pas celles que tu m'as
+présentées, c'est fade, on ne discerne pas les couleurs… c'est nul et inutilisable. Tu m'as vendu
+ça. »** Il avait raison, et la mesure qui manquait le dit sans détour. Écart CIEDE2000 entre deux
+chantiers **réellement co-visibles**, la teinte étant diluée vers le blanc :
+
+| fond des cases | écart co-visible minimum |
+|---|---|
+| 8 % (ce qui a été poussé) | **1,4** |
+| 22 % | 3,5 |
+| 40 % | 5,9 |
+| **bulle saturée (ce qui était en place)** | **14,0** |
+
+> **DILUER VERS LE BLANC ÉCRASE LES ÉCARTS, ET AUCUN RÉGLAGE N'Y ÉCHAPPE.** Deux teintes séparées
+> de 14 saturées ne le sont plus que de 5 une fois délavées à 60 % de blanc. Toute la famille
+> « fond clair porte l'identité du chantier » est donc morte pour cette grille — pas seulement la
+> valeur 8 %, la famille entière. **Ne pas re-proposer un fond clair pour les cases du planning.**
+
+**ET VOICI L'ERREUR DE RAISONNEMENT QUI A COÛTÉ LA JOURNÉE, elle est instructive.** La maquette
+montrait une variante B qui, elle, paraissait colorée — et je m'en suis servi pour vendre B'. Mais
+la B de la maquette utilisait une palette **régénérée pour cette clarté** (`oklch(0.84 0.10 H)`),
+pas les teintes de Patrice diluées. Deux objets différents sous une même étiquette. Et j'ai annoncé
+« l'écart reste à 14,0 » : c'était vrai **du liseré**, alors que ce qu'un œil lit dans une case de
+40 px, c'est le **fond**. Une mesure juste sur le mauvais objet ne vaut pas mieux qu'une mesure
+fausse.
+
+**CE QUI EST GARDÉ de ce passage, parce que ça ne dépendait pas du fond :** le n° d'affaire en mono
+sur la première ligne et le nom sur la seconde **sans ellipse** (le défaut « Poste de Portet (P… »),
+et les fonds d'absence et d'ICP **approfondis** (`#f2c9c9`, `#d5d0f4`) — plus distincts qu'avant,
+ce que Patrice demandait le matin même. Le reste est revenu à l'identique : bulle saturée, texte
+blanc, reflet et ombre d'origine. Les pastilles de la réserve n'ayant jamais changé, l'écran est de
+nouveau cohérent — c'était son troisième reproche, et il tombait de lui-même avec le retour.
+
+### CE QUI AVAIT ÉTÉ FAIT : LA VARIANTE B' (retirée, cf. ci-dessus)
 
 Tranchée par Patrice à l'œil sur la maquette, après avoir vu les trois registres à 10 chantiers.
 **La teinte ne change pas d'un iota** — ce sont les 26 teintes mesurées le 08/09, donc l'écart
