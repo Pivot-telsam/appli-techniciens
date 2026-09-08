@@ -5070,6 +5070,40 @@ Seul celui d'Affaires est posé, depuis `AFFAIRES_RTE.affaires.length`.*
 **Vérifié en plus des 263 contrôles** : les dix vues ouvertes une par une — titre juste, onglet
 marqué, vue affichée, **zéro erreur JavaScript** — et aucun identifiant `btnView*` en double.
 
+### « CE N'EST PAS FRAIS » — c'était le REFLET, et c'est la vraie réponse à sa question
+
+**Patrice, capture de la maquette à côté de l'écran : « tu vois bien que ce n'est pas net… ce n'est
+pas clair, ce n'est pas frais. Je ne sais pas comment te l'expliquer, mais on voit bien que c'est
+différent. Est-ce que tu vois ce que je veux dire ? »** Oui, et la comparaison des deux images le
+dit sans ambiguïté : **la couleur était la bonne, c'est la MATIÈRE qui différait.**
+
+La maquette montrait des **aplats francs**. La grille, elle, gardait sur `.plBulle` le
+`background-image` en dégradé et le `box-shadow:inset` posés le **07/09/2026** pour les bulles
+SATURÉES — la demande « que les bulles fassent un peu plus bulle ». Sur un fond pastel, ce voile
+blanc en haut et cette ombre en bas **salissent la teinte** : le pastel devient terne et grisé.
+C'est tout l'écart entre les deux captures.
+
+> **RÈGLE : un registre pastel se pose en APLAT. Pas de dégradé, pas d'ombre intérieure.** La
+> consigne du 07/09 valait pour des bulles saturées, qui n'existent plus dans la grille. Retirés
+> aussi sur les absences, les ICP et les pastilles de la réserve — même cause, même remède. Coins
+> ramenés de 11 à **6 px** et liseré de 4 à **3 px**, comme la maquette.
+
+**Et l'autre moitié du « pas net » : le texte était COUPÉ.** `.plBulle` portait `height:100%` et
+`overflow:hidden` : dans une ligne courte, le commentaire de la case était tranché en pleine ligne
+(« Pose FO vers B… » coupé par le bas). La case prend maintenant la hauteur de son contenu
+(`min-height` seulement).
+
+**Le survol ne soulève plus la case** (`transform:translateY(-1.5px) scale(1.02)` retiré, un anneau
+à la place) : un `transform` crée une couche de composition, donc le texte perdait ClearType et
+devenait flou **pendant le survol** — le même piège que `opacity`, décrit juste en dessous.
+
+> **UN CONTRÔLE DU BANC A CHANGÉ D'OBJET, et il faut savoir pourquoi.** « la bulle rayée garde son
+> reflet » n'avait plus de sens sans reflet. Il vérifie maintenant que **la rayure survit et qu'il
+> n'y a rien par-dessus**. Le risque n'a pas disparu, il a changé de forme — et il s'est réalisé
+> dans la minute : ma substitution d'aplatissement a laissé une **virgule orpheline** avant le
+> point-virgule, le `background-image` est devenu invalide donc `none`, et **les deux rayures ont
+> disparu d'un coup**. Ce sont ces contrôles qui l'ont dit.
+
 ### « LES ÉCRITURES SONT FLOUES, COMME HACHURÉES » — c'était `opacity`, et c'est un piège Windows
 
 Signalé deux fois par Patrice avant que j'en trouve la vraie cause. La première fois j'ai incriminé
