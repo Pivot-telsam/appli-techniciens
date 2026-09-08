@@ -4581,3 +4581,192 @@ est dans la légende des entreprises avec « Date révision : 07/09/2026 ». **M
 d'un PDF en tableau ne préserve pas la correspondance ligne ↔ entreprise** : SEMI France n'y
 apparaît qu'une fois aussi, et elle a manifestement des lignes. À confirmer par Patrice ou par la
 source Excel du SPS. **Ne pas créer de fiche sur cette base.**
+
+## Planning, QUATRIÈME passe (08/09/2026) — rayures, cible du crayon, et la palette enfin mesurée sur la bonne chose
+
+Quatre demandes de Patrice dans un seul message : la petite croix des notes inatteignable **sur les
+cases blanches du bas**, les congés « un peu fades » à rayer, « la même chose pour les ICP avec une
+rayure un peu différente », et « les couleurs sont encore parfois un peu trop proches (Rion des
+Landes / Fleyriat par exemple) ».
+
+### 1. LA CIBLE DU CRAYON — le pointillé « libre » lui volait ses clics
+
+**Mesuré avant de toucher au code**, avec `elementFromPoint` point par point, et c'est la mesure qui
+a tout donné :
+
+| sorte de case | zone cliquable du bouton de note |
+|---|---|
+| case AVEC chantier | 43 × 32 px, **972 points sur 972** |
+| case VIDE (blanche) | 43 × 32 px, **157 points sur 972** |
+
+Le rectangle était le bon dans les deux cas — c'est pour ça que le banc du 07/09 disait « TOUT
+PASSE ». Mais dans une case vide, `.plVide::after` (le pointillé décoratif) est un **pseudo-élément
+de la case** : il se peint PAR-DESSUS le bouton et lui prend ses clics, ne lui laissant qu'une
+**lisière de 3 px** le long du bord. D'où « très difficile de pouvoir l'atteindre et c'est fatigant ».
+
+Correctif : `pointer-events:none` sur ce pointillé (il est décoratif, il n'a aucune raison de
+recevoir un clic, et le clic repart là où il allait déjà — la case, pour le pinceau et le dépôt),
+plus `z-index:2` sur le bouton en ceinture. La cible passe à **1376 points sur 1376, identique pour
+les quatre sortes de case**. Et un **anneau au repos** (`box-shadow 0 0 0 1px var(--border)`) : sur
+une case blanche la pastille était blanche sur blanc, il ne restait qu'un « + » gris à viser — la
+cible était à la fois volée ET invisible.
+
+> **LA LEÇON, et elle vaut pour tout banc d'essai de ce dépôt.** Le harnais du 07/09 prenait
+> `querySelector('.plNoteBtn')`, donc **le premier bouton de la grille** — toujours celui d'une case
+> avec chantier. Il ne pouvait pas voir le défaut. C'est la même faute que « un test qui ne peut pas
+> échouer ne prouve rien », sous une autre forme : **un banc qui n'échantillonne qu'une sorte
+> d'objet ne prouve rien sur les autres.**
+>
+> `partage/bloc-test-cible-note.html` mesure donc maintenant **les quatre sortes de case** (chantier,
+> vide, absence, texte), exige que la cible soit **PLEINE** (≥ 95 % de son rectangle, le contrôle qui
+> manquait) et que les quatre soient **identiques à 5 % près**. **Rejoué sur le fichier d'avant
+> correction : 2 échecs, « 157 points sur 972 (16 %) ».** Il sait donc dire non.
+
+### 2. LES RAYURES — trois registres qui ne peuvent plus se confondre
+
+Sa demande était de goût, mais elle se traduit en lecture : la grille se parcourt en diagonale pour
+répondre à « qui est où », et une case pâle sans texture se lit comme un chantier dont on n'a pas
+trouvé la couleur. La rayure la sort du registre des chantiers **avant** qu'on ait lu le mot dedans.
+
+| registre | fond | rayure |
+|---|---|---|
+| chantier | bulle **saturée**, texte blanc | aucune |
+| absence (CP, CP paternité, RTT, AM, récup, VM…) | rose pâle | **montantes, 45°**, fines et serrées |
+| **ICP** (nouveau, `.plIcp`) | violet pâle | **descendantes, 135°**, larges et doublées |
+
+**Le SENS de la rayure suffit à les séparer du coin de l'œil**, et il ne dépend pas de la couleur —
+ce qui compte sur un portable au soleil et à l'impression en noir et blanc (d'où l'ajout de
+`print-color-adjust:exact` sur les deux : sans lui l'impression les efface et la case redevient
+« fade », exactement le défaut qu'on corrige).
+
+**POURQUOI LE VIOLET POUR L'ICP, ET PAS L'AMBRE** : l'ambre est déjà le registre des notes libres
+(`.plBulleNote`, le post-it au crayon). Une ICP venue de Teams et une note écrite ici ne sont pas la
+même chose — l'une est un engagement, l'autre un pense-bête — et les confondre effacerait la
+distinction que Patrice demande justement d'accentuer.
+
+L'ICP tombait jusque-là dans `plTexte`, le gris italique fourre-tout, avec « agence », « Hauteur » et
+« PASS RTE » — alors que c'est le rendez-vous qui CONDITIONNE le chantier et qu'on le cherche dans la
+grille. Mesuré sur l'année : **14 cases ICP**. Le `\b` de `/^ICP\b/i` n'est pas décoratif (contrôle
+avec son contre-exemple : « ICPESSAI » reste du texte), et « ICP TIVERNON annulée » entre bien dans
+le lot — une ICP annulée reste une ligne d'ICP.
+
+**`background-color` + `background-image`, JAMAIS le raccourci `background`** : le raccourci
+effacerait la rayure ET le reflet de `.plBulle`. Un contrôle du banc vérifie que la bulle rayée garde
+ses deux couches.
+
+*Limite assumée, à dire à Patrice : la rayure ICP porte sur le texte de la case venu de **Teams**.
+Une ICP écrite comme note dans le suivi garde le post-it ambre au crayon — c'est un autre objet.*
+
+### 3. LES COULEURS — LE COUPLE QU'IL A CITÉ N'ÉTAIT PAS LE PIRE, ET DE LOIN
+
+C'est la mesure qui compte de cette session. Écart **CIEDE2000** des **894 paires de chantiers
+réellement co-visibles** dans une quinzaine, sur l'année entière :
+
+| | pire paire | paires sous 15 | sous 20 | à court de teintes |
+|---|---|---|---|---|
+| avant | **9,5** | 53 | 157 | 2 |
+| après | **14,0** | **10** | **112** | **0** |
+
+**La pire paire d'avant était deux BLEUS — `#0C7CB5` et `#1D6FE0` à 9,5, au coude à coude sur cinq
+quinzaines.** Rion / Fleyriat, le couple qu'il cite, mesurait 22,6. Son œil avait donc raison **bien
+en dessous** du seuil où je croyais le problème réglé.
+
+> **RÈGLE — quand Patrice dit que deux couleurs se ressemblent, la mesure à refaire n'est pas celle
+> du couple qu'il cite : c'est celle de TOUTES les paires.** Deux fois de suite (07/09 puis 08/09)
+> j'ai mesuré le couple nommé, trouvé un écart confortable, et conclu que la palette allait bien.
+> Le couple qu'il cite est un **symptôme**, pas le diagnostic.
+
+**POURQUOI CIEDE2000 ET PAS ΔE 76.** L'ancienne mesure disait Rion `#C4392C` / Fleyriat `#8C2F55` à
+**44** — « très différentes » — alors que les deux sont des rouges sombres. L'essentiel de ces 44
+est un écart de CLARTÉ, que l'œil pardonne beaucoup plus qu'un écart de teinte. En CIEDE2000 le même
+couple tombe à **22,6**, ce qui correspond à ce qu'il voit. Table des 29 × 29 couples calculée **une
+fois au chargement** : `repartirTeintes()` tourne à chaque rendu, recalculer la formule ferait payer
+l'affichage.
+
+**LE COMMENTAIRE QUI DISAIT « NE PAS REFAIRE » ÉTAIT FAUX, et il a bloqué la bonne piste 24 h.**
+Le 07/09 j'avais écrit dans `construireCarteTeintes` : « NE PAS AJOUTER ICI UN ÉVITEMENT DES TEINTES
+PROCHES — essayé et mesuré, aucun gain. » La tentative du 07/09 était mal outillée sur deux points,
+et aucun n'était « l'idée est mauvaise » :
+1. elle raisonnait sur des **noms de famille** de teinte, pas sur l'écart que l'œil voit ;
+2. elle départageait un glouton **déjà saturé** — mesuré : 24 teintes bloquées autour de l'étiquette
+   la plus contrainte, sur 24 disponibles, et deux étiquettes n'en trouvaient plus aucune. Un
+   départage n'a rien à départager quand il ne reste rien de libre.
+
+> **« Mesuré, aucun gain » n'autorise PAS à écrire « à ne pas refaire ».** Ça autorise à écrire
+> « essayé COMME CECI, aucun gain, voici comment c'était fait ». La première formule ferme une piste
+> pour de bon ; la seconde laisse la reprendre autrement. Vaut au-delà des couleurs.
+
+**CE QUI EST FAIT, en deux temps et l'ordre compte** (`construireCarteTeintes`) :
+1. si la couleur **préférée** du chantier est libre ET déjà à plus de `ECART_SUFFISANT` (20) de tous
+   ses voisins, il la garde — c'est ce qui préserve la promesse du 03/09 là où elle ne coûte rien ;
+2. sinon, parmi les teintes libres, celle dont l'écart **minimal** aux voisins est le **plus grand**.
+   Pas la première libre : la première libre est ce qui posait deux bleus côte à côte.
+
+**Le seuil n'est pas un compromis, c'est l'optimum des trois variantes mesurées** : ignorer
+complètement la préférence donne la même pire paire (14,0) mais **126** paires sous 20 au lieu de 112,
+et déplace 86 chantiers sur 93 au lieu de 75.
+
+**LA PALETTE FRANCHE PASSE DE 10 À 15** (`PALETTE_GRILLE_APPOINT` : prune profond, aubergine, olive
+sombre, sapin bleuté, bordeaux). Parce que la grille montre jusqu'à **15 chantiers en même temps** —
+et ce chiffre a été annoncé 14 le 03/09, **10 le 08/09 au matin**, 15 le 08/09 au soir : les deux
+premiers ont chacun servi à justifier une palette trop courte. **Ne pas le remplacer sans dire sur
+quoi porte le nouveau compte** (ici : les étiquettes DE GRILLE co-visibles dans une quinzaine,
+réserve exclue).
+
+Les cinq ajouts sont choisis par glouton max-min en CIEDE2000 (17,7 / 17,3 / 17,2 / 16,9 / 14,0),
+portent tous du blanc à ≥ 4,5:1 (9,6:1 à 14,8:1), et **aucun n'est plus proche des dix que les dix ne
+le sont entre elles** : la pire paire du noyau est violet `#7B3FE4` / pourpre `#8E2BA0` à **12,1**.
+*S'il faut resserrer un jour, c'est ce couple-là qu'il faut traiter, pas les ajouts.*
+Elles sont toutes sombres (L\* 16 à 32 quand les dix vont de 31 à 49) : la clarté devient un second
+indice, en plus de la teinte.
+
+**ELLES NE SONT PAS AJOUTÉES À `PALETTE_PLANNING`, et c'est volontaire** : la couleur préférée est
+`rang % PALETTE_PLANNING.length`, passer cette liste de 10 à 15 changerait le modulo et donc la
+couleur habituelle de **presque tous** les chantiers d'un coup. Un contrôle du banc le vérifie.
+
+**Résultat sur le couple qu'il a cité** : Rion des Landes `#6558B8` (lavande foncé) contre Fleyriat
+`#365314` (olive sombre) — ΔE2000 **50,4**.
+
+**Et à l'écran, sur la quinzaine la plus chargée de l'année** (01/06, 15 chantiers, 10 couleurs
+affichées) : la paire la plus proche réellement visible est à **15,7** (`#7F1D1D` Casteljaloux contre
+`#C4392C` St Christol), puis 16,9 (ardoise contre sapin). Contre 9,5 avant.
+
+### CE QUI A ÉTÉ MESURÉ ET **PAS** RETENU — la coloration par plage de semaines
+
+La troisième passe (ci-dessus) proposait de colorer par **plage continue de semaines** au lieu de par
+chantier, ce que la règle de Patrice du 03/09 autorise (« pas grave de les changer quand on
+réintervient un ou deux mois plus tard »). **Mesuré cette fois, avec une coupure à 5 semaines :**
+
+| | pire paire | sous 15 | stabilité |
+|---|---|---|---|
+| par plage de semaines | 14,0 | 2 | un chantier peut changer de teinte entre deux campagnes |
+| **par chantier (retenu)** | **14,0** | 10 | **une couleur par chantier, toute l'année** |
+
+**La pire paire est la MÊME.** Le découpage en plages n'achète que 8 paires de moins sous 15, au prix
+de la propriété que Patrice a demandée nommément. **Écarté** — et le paragraphe de la troisième passe
+qui le présentait comme « la sortie » est donc périmé : la sortie était la palette et le critère de
+choix, pas le découpage. *À reprendre seulement si Patrice trouve encore deux couleurs proches ET
+accepte explicitement le changement entre campagnes.*
+
+### Vérifié
+
+**Suivi : 263 contrôles, 0 échec** — `bloc-test-rayures-ecarts` (22, **nouveau**), `bloc-test-couleurs`
+(10), `bloc-test-cible-note` (23, passé de 6 à 23), `bloc-test-cible-croix` (6), `bloc-test-affaires`
+(74), `bloc-test-saisie-affaires` (90), `bloc-test-notes` (22), `bloc-test-validation-suivi` (16).
+Les deux blocs `<script>` compilent, et le comptage d'encodage donne **0 `Ã`, 0 caractère de
+remplacement**.
+
+Le nouveau banc porte ses contre-exemples : un chantier n'est **pas** rayé, une case texte ordinaire
+non plus, « ICPESSAI » n'est pas une ICP, et surtout **il rejoue l'état exact d'avant** (ancienne
+règle ET ancienne palette) pour vérifier qu'il sait trouver le défaut : 9,5 contre 14,0, 50 paires
+sous 15 contre 10.
+
+*Piège rencontré en l'écrivant : mon premier contre-exemple rejouait l'ancienne règle avec la palette
+ÉLARGIE. Il donnait 12,1 au lieu de 9,5 et **le banc échouait de justesse sur un succès**. Un
+contre-exemple doit reproduire l'état d'avant EN ENTIER, sinon il mesure un mélange qui n'a jamais
+existé.*
+
+**Et à l'écran**, ce qu'aucun de ces contrôles ne montre : la grille sur deux quinzaines, avec les
+congés rayés en rose, les ICP rayées en violet, les cases blanches du bas et leur bouton visible.
+
+**`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.** Tout est CSS et calcul de rendu.
