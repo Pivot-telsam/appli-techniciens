@@ -4770,3 +4770,137 @@ existé.*
 congés rayés en rose, les ICP rayées en violet, les cases blanches du bas et leur bouton visible.
 
 **`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.** Tout est CSS et calcul de rendu.
+
+## La charte « Telsam Ops » et la grille en B' (08/09/2026)
+
+Patrice a lancé une refonte visuelle du suivi et de l'appli à partir d'une charte reçue par Teams :
+**« Identité visuelle Telsam Ops.pdf »**, envoyée par Pierre Brillou (son OneDrive, dossier
+« Fichiers de conversation Microsoft Teams »). Navy `#16175B`, terracotta `#CD8E81` réservé à
+l'accent, indigo `#4B4EDB` pour les actions, League Spartan / DM Sans / IBM Plex Mono.
+
+Les maquettes de travail vivent dans **`TELSAM-apps\maquette-charte\`** — dossier parent, donc
+**hors des deux dépôts Git** : elles ne sont ni versionnées ni publiées, et c'est voulu.
+
+### CE QUE LA CHARTE DEMANDAIT ET QUI NE PASSE PAS LA MESURE — ne pas re-proposer
+
+La charte proposait de remplacer les couleurs pleines de chantier par **dix teintes très claires**
+(`oklch(0.955 0.028 H)` pour le fond, `oklch(0.58 0.145 H)` pour le liseré), attribuées **par
+hachage** du n° d'affaire. Trois choses, mesurées avant d'écrire une ligne, sur les **894 paires de
+chantiers réellement co-visibles** dans une quinzaine de l'année :
+
+| registre | pire paire co-visible | paires sous 15 |
+|---|---|---|
+| la palette actuelle (26 teintes du 08/09) | **14,0** | 10 / 894 |
+| charte, fond `oklch(0.955 0.028)` | **4,7** | 433 / 894 |
+| fond plus soutenu, `oklch(0.84 0.10)` | **7,9** | 127 / 894 |
+
+**La cause est structurelle, pas un défaut de réglage** : quand une quinzaine porte 15 chantiers,
+toutes les teintes sont côte à côte, donc l'écart co-visible ne peut pas dépasser celui de la
+palette elle-même — et un registre clair n'a pas la place perceptive d'en tenir quinze. Corollaire
+contre-intuitif à garder : **on ne rattrape pas un fond trop pâle en le saturant.** À clarté 0,955,
+monter la saturation de 0,028 à 0,13 fait *baisser* l'écart minimal de 4,7 à 4,0, tout étant écrasé
+contre le blanc.
+Deux autres refus de la même veine : l'attribution **par hachage** ne garantit rien, là où le
+glouton max-min garantit 0 collision dans la grille ; et le **terracotta ne peut pas porter de
+texte** (2,70:1 sur blanc, 2,52:1 sur le fond de travail) — il ne sert qu'en filet, en marqueur et
+en liseré d'onglet actif.
+
+> **LA MESURE À FAIRE EST CELLE DES PAIRES CO-VISIBLES, jamais celle de la palette.** La palette de
+> la charte annonçait 13,6 sur ses dix liserés — meilleur que nos 12,1 — et s'effondre à 4,7 dès
+> qu'on la confronte au planning réel. Une palette se juge sur ce qui se retrouve ensemble à
+> l'écran, pas sur ses paires théoriques.
+
+### CE QUI EST FAIT : LA VARIANTE B'
+
+Tranchée par Patrice à l'œil sur la maquette, après avoir vu les trois registres à 10 chantiers.
+**La teinte ne change pas d'un iota** — ce sont les 26 teintes mesurées le 08/09, donc l'écart
+co-visible reste à **14,0**. Ce qui change est la **surface** que la couleur occupe :
+
+- la case chantier est un **fond très clair** (sa teinte mélangée à 8 % de blanc) plus un
+  **liseré gauche de 4 px** à la teinte pleine, encre `var(--text)` à 11,9:1 ;
+- le **n° d'affaire est en mono sur la première ligne**, le nom sur la seconde, **sans ellipse**
+  (règle 7 de la charte : plus de « Poste de Portet (P… »). Les lignes de la grille sont donc un peu
+  plus hautes, c'est le prix et il est voulu ;
+- le numéro porte la teinte **assombrie de 20 %** : mesuré sur les 26 teintes, la teinte brute ne
+  tenait 4,5:1 sur son propre fond que dans 20 cas sur 26 ; à −20 % le minimum passe à 5,4:1 et
+  aucune n'échoue ;
+- **les pastilles de la réserve du bas gardent leur aplat saturé.** Ce sont des boutons qu'on lit et
+  qu'on fait glisser, avec leur nom écrit dessus — le raisonnement du 03/09 tient. Et la différence
+  de registre devient utile : réserve = pastille pleine, grille = fond clair + liseré.
+
+**LE PIÈGE QUE B' CRÉE, ET QU'IL A FALLU CORRIGER DANS LE MÊME GESTE.** Un fond de chantier pâle
+entre dans le registre des **absences** et des **ICP**, qui sont pâles aussi. Mesuré : le fond du
+rouge brique `#C4392C` tombait à **ΔE 1,0** du rose des congés, et l'indigo `#4B4FCE` à **1,5** du
+violet des ICP — la même couleur. Or c'est exactement la distinction que Patrice demandait
+d'ACCENTUER le matin même. Les deux fonds ont donc été **approfondis, localement à la grille** :
+`.plAbsence .plBulle` passe à `#f2c9c9` et `.plIcp .plBulle` à `#d5d0f4` (écarts remontés à **11,8**
+et **10,5**, textes à 6,9:1), et `.plTexte .plBulle` à `#ece8dc`. Ces valeurs sont **écrites en dur
+dans la grille** et ne touchent pas `--red-bg` / `--purple-bg`, qui continuent de servir aux alertes
+du suivi — là où aucune case de chantier ne les côtoie.
+
+> **DANS LA GRILLE, LE FOND NE SÉPARE PLUS LES REGISTRES.** Ce sont le **liseré** (chantier
+> seulement) et le **SENS de la rayure** (absence 45°, ICP 135°) qui les séparent — deux indices qui
+> ne dépendent ni de la teinte ni de la couleur, donc qui tiennent au soleil et en noir et blanc.
+> **Ré-éclaircir un fond d'absence ramène le défaut, et il revient SANS RIEN AFFICHER D'ANORMAL.**
+> Écart résiduel assumé : **3,0** entre une case chantier or/brun et une case du registre `plTexte`
+> (le gris italique fourre-tout). C'est le moins conséquent des quatre — on lit les mots — et une
+> case de chantier y ajoute un liseré et un numéro en mono.
+
+**UN SEUL ENDROIT POSE LA COULEUR** : `styleBulleChantier(fond)` et `contenuBulleChantier(texte, c)`.
+Trois rendus en avaient besoin (case du planning, case du brouillon, et la réserve qui garde son
+aplat) et les trois écrivaient leur `style=` à la main — ils avaient déjà divergé une fois. La
+couleur arrive en **`background-color`** et **`border-left-color`**, jamais en raccourci : `background`
+effacerait le reflet, `border-left` effacerait la largeur posée par la feuille de style et **le
+liseré disparaîtrait sans que rien ne le signale**, la case restant simplement plate.
+`.plNum` est ajouté au bloc `@media print` : sans lui le numéro sortait en noir et on perdait le
+seul rappel de couleur qui survive à une impression économe.
+
+### Le logo vectoriel existe — extrait du `.ai` le 08/09/2026
+
+Patrice a fourni `Bureau\logo-Telsam-23-fondBleu.ai`. **Un `.ai` récent EST un PDF** : celui-ci est
+un PDF 1.6, une page, sans police ni image — tout en tracés. Extrait en SVG dans
+`maquette-charte\` : `logo-telsam.svg` (fidèle, 8,3 Ko) et **`logo-telsam-compact.svg`** (logotype
+et flèches du « s » seulement, cadré serré, 7,2 Ko). **C'est le compact qu'il faut en en-tête** :
+sous 40 px, les trois virgules du premier tombent à 0,07 px de trait et le logo paraît délavé. La
+carte d'Europe du fond (13 005 segments) est volontairement laissée de côté — invisible sous 200 px.
+Le marqueur « T » terracotta que la charte proposait en substitut est donc inutile.
+
+*Méthode, si c'est à refaire : copier le `.ai` en `.pdf` dans le scratchpad, inflater le flux
+`/Contents` avec `DeflateStream` (sauter les 2 octets d'entête zlib), puis traduire les opérateurs
+`m l c v re h f f* S k K w cm` en chemins SVG, l'axe Y retourné par `translate(0 H) scale(1 -1)`.*
+
+> **DEUX PIÈGES POWERSHELL PAYÉS ICI, TOUS DEUX DE CASSE.** `-eq` est **insensible à la casse** :
+> mon test de l'opérateur `M` (limite d'onglet du PDF) avalait donc tous les `m` (moveto) et aucun
+> chemin ne démarrait. **Utiliser `-ceq` pour comparer des opérateurs.** Et les **noms de variables
+> le sont aussi** : le `$h` du rectangle écrasait le `$H` de la hauteur de page. Les deux se
+> voyaient à l'écran — des bandes vides — et aucun ne se voyait à la relecture.
+
+### Ce qui reste de la charte, et n'est PAS fait
+
+Rien de tout cela n'est commencé : **navigation latérale navy** groupée « Pilotage » / « Terrain »
+(les 10 boutons de vue de l'en-tête), **typographie** League Spartan / DM Sans / IBM Plex Mono,
+**bandeau d'alerte unique** et repli du reste, **colonne conformité** PDP/PGO/IST/MAT, retrait des
+derniers emoji, et le **thème sombre d'AppTech** (charte fournie par Patrice, maquette à quatre
+écrans dans `maquette-charte\maquette-apptech.html`).
+
+**Deux points à ne pas trancher seul quand on reprendra :**
+1. **Les listes déroulantes de statut de l'onglet Affaires.** La charte demande une pastille avec
+   édition au survol ; c'est exactement ce que le lot 2 du 07/09 a **remplacé** par une liste
+   déroulante à liseré de 4 px, parce qu'il fallait distinguer douze étapes. Y revenir défait un
+   arbitrage éprouvé de la veille.
+2. **Les polices viennent de Google.** Le suivi part par Teams et s'ouvre parfois hors ligne : dans
+   ce cas il retombe sur Arial. Soit on les embarque dans le fichier (+250 Ko environ), soit on
+   accepte le repli. Question posée à Patrice, sans réponse à ce jour.
+
+**Vérifié — 263 contrôles, 0 échec** : `bloc-test-couleurs` 10, `bloc-test-rayures-ecarts` 22,
+`bloc-test-cible-note` 23, `bloc-test-cible-croix` 6, `bloc-test-notes` 22,
+`bloc-test-validation-suivi` 16, `bloc-test-affaires` 74, `bloc-test-saisie-affaires` 90 ; les deux
+blocs `<script>` compilent, 0 `Ã` et 0 caractère de remplacement.
+Le contrôle qui comptait le plus ici est **`bloc-test-cible-note`** : le rembourrage de `.plBulle` a
+changé, et la cible du crayon reste à **1344 points sur 1344, identique sur les quatre sortes de
+case**. Et `bloc-test-rayures-ecarts` confirme les **14,0** avec son contre-exemple (9,5 avec
+l'ancienne règle).
+**Et à l'écran** : la grille sur les semaines 37 et 38, les congés rayés nettement plus soutenus que
+les cases de chantier, et les noms de chantier écrits en entier.
+
+**`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.** Tout est CSS et rendu.
