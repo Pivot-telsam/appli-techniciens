@@ -4875,13 +4875,48 @@ Le marqueur « T » terracotta que la charte proposait en substitut est donc inu
 > le sont aussi** : le `$h` du rectangle écrasait le `$H` de la hauteur de page. Les deux se
 > voyaient à l'écran — des bandes vides — et aucun ne se voyait à la relecture.
 
+### L'OSSATURE, faite juste après (08/09/2026) — et l'erreur de lecture qui l'a retardée
+
+**Patrice, en voyant le suivi poussé : « qu'est-ce que tu as fait ? je ne vois rien de ce que tu
+m'as proposé ».** Il avait raison. Il avait validé la maquette — barre navy, typographie, en-tête —
+puis dit « on part sur la B', commit et pousse » ; j'ai lu ça comme « pousse la variante de couleur
+de la grille » et livré ce seul détail, en annonçant le reste comme « pas commencé ».
+
+> **LA LEÇON, et elle vaut au-delà de ce cas : « on part sur X » après une maquette veut dire la
+> maquette, pas la ligne X.** Quand une décision porte sur un point d'un ensemble qu'il vient de
+> valider, c'est l'ensemble qui est commandé. Ne pas rétrécir la commande à la question posée.
+
+Faite dans la foulée, et c'est le **geste n° 1** de la charte :
+- **navigation latérale navy** groupée « Pilotage » / « Terrain », à la place de la rangée de dix
+  boutons identiques ;
+- **en-tête** avec le titre de l'écran, la fraîcheur de la donnée et **trois actions** (Nouveau
+  chantier en indigo, Imprimer, Exporter) ;
+- **typographie** League Spartan (titres) / DM Sans (interface) / IBM Plex Mono (chiffres) ;
+- le **logotype vectoriel** en `data:` dans la variable `--logo-telsam`, posé en `mask` sur un
+  aplat blanc — donc dans le fichier, donc hors ligne, et recolorable ;
+- l'imprimante et la loupe **emoji** retirées.
+
+**LES IDENTIFIANTS `btnView*` SONT GARDÉS TELS QUELS, ET C'EST LA SEULE CHOSE À NE PAS DÉFAIRE.**
+`setView` bascule la classe `active` sur chacun des dix, par `getElementById`. Refaire le balisage
+sans garder les ID casse la vue active **en silence** : l'écran s'afficherait, mais plus aucun
+onglet ne se marquerait. Les anciens boutons ont donc été SUPPRIMÉS, pas cachés — deux éléments du
+même ID auraient laissé `getElementById` en désigner un au hasard.
+`TITRES_VUES` porte le titre de chaque écran : depuis que les vues sont dans la barre latérale,
+l'en-tête est le seul endroit qui dit où l'on est.
+
+*Deux compteurs de la charte ont été RETIRÉS du balisage plutôt que laissés vides : « Alertes » et
+« À vérifier » n'ont pas de comptage fiable sous la main, et un compteur faux est pire qu'absent.
+Seul celui d'Affaires est posé, depuis `AFFAIRES_RTE.affaires.length`.*
+
+**Vérifié en plus des 263 contrôles** : les dix vues ouvertes une par une — titre juste, onglet
+marqué, vue affichée, **zéro erreur JavaScript** — et aucun identifiant `btnView*` en double.
+
 ### Ce qui reste de la charte, et n'est PAS fait
 
-Rien de tout cela n'est commencé : **navigation latérale navy** groupée « Pilotage » / « Terrain »
-(les 10 boutons de vue de l'en-tête), **typographie** League Spartan / DM Sans / IBM Plex Mono,
-**bandeau d'alerte unique** et repli du reste, **colonne conformité** PDP/PGO/IST/MAT, retrait des
-derniers emoji, et le **thème sombre d'AppTech** (charte fournie par Patrice, maquette à quatre
-écrans dans `maquette-charte\maquette-apptech.html`).
+**bandeau d'alerte unique** et repli du reste (l'onglet Affaires en empile encore trois),
+**colonne conformité** PDP/PGO/IST/MAT, les trois derniers emoji (⚠️ ×3, 📄, 📋 ×2, tous dans du
+texte d'alerte et non dans le chrome), et le **thème sombre d'AppTech** (charte fournie par
+Patrice, maquette à quatre écrans dans `maquette-charte\maquette-apptech.html`).
 
 **Deux points à ne pas trancher seul quand on reprendra :**
 1. **Les listes déroulantes de statut de l'onglet Affaires.** La charte demande une pastille avec
