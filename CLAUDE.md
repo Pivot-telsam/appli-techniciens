@@ -5159,3 +5159,112 @@ l'ancienne règle).
 les cases de chantier, et les noms de chantier écrits en entier.
 
 **`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.** Tout est CSS et rendu.
+
+### CINQUIÈME PASSE, LE MÊME JOUR (08/09/2026) — « c'est moche », et les trois causes réelles
+
+**Patrice, capture à l'appui : « l'écriture du bandeau est petite et floue. Les écritures des
+chantiers idem. Ça ne fait pas propre du tout. J'aimerais voir quelque chose de tout lisse,
+agréable à manipuler, avec des couleurs qui pètent un petit peu, un peu vives, une écriture qu'on
+puisse voir nette. Les écritures sont toutes petites et on dirait qu'elles sont hachurées. Les
+couleurs ne sont pas belles. J'aimerais un truc un peu dessins animés, cartoons, agréable. »**
+
+Trois défauts distincts, aucun n'était une question de goût.
+
+#### 1. LA PALETTE MÉLANGEAIT QUATRE REGISTRES — c'était ça, « les couleurs ne sont pas belles »
+
+L'exemple B avait dix pastels à `oklch(0.87 0.09)`, mais les vingt teintes d'appoint et de secours
+étaient à **quatre clartés et saturations différentes** (dont `#5db65f` et `#e98942`, franchement
+soutenues). Or la grille descend jusqu'au 18ᵉ rang : l'écran affichait donc **des pastels délavés à
+côté de tons soutenus**, sans qu'aucune règle ne relie les deux. Ce n'est pas une couleur qui était
+laide, c'est l'absence de famille.
+
+**LA PALETTE EST DÉSORMAIS UNE SEULE FAMILLE, CONSTRUITE SUR UNE HÉLICE DE CLARTÉ.**
+Chaque nuance reçoit la clarté à laquelle elle est le plus vive :
+`L(H) = 0.745 + 0.115 × cos(H − 105°)`, saturation plafonnée à 0,165 (0,105 au niveau clair).
+
+> **POURQUOI L'HÉLICE ET PAS UNE CLARTÉ CONSTANTE — c'est LE point à ne pas défaire.**
+> À clarté constante, le jaune sort **moutarde** et le violet **lavé** : mesuré, `oklch(0.79 0.17)`
+> en H=108 donne `#c6c102`, une olive sale, et c'est exactement ce registre-là qui faisait « pas
+> beau ». Un jaune n'est franc qu'autour de L=0,86, un bleu qu'autour de L=0,69. **Suivre la clarté
+> naturelle de chaque nuance est ce qui donne le registre « dessin animé »** — et c'est aussi ce
+> qui améliore les écarts, la clarté devenant un second indice en plus de la nuance.
+> Deux essais mesurés et écartés avant celui-là : clarté constante 0,79 (moutarde et olive), et
+> saturation maximale à contraste ≥ 5,5:1 (`#f5f001`, `#00ffe1` — du néon, pas du cartoon).
+
+**Deux niveaux, quinze nuances chacun, écartées de 24°** — et non plus 18° sur un seul niveau :
+- **niveau plein** (`PALETTE_PLANNING` + `PALETTE_GRILLE_APPOINT`) : les 15 nuances de 0 à 336° ;
+- **niveau clair** (`PALETTE_SECOURS_PLANNING`) : 15 nuances décalées de 12°, `L = 0.855 + 0.055×cos`.
+
+**L'ORDRE DES DIX PREMIÈRES VIENT D'UN GLOUTON MAX-MIN SUR LA NUANCE, PAS DU GOÛT** : rose vif,
+menthe, bleuet, abricot, pomme, cyan, améthyste, corail, pêche, citron. Les dix premières sont donc
+les plus écartées, et ce sont elles que la grille sert d'abord (`rang % 10`). **Ne pas retrier ces
+listes**, et ne pas allonger `PALETTE_PLANNING` : le modulo changerait la couleur habituelle de
+presque tous les chantiers.
+
+**LE SEUIL DE CONTRASTE SE CALCULE CONTRE `--text` (#2c2c2a), PAS CONTRE L'ENCRE POSÉE EN LIGNE.**
+Premier jet calculé contre `#1f1f1d` : quatre teintes passaient à 5:1 dans mon générateur et
+**échouaient à 4,24:1 dans le banc**, qui mesure — à raison — contre la couleur de référence du
+fichier. Neuf teintes ont été éclaircies juste ce qu'il faut. Plancher mesuré : **5,01:1**.
+
+Mesures finales, sur les **894 paires de chantiers réellement co-visibles** : pire écart CIEDE2000
+**11,4**, **0 paire sous 11**, 45 sous 15, **0 étiquette à court de teintes**, 30/30 liserés.
+*Honnêteté du chiffre : 12,3 avant, 11,4 maintenant. C'est le prix d'un registre unique et vif, et
+il est payé sciemment — le seuil qui compte (aucune paire sous 11) tient toujours, et le contour
+complet ajoute un second indice que la mesure de fond ne voit pas.*
+
+#### 2. LA VIGNETTE « AUTOCOLLANT » — le contour ferme la forme
+
+Le « cartoon » n'est pas qu'une affaire de couleur : c'est **l'aplat franc PLUS le trait de
+contour**. `.plBulle` porte donc un **contour complet de 1,5 px** dans la teinte foncée du chantier
+(`LISERE_DE`, déjà en place) au lieu d'un liseré à gauche seulement, avec un coin à 9 px.
+
+**`styleBulleChantier` pose donc `border-color` et non plus `border-left-color`** — toujours la
+propriété longue, jamais `border` : le raccourci écraserait la largeur posée par la feuille de style
+et **le contour disparaîtrait sans que rien ne le signale**, la case restant simplement plate.
+Le contour rend aussi service à la lisibilité : deux teintes voisines gardent deux contours
+distincts. Les pastilles de la réserve suivent (`.plChip`), même objet, même apparence.
+
+**Les rayures des congés et des ICP passent en couleur PLEINE**, et leur bord vient de
+`border-color` et non plus d'un `box-shadow:inset`. Deux raisons mesurées : une rayure en `rgba`
+laisse voir le fond au travers et **grise** la case (c'est ce qui les rendait sales), et l'ombre
+intérieure passait **par-dessus** la rayure en lui mangeant 1 px sur tout le tour.
+
+#### 3. « TOUTES PETITES ET COMME HACHURÉES » — quatre causes, toutes mesurables
+
+Le mot « hachuré » est revenu trois fois en deux jours. `opacity` sur du texte avait été traitée à
+la quatrième passe ; il en restait quatre :
+
+| cause | pourquoi ça hachure | correctif |
+|---|---|---|
+| `Courier New` à 10,5 px pour le n° d'affaire | police d'origine **bitmap** : à cette taille Windows la rend en pixels durs | `IBM Plex Mono`, 11,5 px, poids 700 |
+| `letter-spacing:-.01em` à 10,5 px | vaut −0,1 px par lettre, que Windows **arrondit** : les lettres se collent par paquets irréguliers | `0` |
+| `letter-spacing:.01em` sur les absences | même mécanisme dans l'autre sens | `normal` |
+| encre grise (`#4a4a48`, `#55554f`) sur un aplat coloré | trop peu d'écart pour que le lissage accroche | quasi-noir (`#23231f`, `#20201d`) |
+
+> **RÈGLE : sous 14 px, on ne crène pas.** Ni en négatif ni en positif. Un `letter-spacing` en `em`
+> à cette taille donne une fraction de pixel, et l'arrondi par lettre est visible.
+
+**Et les tailles ont monté partout où il l'a signalé** : barre latérale 13 → **14,5 px** en poids
+**600** (700 pour l'onglet ouvert) et blanc presque pur au lieu d'un gris ; icônes 15 → 17 px, trait
+1,5 → 1,9 ; nom de chantier 12 → **12,5 px en 700** ; commentaire de case 11 → 11,5 px ; en-têtes de
+la grille 13 → 13,5 px en 700 ; hauteur de case 40 → 46 px.
+
+> **POURQUOI LE BLANC PRESQUE PUR DANS LA BARRE NAVY, et pas un gris « plus doux ».** Sur fond
+> sombre, le lissage sous-pixel déborde vers le clair : il **ronge** le trait au lieu de
+> l'épaissir. À 13 px, poids 400, en `#DFE0EA`, il ne restait presque plus de trait — c'est ça, le
+> flou du bandeau. **Ne pas y remettre un gris pour adoucir : c'est le défaut, pas le style.**
+
+#### Vérifié
+
+**265 contrôles, 0 échec** : `bloc-test-couleurs` 10, `bloc-test-rayures-ecarts` **24**,
+`bloc-test-cible-note` 23, `bloc-test-cible-croix` 6, `bloc-test-notes` 22,
+`bloc-test-validation-suivi` 16, `bloc-test-affaires` 74, `bloc-test-saisie-affaires` 90.
+0 `Ã`, 0 caractère de remplacement.
+Le contrôle de contraste a **réellement échoué** avant correction (« #6998ff 4,24:1 ») : c'est lui
+qui a trouvé le défaut du seuil, et il porte son contre-exemple (le blanc ne tiendrait sur aucune
+des 30 teintes).
+**Et à l'écran, à l'échelle 1 pour 1** — la seule façon de juger de la netteté, une capture réduite
+la fabrique ou la cache : la barre latérale, la grille des semaines 37-38, les congés rayés et les
+pastilles de la réserve.
+
+**`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.** Tout est CSS, palette et rendu.
