@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-09-1';
+var APP_VERSION = '2026-09-09-2';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-09-1';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "L'appli change d'allure, aux couleurs Telsam : écritures plus lisibles, boutons plus grands. En haut de l'écran, une ligne dit maintenant de quand datent tes chantiers et si tu as du réseau — et si une feuille d'heures n'a pas pu partir, elle reste annoncée là jusqu'à ce qu'elle soit envoyée. Ta façon de saisir tes heures ne change pas.";
+var APP_NOUVEAUTE = "Correction importante sur ta feuille d'heures : elle est maintenant enregistrée à chaque chiffre que tu tapes, et « Enregistré à … » s'affiche à côté du titre. Avant, ce que tu venais de saisir pouvait être perdu si tu quittais l'appli tout de suite après. Et le texte sous le bouton d'envoi ne parle plus de mail : ta feuille part directement au bureau, tu n'as rien d'autre à faire.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -498,6 +498,9 @@ footer.legend{max-width:640px; margin:8px auto 0; padding:0 16px;
 .h-toggle-btn.gd{background:var(--indigo-fond); border-color:var(--indigo-filet); color:var(--indigo-pale);}
 .h-toggle-btn.gd .h-toggle-day{color:var(--indigo-pale);}
 .h-hint{font-size:11.5px; color:var(--t2); margin:2px 0 7px; line-height:1.4;}
+/* L'etat de l'enregistrement, a cote du titre de la section ou il tape. */
+.h-saved-tag{font-size:11px; font-weight:700; color:var(--vert); letter-spacing:0; text-transform:none;}
+.h-saved-tag.non{color:var(--rouge-t);}
 .h-veh-row{display:flex; gap:8px;}
 .h-veh-btn{flex:1; background:var(--touche); border:1px solid var(--filet2); color:var(--t2);
   border-radius:11px; padding:11px; min-height:var(--cible); font-size:12.5px; cursor:pointer;
@@ -940,12 +943,19 @@ async function kvGet(k){
     rq.onerror=()=>rej(rq.error);
   });}catch(e){return undefined;}
 }
+/* `kvSet` REND MAINTENANT VRAI OU FAUX, et ce n'est pas cosmétique.
+   Elle avalait toutes ses erreurs en silence : quand le navigateur refuse
+   d'écrire — navigation privée, mémoire pleine, réglage de confidentialité —
+   chaque enregistrement ne faisait RIEN et le technicien ne s'en apercevait
+   qu'en retrouvant sa feuille vide. C'est le « vert mensonger » de la règle
+   du 25/08/2026. Le suivi, lui, affiche « Stockage local indisponible »
+   depuis toujours : on aligne l'appli. */
 async function kvSet(k,v){
   try{const db=await idbOpen();await new Promise((res,rej)=>{
     const tx=db.transaction(IDB_STORE,'readwrite');
     tx.objectStore(IDB_STORE).put(v,k);
     tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
-  });}catch(e){}
+  }); return true;}catch(e){ return false; }
 }
 
 /* ---------- semaines ISO (même logique que le suivi principal) ---------- */
@@ -1726,7 +1736,6 @@ let hoursEntry=null;
 let hoursKeyCurrent=null;
 let addingChantier=false;
 let addingAbsence=false;
-let _saveTimer=null;
 
 function escapeHtml(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1825,10 +1834,18 @@ async function ensureFeuilleForWeek(tech, weekInfo){
   });
   hoursKeyCurrent = key;
   hoursEntry = entry;
-  await kvSet(key, entry);
+  /* Premier contact avec le magasin local : s'il refuse déjà ici, le
+     technicien doit l'apprendre AVANT de saisir sa semaine, pas après. On
+     ne dit pas « enregistré » pour autant — il n'a encore rien tapé. */
+  const ok = await kvSet(key, entry);
+  majEtatEnregistrement(ok !== false, false);
 }
 
 async function loadAndRenderHours(){
+  /* ON NE RELIT JAMAIS AVANT QUE LA DERNIÈRE ÉCRITURE SOIT PASSÉE. Sans
+     cette ligne, changer de semaine puis revenir relisait la feuille
+     d'AVANT la dernière saisie, et la réécrivait ensuite par-dessus. */
+  await _ecritureHeures.catch(() => {});
   const weekInfo = weekRange(currentOffset);
   await ensureFeuilleForWeek(currentTech, weekInfo);
   renderHoursUI();
@@ -1838,10 +1855,109 @@ async function loadAndRenderHours(){
   loadPdfLib().catch(()=>{ /* idem pour le PDF */ });
 }
 
-function scheduleSaveHours(){
-  if(_saveTimer) clearTimeout(_saveTimer);
-  _saveTimer=setTimeout(()=>{ if(hoursKeyCurrent && hoursEntry) kvSet(hoursKeyCurrent, hoursEntry); }, 400);
+/* =====================================================================
+   L'ENREGISTREMENT DE LA FEUILLE — RÉÉCRIT LE 09/09/2026
+   ---------------------------------------------------------------------
+   Défaut signalé par Patrice : « les feuilles remplies par les techniciens
+   doivent rester remplies sur l'appli, comme pour le suivi ».
+
+   CE QUI SE PASSAIT. Chaque saisie appelait un `setTimeout` de 400 ms, et
+   CHAQUE NOUVELLE SAISIE ANNULAIT LE PRÉCÉDENT. Un technicien qui remplit
+   sa semaine sans s'arrêter n'avait donc RIEN d'écrit tant qu'il tapait :
+   tout partait 400 ms après sa dernière touche. Or ce qu'on fait après la
+   dernière touche, c'est verrouiller son téléphone ou changer d'appli — et
+   sur mobile, une page mise en arrière-plan voit ses minuteries GELÉES,
+   puis l'onglet peut être supprimé de la mémoire. Le minuteur ne se
+   déclenchait jamais. La feuille entière était perdue, sans un mot.
+
+   Deuxième moitié du défaut : `kvSet` avalait ses erreurs. Sur un
+   téléphone où le navigateur refuse d'écrire, l'appli faisait semblant
+   d'enregistrer à chaque frappe.
+
+   CE QU'ON FAIT MAINTENANT, comme le suivi :
+   1. on écrit À CHAQUE SAISIE, tout de suite, sans minuterie ;
+   2. on regarde si l'écriture a réussi, et **on le dit à l'écran** —
+      « Enregistré à 14 h 03 » en vert, ou un bandeau rouge qui dit de ne
+      pas quitter l'écran avant d'avoir envoyé ;
+   3. on écrit aussi quand la page passe en arrière-plan, par ceinture ;
+   4. on ne RELIT jamais la feuille avant que la dernière écriture soit
+      passée (sinon changer de semaine et revenir écrasait la saisie avec
+      la version d'avant).
+
+   NE PAS REMETTRE DE MINUTERIE ICI. Le coût d'une écriture IndexedDB sur
+   un objet de cette taille est négligeable ; le coût d'une semaine de
+   pointage perdue ne l'est pas. Un contrôle du harnais vérifie qu'aucune
+   `setTimeout` ne revient dans ce chemin.
+   ===================================================================== */
+let _ecritureHeures = Promise.resolve(true);
+let _ecritureEnFile = false;
+let _stockageOk = true;
+let _dernierEnregistrement = null;
+
+function sauverHeures(){
+  if(!hoursKeyCurrent || !hoursEntry) return _ecritureHeures;
+  hoursEntry.majLe = new Date().toISOString();
+  /* Une seule écriture en file à la fois. Ce n'est PAS un report : celle
+     qui est en file n'a pas encore commencé, donc elle emportera l'état le
+     plus récent. La clé ET l'objet sont capturés ensemble — sans ça, un
+     changement de semaine entre la mise en file et l'écriture rangerait la
+     feuille de la nouvelle semaine sous la clé de l'ancienne. */
+  if(_ecritureEnFile) return _ecritureHeures;
+  _ecritureEnFile = true;
+  const cle = hoursKeyCurrent, valeur = hoursEntry;
+  _ecritureHeures = _ecritureHeures
+    .then(() => { _ecritureEnFile = false; return kvSet(cle, valeur); })
+    .then(ok => { majEtatEnregistrement(ok !== false, true); return ok; })
+    .catch(() => { majEtatEnregistrement(false, false); return false; });
+  return _ecritureHeures;
 }
+
+function heureCourte(d){
+  return String(d.getHours()).padStart(2,'0') + ' h ' + String(d.getMinutes()).padStart(2,'0');
+}
+
+/* `annoncer` à faux = on ne prétend pas « enregistré ». Sert au premier
+   chargement : à ce moment-là il n'y a rien de saisi, seul un ÉCHEC mérite
+   d'être affiché. */
+function majEtatEnregistrement(ok, annoncer){
+  const bascule = (ok !== _stockageOk);
+  _stockageOk = ok;
+  if(ok && annoncer !== false) _dernierEnregistrement = new Date();
+  const el = document.getElementById('hSaved');
+  if(el) el.outerHTML = htmlEtatEnregistrement();
+  // Le bandeau rouge apparait ou disparait : il faut refaire le panneau.
+  // Seulement sur la BASCULE, sinon on referait le rendu a chaque frappe et
+  // le champ en cours de saisie perdrait le curseur.
+  if(bascule && currentTab === 'heures') renderHoursUI();
+}
+
+function htmlEtatEnregistrement(){
+  if(!_stockageOk) return '<span class="h-saved-tag non" id="hSaved">non enregistré</span>';
+  if(!_dernierEnregistrement) return '<span class="h-saved-tag" id="hSaved"></span>';
+  return '<span class="h-saved-tag" id="hSaved">Enregistré à '
+       + heureCourte(_dernierEnregistrement) + '</span>';
+}
+
+/* LE BANDEAU DIT QUOI FAIRE, PAS SEULEMENT CE QUI NE VA PAS : tant que la
+   page reste ouverte, la saisie est encore en mémoire et l'envoi marche —
+   c'est la seule sortie, et il faut qu'il la connaisse avant de fermer. */
+function htmlAlerteStockage(){
+  if(_stockageOk) return '';
+  return '<div class="banner red"><strong>' + ico('alerte','ic-s')
+    + ' Ta saisie n\'est PAS enregistrée sur ce téléphone</strong>'
+    + 'Ce navigateur refuse d\'écrire (navigation privée, mémoire pleine, ou un réglage de '
+    + 'confidentialité). Ne ferme pas cet écran avant d\'avoir appuyé sur '
+    + '« Envoyer ma feuille » : ce que tu vois ici serait perdu.</div>';
+}
+
+/* Ceinture : le téléphone qui passe en arrière-plan ou ferme l'onglet.
+   Avec l'écriture immédiate ci-dessus, il ne reste normalement rien à
+   écrire — mais si une frappe est arrivée pendant qu'une écriture était en
+   vol, c'est ici qu'elle est rattrapée. */
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'hidden') sauverHeures();
+});
+window.addEventListener('pagehide', () => { sauverHeures(); });
 
 /* ---- chantiers ---- */
 function updateChantierHour(idx, dayIdx, kind, value){
@@ -1850,13 +1966,13 @@ function updateChantierHour(idx, dayIdx, kind, value){
   if(!line.jours) line.jours={};
   if(!line.jours[dayIdx]) line.jours[dayIdx]={};
   line.jours[dayIdx][kind] = value;
-  scheduleSaveHours();
+  sauverHeures();
 }
 function removeChantierLine(idx){
   const line = hoursEntry.chantierLines[idx];
   if(line && line.id) hoursEntry.removedAutoIds.push(line.id);
   hoursEntry.chantierLines.splice(idx,1);
-  scheduleSaveHours();
+  sauverHeures();
   renderHoursUI();
 }
 function addChantierStart(){ addingChantier=true; renderHoursUI(); }
@@ -1870,15 +1986,15 @@ function addChantierConfirm(){
     if(nom){
       const lieu = prompt('Lieu (optionnel) :') || '';
       hoursEntry.chantierLines.push({id:null, nom, lieu, client:'', jours:{}});
-      scheduleSaveHours();
+      sauverHeures();
     }
   } else if(val==='__contribution_agence__'){
     hoursEntry.chantierLines.push({id:'__contribution_agence__', addedManually:true, nom:'Contribution agence', lieu:'', client:'', jours:{}});
-    scheduleSaveHours();
+    sauverHeures();
   } else if(val){
     const c = chantierById(val);
     if(c) hoursEntry.chantierLines.push({id:c.id, nom:c.nom, lieu:c.lieu||'', client:c.client||'', jours:{}});
-    scheduleSaveHours();
+    sauverHeures();
   }
   renderHoursUI();
 }
@@ -1889,11 +2005,11 @@ function updateAbsenceHour(idx, dayIdx, value){
   if(!abs) return;
   if(!abs.jours) abs.jours={};
   abs.jours[dayIdx]=value;
-  scheduleSaveHours();
+  sauverHeures();
 }
 function removeAbsence(idx){
   hoursEntry.absences.splice(idx,1);
-  scheduleSaveHours();
+  sauverHeures();
   renderHoursUI();
 }
 function addAbsenceStart(){ addingAbsence=true; renderHoursUI(); }
@@ -1904,7 +2020,7 @@ function addAbsenceConfirm(){
   addingAbsence=false;
   if(val){
     hoursEntry.absences.push({key:val, jours:{}});
-    scheduleSaveHours();
+    sauverHeures();
   }
   renderHoursUI();
 }
@@ -1916,7 +2032,7 @@ function cycleDeplacement(dayIdx){
   delete hoursEntry.gd[dayIdx];
   if(cur===null) hoursEntry.pd[dayIdx]=1;
   else if(cur==='PD') hoursEntry.gd[dayIdx]=1;
-  scheduleSaveHours();
+  sauverHeures();
   renderHoursUI();
 }
 function cycleNacelle(dayIdx){
@@ -1925,19 +2041,19 @@ function cycleNacelle(dayIdx){
   // saisir une prime impossible (retour terrain du 24/08/26).
   if(hoursEntry.nacelle[dayIdx]) delete hoursEntry.nacelle[dayIdx];
   else hoursEntry.nacelle[dayIdx] = 1;
-  scheduleSaveHours();
+  sauverHeures();
   renderHoursUI();
 }
 
 /* ---- véhicule / commentaires ---- */
 function setVehiculeMode(mode){
   hoursEntry.vehiculeMode = hoursEntry.vehiculeMode===mode ? null : mode;
-  scheduleSaveHours();
+  sauverHeures();
   renderHoursUI();
 }
-function updateKm(value){ hoursEntry.km=value; scheduleSaveHours(); }
-function updateImmat(value){ hoursEntry.immat=value; scheduleSaveHours(); }
-function updateCommentaires(value){ hoursEntry.commentaires=value; scheduleSaveHours(); }
+function updateKm(value){ hoursEntry.km=value; sauverHeures(); }
+function updateImmat(value){ hoursEntry.immat=value; sauverHeures(); }
+function updateCommentaires(value){ hoursEntry.commentaires=value; sauverHeures(); }
 
 /* Remet la semaine affichee a blanc. La saisie vit dans le navigateur du
    telephone : personne ne peut l'effacer a distance, il faut donc que le
@@ -1954,7 +2070,6 @@ async function effacerSemaine(){
     + "Tes chantiers de la semaine réapparaîtront, vides.\n\n"
     + "Cette action est définitive.");
   if(!ok) return;
-  if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; }
   hoursEntry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{},
                  vehiculeMode:null, km:'', immat:'', commentaires:'' };
   await kvSet(hoursKeyCurrent, hoursEntry);
@@ -2006,7 +2121,11 @@ function renderHoursUI(){
   } else {
     addChantierHtml = '<button class="h-add-btn" onclick="addChantierStart()">'+ico('plus','ic-s')+'Ajouter un chantier</button>';
   }
-  const chantiersSection = '<div class="h-section"><div class="h-section-title">Chantiers de la semaine</div>'
+  /* L'ÉTAT DE L'ENREGISTREMENT EST ÉCRIT LÀ OÙ IL TAPE. Un enregistrement
+     qu'on ne voit pas ne rassure personne — et surtout, le jour où il ne
+     marche pas, personne ne le remarque. */
+  const chantiersSection = '<div class="h-section"><div class="h-section-title">'
+    + '<span>Chantiers de la semaine</span>' + htmlEtatEnregistrement() + '</div>'
     + chantiersHtml + addChantierHtml + '</div>';
 
   const absencesHtml = e.absences.map((abs, idx)=>{
@@ -2077,12 +2196,25 @@ function renderHoursUI(){
   const weekInfo = weekRange(currentOffset);
   const sendSection = '<div class="h-section">'
     + '<button class="h-send-btn" id="emailBtn" onclick="emailFeuille()">'+ico('envoi')+'Envoyer ma feuille (S'+weekInfo.weekNum+')</button>'
-    + '<div class="h-send-sub">Génère un résumé PDF et ouvre directement le partage du téléphone, fichier déjà joint — choisis Mail et envoie à equipefibretelsam@telsam.com. '+escapeHtml(currentTech)+' apparaît comme signataire.</div>'
+    /* CETTE PHRASE SUIT LE CODE, ELLE N'EST PLUS ÉCRITE À LA MAIN.
+       Signalé par Patrice le 09/09/2026 : elle annonçait encore « un résumé
+       PDF », « le partage du téléphone » et « choisis Mail et envoie à
+       equipefibretelsam@telsam.com » — c'est l'ancien envoi, remplacé par
+       le relais Dropbox. Le technicien cherchait donc une manip qui
+       n'arrive plus, et pouvait croire son envoi inabouti faute d'avoir vu
+       le partage s'ouvrir.
+       Le texte se déduit maintenant de RELAY_URL : si un jour le relais est
+       débranché, la phrase redevient juste toute seule. */
+    + '<div class="h-send-sub">' + (RELAY_URL
+        ? 'Elle part directement au bureau : rien d\'autre à faire, ni mail ni pièce jointe. Il faut du réseau au moment où tu appuies. '
+        : 'Elle prépare un fichier et ouvre le partage du téléphone : choisis Mail et envoie à equipefibretelsam@telsam.com. ')
+      + escapeHtml(currentTech) + ' apparaît comme signataire.</div>'
     + '<button class="h-send-btn secondary-link" id="excelBtn" onclick="downloadExcelFeuille()">'+ico('tableur','ic-s')+'Télécharger aussi le fichier Excel officiel</button>'
     + '<button class="h-send-btn secondary-link danger" onclick="effacerSemaine()">'+ico('poubelle','ic-s')+'Effacer et recommencer cette semaine</button>'
     + '</div>';
 
-  panel.innerHTML = chantiersSection + absencesSection + deplSection + vehSection + comSection + sendSection;
+  panel.innerHTML = htmlAlerteStockage()
+    + chantiersSection + absencesSection + deplSection + vehSection + comSection + sendSection;
 }
 
 /* ---- export Excel (manipulation XML directe : préserve 100% la mise en forme d'origine) ---- */

@@ -518,6 +518,176 @@
        document.querySelector('.valid-bar').style.display !== 'none');
   }
 
+  // =====================================================================
+  // 16. LA SAISIE EST ENREGISTREE TOUT DE SUITE, ET L ECHEC SE VOIT
+  // ---------------------------------------------------------------------
+  // Defaut signale par Patrice le 09/09/2026 : « les feuilles remplies par
+  // les techniciens doivent rester remplies sur l'appli ».
+  //
+  // Chaque saisie posait un setTimeout de 400 ms, et chaque nouvelle saisie
+  // ANNULAIT le precedent : en tapant sans s'arreter, rien n'etait ecrit.
+  // Tout partait 400 ms apres la derniere touche — c'est-a-dire au moment
+  // ou l'on verrouille son telephone, quand les minuteries sont GELEES et
+  // l'onglet supprimable. La feuille entiere pouvait disparaitre.
+  //
+  // ON NE PEUT PAS TESTER INDEXEDDB ICI (il ne tourne pas sous
+  // --virtual-time-budget) : on remplace donc kvSet par un temoin, et on
+  // regarde CE QUE LE CODE LUI DEMANDE, et quand.
+  // =====================================================================
+  {
+    const vraiKvSet = kvSet;
+    let ecritures = [];
+    let reponse = true;
+    kvSet = async (k, v) => { ecritures.push({ k, v: JSON.parse(JSON.stringify(v)) }); return reponse; };
+
+    hoursKeyCurrent = 'fh_test_2026_38';
+    hoursEntry = { chantierLines: [{ id: null, nom: 'Essai', lieu: '', jours: {} }],
+                   removedAutoIds: [], absences: [], pd: {}, gd: {}, nacelle: {},
+                   vehiculeMode: null, km: '', immat: '', commentaires: '' };
+    _stockageOk = true; _dernierEnregistrement = null;
+
+    // --- une frappe, et l'ecriture part sans attendre aucune minuterie ---
+    ecritures = [];
+    updateChantierHour(0, 0, 'j', '7');
+    await _ecritureHeures;
+    ok('16. une seule frappe suffit a declencher l enregistrement', ecritures.length >= 1,
+       ecritures.length + ' ecriture(s)');
+    ok('16. et c est bien la valeur tapee qui est ecrite',
+       ecritures.length > 0 && ecritures[ecritures.length - 1].v.chantierLines[0].jours[0].j === '7',
+       JSON.stringify(ecritures.length ? ecritures[ecritures.length - 1].v.chantierLines[0].jours : null));
+    ok('16. rangee sous la cle de la semaine, pas ailleurs',
+       ecritures[ecritures.length - 1].k === 'fh_test_2026_38', ecritures[ecritures.length - 1].k);
+
+    // --- une SUITE de frappes : la derniere valeur finit ecrite ---------
+    // C'est exactement ce que l'ancien minuteur perdait : il annulait a
+    // chaque touche, donc une saisie continue n'ecrivait rien du tout.
+    ecritures = [];
+    for(const v of ['1','2','3','4','5','6','7']) updateChantierHour(0, 1, 'j', v);
+    await _ecritureHeures; await _ecritureHeures;
+    const dernier = ecritures[ecritures.length - 1];
+    ok('16. sept frappes d affilee : la derniere valeur est bien ecrite',
+       dernier && dernier.v.chantierLines[0].jours[1].j === '7',
+       ecritures.length + ' ecriture(s), valeur finale : '
+         + (dernier ? dernier.v.chantierLines[0].jours[1].j : 'aucune'));
+
+    // --- toutes les saisies de l'ecran passent par la, pas seulement les heures
+    ecritures = [];
+    updateKm('120'); updateImmat('GH-482-QT'); updateCommentaires('RAS');
+    cycleDeplacement(0); cycleNacelle(0);
+    await _ecritureHeures; await _ecritureHeures;
+    const fin1 = ecritures[ecritures.length - 1];
+    ok('16. km, immatriculation, commentaire, deplacement et nacelle sont enregistres aussi',
+       fin1 && fin1.v.km === '120' && fin1.v.immat === 'GH-482-QT'
+         && fin1.v.commentaires === 'RAS' && !!fin1.v.pd[0] && !!fin1.v.nacelle[0],
+       fin1 ? JSON.stringify({km: fin1.v.km, immat: fin1.v.immat, com: fin1.v.commentaires,
+                              pd: fin1.v.pd, nac: fin1.v.nacelle}) : 'aucune ecriture');
+
+    // --- contre-exemple : sans feuille ouverte, on n ecrit rien ---------
+    // Sans lui, le controle ci-dessus passerait meme si le code ecrivait
+    // n'importe quoi n'importe quand.
+    ecritures = [];
+    const gardeCle = hoursKeyCurrent, gardeEntry = hoursEntry;
+    hoursKeyCurrent = null; hoursEntry = null;
+    sauverHeures();
+    await new Promise(r => setTimeout(r, 30));
+    ok('16. contre-exemple : aucune feuille ouverte, aucune ecriture',
+       ecritures.length === 0, ecritures.length + ' ecriture(s)');
+    hoursKeyCurrent = gardeCle; hoursEntry = gardeEntry;
+
+    // --- LA MINUTERIE NE DOIT PAS REVENIR ------------------------------
+    ok('16. plus aucune minuterie dans le chemin d enregistrement',
+       typeof scheduleSaveHours === 'undefined'
+         && !/setTimeout/.test(sauverHeures.toString())
+         && !/setTimeout/.test(updateChantierHour.toString()),
+       typeof scheduleSaveHours);
+
+    // --- L ECHEC D ECRITURE SE VOIT A L ECRAN --------------------------
+    // C'etait la seconde moitie du defaut : kvSet avalait ses erreurs, donc
+    // sur un telephone qui refuse d'ecrire l'appli faisait semblant.
+    currentTab = 'heures';
+    reponse = true;
+    sauverHeures(); await _ecritureHeures;
+    renderHoursUI();
+    ok('16. quand ca marche, l heure d enregistrement est affichee',
+       /Enregistré à \d\d h \d\d/.test(document.getElementById('hSaved').textContent),
+       document.getElementById('hSaved').textContent);
+    ok('16. et aucun bandeau d alerte',
+       !/PAS enregistrée/.test(document.getElementById('hoursPanel').textContent));
+
+    reponse = false;
+    sauverHeures(); await _ecritureHeures;
+    ok('16. contre-exemple : quand le navigateur refuse, c est dit',
+       _stockageOk === false
+         && /non enregistré/.test(document.getElementById('hSaved').textContent),
+       document.getElementById('hSaved').textContent);
+    ok('16. et un bandeau rouge dit quoi faire avant de fermer',
+       /PAS enregistrée/.test(document.getElementById('hoursPanel').textContent)
+         && /Envoyer ma feuille/.test(document.getElementById('hoursPanel').textContent));
+    // retour a la normale : la bascule doit repartir dans l'autre sens
+    reponse = true;
+    sauverHeures(); await _ecritureHeures;
+    ok('16. et quand ca remarche, le bandeau disparait',
+       _stockageOk === true
+         && !/PAS enregistrée/.test(document.getElementById('hoursPanel').textContent));
+
+    kvSet = vraiKvSet;
+    hoursEntry = null; hoursKeyCurrent = null;
+    _stockageOk = true; _dernierEnregistrement = null;
+    ok('16. le temoin est retire et la vraie fonction restauree', kvSet === vraiKvSet);
+  }
+
+  // =====================================================================
+  // 17. LA PHRASE SOUS LE BOUTON D ENVOI SUIT LE CODE
+  // ---------------------------------------------------------------------
+  // Signale par Patrice le 09/09/2026 : elle annoncait encore « un resume
+  // PDF », « le partage du telephone » et « choisis Mail et envoie a
+  // equipefibretelsam@telsam.com ». C'est l'ancien envoi, remplace par le
+  // relais Dropbox : le technicien cherchait une manip qui n'arrive plus.
+  //
+  // On verifie LES DEUX BRANCHES, parce qu'une phrase juste aujourd'hui
+  // n'est pas une phrase qui reste juste.
+  // =====================================================================
+  {
+    const vraiRelais = RELAY_URL;
+    hoursEntry = { chantierLines: [], removedAutoIds: [], absences: [], pd: {}, gd: {},
+                   nacelle: {}, vehiculeMode: null, km: '', immat: '', commentaires: '' };
+    hoursKeyCurrent = 'fh_test_2026_38';
+    currentTab = 'heures';
+
+    RELAY_URL = 'https://relais-de-test.exemple';
+    renderHoursUI();
+    const avecRelais = document.querySelector('#hoursPanel .h-send-sub').textContent;
+    /* LE CONTROLE PORTE SUR L INSTRUCTION, PAS SUR LES MOTS. Mon premier
+     * jet interdisait le mot « mail » — et il echouait sur la phrase juste,
+     * qui l'emploie pour le NIER (« ni mail ni piece jointe »). Cette
+     * negation est utile : les techniciens ont pris l'habitude de chercher
+     * Mail, il faut la leur retirer explicitement. Ce qui doit disparaitre,
+     * c'est la CONSIGNE : l'adresse, « choisis », « envoie a », le partage. */
+    ok('17. avec le relais, plus aucune consigne d envoi par mail',
+       !/equipefibretelsam/i.test(avecRelais) && !/choisis/i.test(avecRelais)
+         && !/envoie [aà]/i.test(avecRelais) && !/partage/i.test(avecRelais),
+       avecRelais);
+    ok('17. elle dit que ca part tout seul, et qu il faut du reseau',
+       /directement au bureau/i.test(avecRelais) && /r[eé]seau/i.test(avecRelais));
+    ok('17. et elle retire explicitement l ancienne habitude du mail',
+       /ni mail/i.test(avecRelais));
+    ok('17. et elle nomme le signataire',
+       avecRelais.indexOf(currentTech) !== -1, currentTech);
+
+    // Contre-exemple : relais debranche, la phrase redevient celle du partage.
+    RELAY_URL = '';
+    renderHoursUI();
+    const sansRelais = document.querySelector('#hoursPanel .h-send-sub').textContent;
+    ok('17. contre-exemple : sans relais, elle redecrit le partage par mail',
+       /partage/i.test(sansRelais) && /mail/i.test(sansRelais)
+         && /equipefibretelsam/i.test(sansRelais), sansRelais);
+    ok('17. les deux phrases sont bien differentes', avecRelais !== sansRelais);
+
+    RELAY_URL = vraiRelais;
+    hoursEntry = null; hoursKeyCurrent = null;
+    ok('17. le relais reel est restaure', RELAY_URL === vraiRelais, RELAY_URL);
+  }
+
   fin();
   } catch (e) {
     R.push('EXCEPTION : ' + (e && e.message ? e.message : e));

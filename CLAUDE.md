@@ -5557,3 +5557,107 @@ puis une exception** (`ico is not defined`). Ils savent dire non.
    fiche du suivi porte l'**indice B reçu le 07/09**, toujours non validé par RTE. Le fond est
    juste (ne pas engager sans IST validée) mais la lettre est périmée, et **trois techniciens
    y sont lundi 14/09**. Texte d'alerte de sécurité : **pas réécrit sans l'accord de Patrice.**
+
+## Deux défauts signalés par Patrice le 09/09/2026, le même jour que la charte
+
+Les deux étaient là AVANT la refonte ; c'est en regardant l'appli refaite qu'il les a vus.
+
+### 1. LA FEUILLE D'HEURES POUVAIT DISPARAÎTRE ENTIÈREMENT
+
+« Les feuilles remplies par les techniciens doivent rester remplies sur l'appli, comme pour
+le suivi, c'est important. »
+
+**Le mécanisme du défaut, et il est pire qu'il n'y paraît.** Chaque saisie appelait
+`scheduleSaveHours()`, qui posait un `setTimeout` de **400 ms** — et **chaque nouvelle saisie
+annulait le précédent** (`clearTimeout`). Donc un technicien qui remplit sa semaine sans
+s'arrêter n'avait **rien** d'écrit tant qu'il tapait : tout partait 400 ms après sa dernière
+touche.
+
+> Or ce qu'on fait juste après la dernière touche, c'est **verrouiller son téléphone ou
+> changer d'appli**. Une page mise en arrière-plan voit ses **minuteries gelées**, puis
+> l'onglet peut être supprimé de la mémoire. Le minuteur ne se déclenchait jamais. **La
+> feuille entière était perdue, sans un mot.** Ce n'était pas la dernière frappe qui
+> sautait : c'était toute la session de saisie.
+
+**Seconde moitié du défaut, aussi grave :** `kvSet` avalait **toutes** ses erreurs
+(`catch(e){}`) et ne rendait rien. Sur un téléphone où le navigateur refuse d'écrire —
+navigation privée, mémoire pleine, réglage de confidentialité — l'appli faisait donc semblant
+d'enregistrer à chaque frappe. C'est le « vert mensonger » de la règle du 25/08/2026, et
+**c'est exactement ce que le suivi ne fait pas** : `storeSet` y affiche « Stockage local
+indisponible » depuis toujours. Patrice a dit « comme pour le suivi » — c'était le bon
+repère.
+
+**Ce qui est fait maintenant :**
+1. **écriture à chaque saisie, sans aucune minuterie** (`sauverHeures()`), avec au plus une
+   écriture en file — ce n'est pas un report : celle qui attend n'a pas commencé, donc elle
+   emporte l'état le plus récent ;
+2. `kvSet` **rend vrai ou faux**, et le résultat est **affiché** : « Enregistré à 14 h 03 »
+   en vert à côté du titre de la section où il tape, ou un **bandeau rouge** qui dit de ne
+   pas fermer l'écran avant d'avoir appuyé sur « Envoyer ma feuille » — parce que tant que la
+   page est ouverte, la saisie est encore en mémoire et l'envoi marche : c'est la seule
+   sortie, et il doit la connaître avant de fermer ;
+3. **la clé ET l'objet sont capturés ensemble** : sans ça, un changement de semaine entre la
+   mise en file et l'écriture rangerait la feuille de la nouvelle semaine sous la clé de
+   l'ancienne ;
+4. `loadAndRenderHours` **attend l'écriture en cours avant de relire** — sinon changer de
+   semaine puis revenir relisait la version d'avant la dernière saisie et l'écrasait ;
+5. ceinture sur `visibilitychange` et `pagehide`.
+
+> **NE PAS REMETTRE DE MINUTERIE DANS CE CHEMIN.** Le coût d'une écriture IndexedDB sur un
+> objet de cette taille est négligeable ; le coût d'une semaine de pointage perdue ne l'est
+> pas. Un contrôle vérifie qu'aucun `setTimeout` ne revient dans `sauverHeures` ni dans
+> `updateChantierHour`, et que `scheduleSaveHours` n'existe plus.
+
+**VÉRIFIÉ DANS UN VRAI NAVIGATEUR, PAS SEULEMENT AU HARNAIS**, parce que le harnais remplace
+`kvSet` par un témoin et ne prouve donc rien sur IndexedDB lui-même. Même manip des deux
+côtés — taper une valeur, recharger immédiatement :
+
+| | samedi tapé puis rechargement immédiat |
+|---|---|
+| version poussée le matin (minuterie 400 ms) | **perdu** (`null`) |
+| version corrigée | **conservé** (`{"j":"3"}`) |
+
+Le témoin de lundi, écrit avant, restait dans les deux cas : le test discrimine bien.
+
+**CE QUE ÇA NE RÉPARE PAS, ET QUI RESTE À SURVEILLER.** Sur iPhone, Safari **efface le
+stockage local d'un site non visité pendant 7 jours** si l'appli n'a pas été **ajoutée à
+l'écran d'accueil**. Un technicien qui ouvre l'appli une fois par semaine depuis un onglet
+Safari peut donc retrouver ses semaines précédentes vides, et **aucun code côté appli ne peut
+l'empêcher**. La parade est l'épinglage sur l'écran d'accueil (la procédure est déjà en
+commentaire en tête du fichier). À dire aux techniciens.
+
+### 2. LA PHRASE SOUS LE BOUTON D'ENVOI DÉCRIVAIT UNE MANIP QUI N'EXISTE PLUS
+
+Elle annonçait « Génère un résumé PDF et ouvre directement le partage du téléphone, fichier
+déjà joint — **choisis Mail et envoie à equipefibretelsam@telsam.com** ». C'est l'ancien
+envoi, remplacé par le **relais Dropbox** : depuis, la feuille part seule. Le technicien
+cherchait donc un partage qui ne s'ouvre plus, et pouvait croire son envoi inabouti faute
+d'avoir vu la manip annoncée.
+
+**La phrase se déduit maintenant de `RELAY_URL`**, elle n'est plus écrite à la main : si le
+relais est un jour débranché, elle redevient juste toute seule. Elle **nie explicitement
+l'ancienne habitude** (« ni mail ni pièce jointe »), parce que retirer une consigne ne suffit
+pas quand elle a été suivie pendant des semaines.
+
+> **UN CONTRÔLE PORTE SUR L'INSTRUCTION, PAS SUR LES MOTS.** Mon premier jet interdisait le
+> mot « mail » dans cette phrase — et il échouait sur la phrase **juste**, qui l'emploie pour
+> le nier. Ce qui doit disparaître, c'est la consigne : l'adresse, « choisis », « envoie à »,
+> « partage ». Un contrôle rédigé sur des mots-clés punit la bonne rédaction.
+
+*Reste, non traité et volontairement : le PDF envoyé au bureau garde l'ancienne palette
+(`PDF_AMBER`, `PDF_DARK`). C'est un document que Karine et Pierre lisent depuis des semaines ;
+le changer sans le dire n'a rien à voir avec la charte de l'écran.*
+
+### Vérifié — 184 contrôles, 0 échec
+
+`test-charte-apptech` **104** (de 84 : +20 pour ces deux défauts), `test-planning-appli` 37,
+`test-validation` 26, `test-conges-paternite` 17.
+
+### Ce que Patrice a corrigé de mon rapport du matin
+
+- **Le dossier App Tech de Cantegrit n'est pas privé** : il l'a vérifié. Mon signalement
+  était faux.
+- **Les IST de Cantegrit ne concernent que des secteurs du poste où ils n'interviennent pas
+  encore.** Pour la circulation : tant qu'elle n'est pas signée, ils circulent à pied, **et
+  ils le savent**. L'alerte de la fiche n'est donc pas à réécrire.
+- **Le planning** au-delà du 18/09 sera posé prochainement.
