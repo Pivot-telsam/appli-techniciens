@@ -6142,3 +6142,121 @@ que l'appli sait relire et réémettre, pas seulement un objet qui s'affiche.
 
 **NE PAS étendre `SEED_FEUILLES` à une semaine en cours ou à venir** : ce tableau ne décrit que du
 passé déjà transmis au bureau. Une semaine qui n'est pas finie se remplit dans l'appli.
+
+---
+
+## Le dossier d'une affaire (09/09/2026) — chronologie au milieu, cases à droite
+
+Demande de Patrice : *« quand on clique sur "ouvrir la fiche chantier", tomber sur une fenêtre avec
+au milieu l'historique exact de tout ce qui s'est passé, de la création du chantier par qui et
+quand jusqu'à la fin, et sur une partie de droite les cases à remplir ».*
+
+Le lien de la fiche d'une affaire ouvre donc **le dossier de l'affaire** (`ouvrirDossierAffaire`) et
+non plus la vue par chantier — on quittait l'affaire pour retrouver la fiche, sans son historique ni
+ses cases. Le dossier porte les deux, et garde un lien vers la fiche pour qui la cherche vraiment.
+
+### CE QU'ON PEUT VRAIMENT RECONSTRUIRE — mesuré avant de coder
+
+`scripts/historique-fiches.ps1` rejoue les **110 enregistrements** du suivi et compare la fiche de
+chaque chantier d'une version à l'autre. Ce qui en sort n'est **pas le message du commit** — il
+parle de tout le commit et se trompe souvent de chantier — mais **la valeur qui a changé** :
+« PGO : indice 43-1 → 45 », « IST : PAS validée par RTE → validée par RTE ». Il y ajoute les
+**809 documents de sécurité** datés de l'index de la veille et les **suivis des techniciens**.
+Mesure du 09/09/2026 : **1 841 événements sur 79 chantiers, 40 secondes**, 350 Ko de constante
+(le fichier passe de 1,1 à 1,43 Mo).
+
+Il tourne **une fois par jour**, étape « Historique des affaires » de `matin.ps1`, placée **après**
+le contrôle des chantiers : s'il expire, rien de ce qui précède n'est perdu et la fenêtre retombe
+sur l'historique de la veille — une chronologie d'un jour en retard reste lisible.
+`HISTORIQUE_FICHES` vit **à côté** de `SEED_DATA` : pas de `SEED_VERSION` à bumper.
+
+**HUIT SOURCES, ET LA LIGNE DIT TOUJOURS D'OÙ ELLE VIENT** : fiche, Dropbox, alerte, note de la
+fiche, carnet de bord, commercial, terrain, planning. Filtres : Tout / Documents / Argent /
+Terrain / Carnet.
+
+### CE QUE LA CHRONOLOGIE NE PEUT PAS DIRE, ET QU'ELLE ÉCRIT
+
+- **La création du chantier n'existe nulle part.** Ni le fichier commercial ni la fiche ne portent
+  de date de création. Le plus loin qu'on remonte est le **19/08/2026**, premier enregistrement du
+  suivi ; avant, la seule date fiable est celle du devis. La première ligne dit « fiche déjà
+  présente au premier enregistrement du suivi », jamais « fiche créée ».
+- **« Par qui » n'existe que depuis le 07/09/2026** : tous les enregistrements portent le même
+  auteur. Les noms ne vivent que dans la base commune.
+
+**Ces deux limites sont écrites EN PIED, même quand la chronologie est fournie** — c'est justement
+quand elle est fournie qu'on la croit complète. **Ne pas retirer ce pied pour gagner de la place.**
+
+*Arbitrage de Patrice : « on part de ce qu'on a ». Ne pas re-proposer d'aller chercher plus loin.*
+
+### LE CARNET DE BORD — la brique qui fait vivre la fenêtre
+
+`/api/notes-affaire`, table `note_affaire`, schéma version 8. Une ligne écrite à la main, **datée
+et signée automatiquement**, qui s'ajoute à la chronologie.
+
+Sans lui, la fenêtre n'est qu'un rétroviseur : tout le reste est **reconstruit** depuis ce que
+l'outil a vu. Ce qu'il ne verra jamais, c'est « RTE décale la consignation d'une semaine, vu au
+téléphone avec M. Durand » — et c'est souvent l'information la plus utile de l'affaire.
+
+- **Tout le monde LIT.** Une ligne de carnet sert précisément à ce que les six autres sachent ce
+  qu'un seul a appris.
+- **Cinq personnes écrivent** — les mêmes que la validation de semaine. Patrice a répondu « oui,
+  mais réservé » en désignant « les 4 qui gèrent les travaux » ; je l'ai compris comme excluant
+  Carine et Guillaume, **pas lui-même**. À corriger si c'était son intention.
+- **ON N'EFFACE PAS, ON AJOUTE.** Il n'y a pas de suppression, et c'est délibéré : un carnet dont
+  on peut retirer une ligne ne vaut plus comme trace. Une ligne fausse se corrige par une ligne qui
+  la corrige — c'est ainsi que fonctionne un registre, et ça garde la trace de l'erreur.
+- La page **dit** quand on ne peut pas écrire (hors ligne, ou pas rédacteur) plutôt que d'offrir un
+  champ qui n'enregistre rien.
+
+### HUIT CASES DE PLUS, chacune pour une question qu'on ne pouvait pas trancher
+
+`date_commande`, `montant_commande`, `num_pv`, `date_pv`, `date_reglement`, `montant_reglement`,
+`contact_nom`, `contact_tel` — posées par `COLONNES_TARDIVES` au premier appel de l'API, donc
+**aucune manip pour Patrice**.
+
+Le numéro de commande était là, la **date** nulle part : le délai devis → commande était
+incalculable. La colonne « paiement » du fichier est vide sur les 142 devis, donc « facturé » ne
+voulait pas dire « encaissé » — c'est ce qui manquait au Pilotage. Et l'interlocuteur chez le
+client est toujours cherché, jamais écrit.
+
+Les cases sont groupées **dans l'ordre du cycle** (devis → commande → réception → facturation →
+règlement), pour que le panneau se lise comme le cycle lui-même. Elles s'enregistrent à la sortie
+du champ, et **la fenêtre ne se redessine pas** à ce moment-là : elle détruirait la case suivante.
+
+### Vérifié
+
+À l'écran, en mode partagé sur le serveur d'essai local : le dossier de 26-051 Poste de Portet
+affiche **107 lignes** (81 documents, 2 argent, 9 terrain, 14 carnet), une ligne de carnet écrite
+puis relue avec « Carnet de bord · Patrice », une date de commande saisie qui **apparaît aussitôt
+dans la chronologie** entre le devis et la facture, et une affaire **sans fiche** qui s'ouvre
+quand même avec sa seule ligne de devis, sans jetons de conformité ni lien de fiche.
+
+Bancs d'essai : `bloc-test-affaires` 94/94, `bloc-test-saisie-affaires` 91/91,
+`test-api-affaires` 64/64, `bloc-test-validation-suivi` 16/16, `bloc-test-couleurs` 10/10.
+*Un contrôle a dû être recalibré : « les 7 colonnes tardives » en compte 15 maintenant.*
+
+### LA CHRONOLOGIE REPRODUISAIT FIDÈLEMENT LES DÉGÂTS DU 25/08 — et le contrôle l'a dit
+
+Le comptage systématique des `Ã` après écriture (règle des « Règles de prudence ») a trouvé
+**468 événements sur 1 841** écrits en `« Chantier confirmÃ© terminÃ© »`. Ce n'était pas un défaut
+du script : le 25/08/2026, un simple bump de `SEED_VERSION` a été **commis avec le fichier entier
+double-encodé**, et rejouer ce commit reproduit fidèlement les dégâts. La donnée a été réparée dans
+le fichier depuis ; l'histoire, elle, garde la version cassée.
+
+**PREMIÈRE VERSION DE LA RÉPARATION : elle n'en a corrigé que 310 sur 468.** Elle inversait la
+chaîne ENTIÈRE et n'agissait que si le compte s'améliorait. Or beaucoup de textes sont **mixtes** —
+une phrase saine suivie d'un morceau cassé, parce que la réparation du 25/08 avait été partielle :
+inverser tout aurait cassé la moitié saine, donc le garde-fou refusait d'agir, donc rien n'était
+réparé. C'est exactement la règle déjà écrite après l'incident du 03/09 : **réparation ciblée, pas
+globale.**
+
+`ReparerEncodage` cherche donc les **suites** de caractères qui ne peuvent venir que d'un double
+encodage (un `Ã`, `Â`, `â` ou `Å` suivi d'au moins un caractère haut) et ne fait l'aller-retour
+1252 → UTF-8 que sur ces suites-là. Deux passes, parce qu'un texte doublement re-encodé existe. Un
+aller-retour qui produirait un caractère de remplacement est abandonné : mieux vaut un accent cassé
+qu'un caractère perdu.
+
+**Et un garde-fou compte les rescapés à chaque passage** : `[encodage] aucun evenement abime`, ou
+un `[ATTENTION]` si un cas nouveau échappe à la table. Sans lui, le prochain commit abîmé repartirait
+en silence dans le fichier que Patrice envoie à ses collègues. Mesuré après correction :
+**0 séquence sur les 1 841 événements**, et 0 dans le fichier entier.
