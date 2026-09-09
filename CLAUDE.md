@@ -5998,3 +5998,72 @@ c'est le même rappel qui porte les vrais manques.
 **Le contrôle n'est PAS adouci** : un PDP non reçu avec un technicien placé reste un manque, et
 le chantier reste prioritaire. Seuls les MOTS changent, pour décrire ce qu'il faut faire au lieu
 de demander une saisie sans objet.
+
+---
+
+## Trois défauts signalés par Patrice le 09/09/2026, après la mise en ligne
+
+### 1. Le Gantt ne voyait pas ce que le planning annonce
+
+*« Sur le Gantt j'ai des chantiers qui approchent et qui ne figurent pas dessus, comme Lisieux. »*
+
+Vérifié sur **26-039 Lisieux - Vallée 1** : toutes ses dates s'arrêtent au **04/09/26** — les
+quatre fenêtres, la couverture PGO et la validité du PdP. Plus rien à venir, donc plus aucune
+barre, donc le chantier disparaît. Or le planning RTE le porte en **S37, S38, S39 et S40**, avec
+« consignation prolongée jusqu'à fin de semaine 40 ».
+
+**C'est le pire cas possible, pas un simple manque d'affichage** : un chantier qui reprend alors
+que sa couverture PGO et son PdP sont périmés depuis le 04/09, invisible exactement là où on va
+vérifier ce qui approche. `REAL_DAYS` ne rattrapait pas le coup — il ne connaît que les cases de
+**technicien** déjà coloriées, pas les **lignes-projet** de la semaine. Or une ligne-projet est
+justement ce qu'on écrit AVANT de placer quelqu'un.
+
+Le Gantt lit maintenant `PLANNING_RTE.reserves` (et les préplanifications), et pose une barre
+ambre hachurée **« Annoncé au planning RTE, aucun technicien encore placé »** — une barre par
+suite de semaines, jamais une par semaine (trois barres collées se liraient comme trois
+interventions). Une semaine déjà couverte par une présence ou une fenêtre n'est pas redessinée.
+
+**LE RATTACHEMENT A ÉTÉ ÉLARGI, ET SEULEMENT POUR LE GANTT.** `chantierDuLibelle` exige le numéro
+dans le texte : mesuré, elle ne rattachait que **37 lignes sur 248**, et **40 lignes des semaines
+à venir** restaient orphelines (Dambron, Cantegrit, Lannemezan, Berat-Portet…). Trois passes
+ordonnées de la plus sûre à la moins sûre, dans `annoncesPlanningParFiche` :
+
+1. **le numéro** (`chantierDuLibelle`) — le seul repère vraiment stable ;
+2. **le même texte au caractère près** qu'une ligne numérotée du même planning, une fois le
+   numéro et la ponctuation retirés. Lisieux S38/S39/S40 est mot pour mot la ligne S37 moins le
+   « 26-039 » de tête : ce n'est pas une ressemblance, c'est une égalité. **+4 lignes, 0 conflit** ;
+3. **le nom complet de la fiche contenu dans le libellé**, et seulement s'il ne désigne qu'UNE
+   fiche. **+20 lignes, 0 conflit.**
+
+**Ne pas factoriser ces trois passes avec `chantierDuLibelle`** : une barre mal rattachée est une
+erreur d'affichage, une **affectation** mal rattachée envoie un technicien sur le mauvais
+chantier. La fonction qu'utilise la grille du planning pour poser quelqu'un n'est pas touchée.
+Deux garde-fous à ne pas retirer : un nom de moins de 9 caractères ou sans espace ne joue pas, et
+deux fiches qui correspondent annulent le rattachement (même prudence que la règle des sous-lots).
+
+**Les 23 lignes qui restent orphelines sont DITES**, sous le Gantt, dans une ligne repliable.
+Sans ça on lirait le Gantt comme exhaustif. La correction est dans Teams : écrire le n° de
+chantier dans la ligne du planning.
+
+### 2. La réserve du bas se lit en colonnes, pas en rangées
+
+*« Je veux que la séparation des fichiers préplanifiés soit verticale comme celle des deux
+semaines. C'est trop brouillon. »*
+
+Premier jet : deux blocs empilés. La grille du haut, elle, sépare S37 et S38 par un trait
+**vertical** — l'œil apprend ce trait en haut de l'écran et le cherche en bas. Deux rangées
+superposées lui demandaient d'apprendre une seconde grammaire pour la même information.
+Maintenant : deux colonnes (`.plSemBlocs`), un filet au milieu, chacune sous sa semaine. Sous
+900 px on retombe sur l'empilement, avec le filet horizontal qui va avec.
+
+### 3. « Nouveau chantier » — le bouton n'existe plus dans le fichier
+
+Signalé comme toujours présent. Vérifié en listant tous les boutons de toutes les vues de la page
+en service : l'en-tête ne porte que **+ Nouvelle affaire**, **Imprimer / PDF** et
+**Exporter (JSON)**, et aucune vue n'a de bouton de création de chantier. Le voir encore veut donc
+dire qu'on regarde la version PRÉCÉDENTE — Cloudflare Pages sert le HTML avec un cache, et un
+rechargement simple peut rendre l'ancienne page. **Ctrl + Maj + R** force la relecture.
+
+*À retenir pour les prochains signalements d'affichage : avant de chercher dans le code, demander
+si la page a été rechargée en forçant le cache. Trois signalements sur ce fichier ont déjà eu
+cette cause.*
