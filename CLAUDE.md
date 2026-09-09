@@ -5268,3 +5268,113 @@ la fabrique ou la cache : la barre latérale, la grille des semaines 37-38, les 
 pastilles de la réserve.
 
 **`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.** Tout est CSS, palette et rendu.
+
+## L'onglet Affaires passe à la charte (09/09/2026) — bandeau unique et colonne conformité
+
+Les deux derniers gestes de la charte côté suivi, repris **des valeurs exactes de
+`maquette-charte/maquette.html`** (teintes comprises), sans les réoptimiser.
+
+### 1. UN SEUL BANDEAU, ET IL EST ACTIONNABLE
+
+La vue empilait jusqu'à **six pavés pleine largeur** avant le tableau : mode de saisie, affaires en
+écart, doubles numéros de chantier, commandes mal séparées, numéros empruntés, « ce que cette vue ne
+montre pas ». Chacun était juste. Ensemble, ils repoussaient l'outil sous la ligne de flottaison —
+et **un avertissement qu'on fait défiler n'avertit personne**.
+
+Il reste **un** bandeau, il porte le bouton qui agit, et tout le reste passe derrière une ligne de
+repli (`.afPlis`) qui **annonce combien de réserves elle cache** : replier sans compter reviendrait
+à cacher.
+
+> **L'ORDRE DE PRIORITÉ EST UNE RÈGLE DE SÛRETÉ, PAS UN CHOIX D'ALLURE.** Le mode dégradé passe
+> AVANT les écarts. Un écart demande un arbitrage, qui peut attendre cinq minutes ; ignorer qu'on
+> est en lecture seule fait croire qu'on a enregistré une décision que personne ne verra — c'est la
+> règle « il ne faut jamais laisser croire qu'on partage quand on ne partage pas ». **Le bandeau de
+> lecture seule ne doit JAMAIS être replié dans `.afPlis` pour faire de la place.**
+
+Le « ✔ saisie partagée », lui, est descendu dans la ligne de source : une confirmation n'a pas
+besoin d'un pavé, et lui en donner un privait le seul bandeau de sa place. Le mode reste **dit**.
+
+**Le bouton « Filtrer ces N » a son propre interrupteur** (`afSeulementEcarts`), et pas un filtre de
+colonne : un écart n'est pas une valeur qu'on lit dans une case, c'est le résultat d'un croisement
+entre le fichier commercial et le suivi. Il est retenu d'une fois sur l'autre, par personne
+(IndexedDB), comme le tri et les filtres.
+
+`.afManque` et `.afMode` sont **supprimées de la feuille de style**, pas laissées en CSS mort : les
+garder aurait invité à les réutiliser, donc à réempiler.
+
+### 2. LA COLONNE CONFORMITÉ — PDP / PGO / IST / MAT
+
+Quatre jetons de largeur fixe, toujours au même endroit, placés juste après le nom comme dans la
+maquette : **on lit la conformité de tout le portefeuille en balayant une seule colonne**, au lieu
+de chercher des badges empilés sous chaque nom. Triable (par gravité, pondérée par document :
+PDP ×3, PGO ×3, IST ×2, MAT ×1) et filtrable sur un libellé d'ensemble.
+
+**CINQ ÉTATS ET NON QUATRE.** `nc` (rien reçu / non renseigné) a son propre dessin, en pointillé.
+Le confondre avec `na` (sans objet) ferait lire « rien n'est requis » là où il faut lire « on n'a
+rien ».
+
+**TROIS REFUS, ET LES TROIS ONT DÉJÀ COÛTÉ QUELQUE CHOSE DE RÉEL :**
+
+1. **SANS FICHE, ON NE DIT RIEN.** Quatre jetons gris se liraient « rien n'est requis » alors qu'ils
+   veulent dire « on n'en sait rien ». Depuis la numérotation complète du 07/09, **78 affaires sur
+   131 n'ont pas de fiche** : c'est le cas le plus fréquent, pas un cas limite.
+2. **LE PDP PASSE PAR `computePdpAlerts`, JAMAIS PAR `pdp.statut` SEUL.** Un PDP « ok » qui ne
+   couvre pas un poste où il faut entrer est le vert mensonger de la règle du 25/08/2026 : l'équipe
+   est refoulée à l'entrée et la journée est perdue. On reprend la logique de `pdpBadge` plutôt que
+   d'en écrire une seconde, qui finirait par dire autre chose.
+3. **UNE IST NON VALIDÉE PAR RTE EST ROUGE, PAS AMBRE.** Deux conditions et non une : de TELSAM, ET
+   signée par RTE. Sans la signature elle n'autorise personne.
+
+> **LE POINT 3 A ÉTÉ ÉCRIT FAUX, ET C'EST LA MESURE QUI L'A DIT.** Ma première version testait
+> `statut === 'ok' && !valideRTE`. Or la convention du fichier (règle du 27/08/2026) est d'écrire
+> `statut:'warn'` + `valideRTE:false` dans ce cas précis : **`ok` va toujours avec `valideRTE:true`
+> dans les 72 fiches**, donc la branche ne se déclenchait JAMAIS. Cantegrit 26-003 — IST indice B
+> reçue le 07/09, tableau de validation RTE mesuré vide, **trois techniciens placés le 14/09** —
+> ressortait en ambre « à vérifier ». Un garde-fou qui ne peut pas se déclencher est pire qu'absent :
+> il rassure. On teste donc l'**existence** de l'IST, pas son statut.
+
+> **ET LE LIBELLÉ D'ENSEMBLE NE SE LIT PAS SUR LE PIRE DES QUATRE JETONS.** Deuxième défaut du même
+> jet, vu en lisant les libellés produits : Portet 26-051 sortait « **Rien reçu** » alors que son
+> PDP, son PGO et son IST sont tous les trois verts — c'était son **matériel** non relevé qui tirait
+> le libellé. « Rien reçu » sur un chantier en règle est une alarme fausse. Les trois documents de
+> **sécurité** décident du libellé ; le matériel a le sien (« Matériel à relever »).
+
+Répartition mesurée au 09/09/2026 : 78 « Pas de fiche », 33 « Rien reçu », 11 « Matériel à
+relever », 4 « Manquant », 3 « À vérifier », 1 « Matériel à vérifier », 1 « Complète ». Les
+**4 « Manquant »** sont ce sur quoi il y a à agir, et Cantegrit en fait partie.
+
+**CE QUE LA COLONNE A TROUVÉ DÈS SON PREMIER JOUR** — c'est sa justification : **26-037 Mtfo LS
+Verallia - St Romain du Puy** (OMEXOM SCIE LS) est en « Travaux en cours » avec **PDP et PGO en
+« rien reçu »**, aucun dossier App Tech, et son alerte MTFO APMES en retard depuis ~27/06. Et le
+planning Teams a reçu ce matin une ligne neuve « MTFO ST ROMAIN-VERALIA, **intervention
+demandée** » — personne n'est encore placé dessus. À porter à Patrice.
+
+### Ce qui reste de la charte
+
+Les **trois derniers emoji** (⚠️ ×3, 📄, 📋 ×2 — tous dans du texte d'alerte, pas dans le chrome) et
+le **thème sombre d'AppTech** (charte fournie par Patrice, maquette à quatre écrans dans
+`maquette-charte\maquette-apptech.html`). **Les deux points à ne pas trancher seul restent ouverts** :
+les listes déroulantes de statut (la charte demande une pastille, le lot 2 du 07/09 les a
+délibérément remplacées) et l'embarquement des polices Google (~250 Ko).
+
+*Et la pastille `.afEtape`, morte depuis le lot 2, est toujours là — à retirer un jour.*
+
+### Vérifié — 285 contrôles, 0 échec
+
+`bloc-test-affaires` **94** (de 74 : +20 pour le bandeau unique et la colonne),
+`bloc-test-saisie-affaires` 90, `bloc-test-rayures-ecarts` 24, `bloc-test-cible-note` 23,
+`bloc-test-notes` 22, `bloc-test-validation-suivi` 16, `bloc-test-couleurs` 10,
+`bloc-test-cible-croix` 6. Les deux blocs `<script>` compilent, 0 `Ã`, 0 caractère de remplacement.
+
+**LE CONTRE-EXAMEN EST CE QUI COMPTE ICI** : les 20 nouveaux contrôles rejoués sur le fichier
+**d'avant** donnent **11 échecs** (« 0 bandeau(x) », « 0 bloc(s) », « afConformite is not defined »,
+« 131 lignes » au lieu de 15 filtrées). Ils savent donc dire non.
+
+**Quatre contrôles ont dû être RÉÉCRITS, et c'est légitime** — ils lisaient `.afManque`,
+`.afEcartBloc` et la phrase « ✔ Saisie partagée active », c'est-à-dire le balisage que ce lot
+remplace. La **propriété** protégée est la même dans chaque cas (la vue dit ce qu'elle ne montre
+pas ; les écarts sont annoncés ; le mode est dit) ; seul l'endroit où elle se lit a changé. Et deux
+contrôles NEUFS gardent ce que l'ancien balisage ne pouvait pas garder : **il n'y a qu'un bandeau**,
+et **c'est celui de la lecture seule qui gagne**.
+
+**`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.**
