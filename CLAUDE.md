@@ -6067,3 +6067,78 @@ rechargement simple peut rendre l'ancienne page. **Ctrl + Maj + R** force la rel
 *À retenir pour les prochains signalements d'affichage : avant de chercher dans le code, demander
 si la page a été rechargée en forçant le cache. Trois signalements sur ce fichier ont déjà eu
 cette cause.*
+
+## Les semaines déjà remplies remises dans l'appli (09/09/2026)
+
+**La demande.** Le matin même, le correctif « les feuilles remplies restent remplies » a été mis en
+ligne (section précédente). Patrice enchaîne : *« ceux qui sont déjà remplis depuis la S34,
+j'aimerais que tu puisses les remplir toi aussi et les remettre dans l'appli »*. Une feuille qui
+reste remplie ne sert de rappel qu'à partir de la semaine où elle a été saisie DANS l'appli : les
+S34 à S36 étaient parties avant, donc chaque technicien ouvrait ses semaines passées sur un écran
+vide. **39 feuilles reposées : 13 techniciens × S34, S35, S36.** La S37 est la semaine en cours,
+elle se remplit normalement.
+
+**AUCUNE DONNÉE N'EST RESSAISIE À LA MAIN — deux sources, deux méthodes :**
+
+| Feuilles | Source | Comment |
+|---|---|---|
+| 25 | PDF partis de l'appli (S34 d'Ahmed, toutes les S35 et S36) | La saisie exacte est **dans le PDF** : propriété `Keywords`, préfixe `TELSAMDATA:`, JSON en base64 (cf. `embedPayloadInPdf`). Relue telle quelle, zéro interprétation. |
+| 14 | Classeurs Excel (les S34 remplies à la main avant l'appli, et les 3 semaines de congé paternité de Benjamin SOUPA préparées au bureau) | Lues cellule par cellule via Excel COM, puis **recoupées avec les totaux par jour calculés par Excel lui-même** : 14 feuilles, 0 écart. |
+
+**LE CONTRÔLE CROISÉ N'ÉTAIT PAS DÉCORATIF.** Les S34 remplies à la main sont hétérogènes — chacun
+a utilisé le classeur à sa façon : Younes MOUSSA a une version du modèle **décalée d'une ligne**
+(sa ligne 26 est un chantier, pas une absence), Morad EL ABBASSI et Bilal HAMOUCH ont écrit un
+chantier **sur la ligne « Qualité »**, Benjamin DIRAT a posé quatre libellés en colonne B dont un
+seul porte des heures. Une lecture mécanique par carte de cellules aurait donc rangé des heures de
+chantier dans des absences. Et **deux lignes « TOTAL » sont restées fausses** dans les classeurs
+(Didier PERRIN affiche 35 h pour 43 h, Benjamin SOUPA 35 h pour 21 h + 14 h de paternité) : ce sont
+les **totaux PAR JOUR** qui font foi, pas le total de la semaine.
+
+**Ce qui vit dans le code** (`appli-techniciens/index.html`) : `SEED_FEUILLES` (le tableau des 39
+feuilles, au format exact du magasin local), `feuilleVierge()` et `installerFeuillesPassees()`,
+appelée depuis `selectTech` **avant que l'écran de l'appli n'apparaisse** — sinon
+`ensureFeuilleForWeek` pourrait créer la feuille vide de la semaine affichée pendant la pose, et la
+première frappe la réécrirait par-dessus.
+
+**QUATRE RÈGLES DE POSE. Les trois premières protègent le technicien de nous :**
+
+1. **ON N'ÉCRASE JAMAIS UNE SAISIE.** Si la semaine contient déjà quoi que ce soit sur ce
+   téléphone, on ne touche pas. `feuilleVierge()` regarde **tout** ce qu'il peut saisir, pas
+   seulement les heures : une semaine où il n'a noté que ses kilomètres, une nacelle ou un
+   commentaire est une saisie. La saisie vit dans son téléphone et nulle part ailleurs — ce qu'on
+   écraserait, personne ne pourrait le restaurer.
+2. **ON NE POSE QU'UNE FOIS.** Registre `seed_feuilles_posees` (clé volontairement **sans** le
+   préfixe `fh_`, que `compterFeuillesEnAttente` balaye comme des feuilles). Sans ce registre,
+   « Effacer et recommencer cette semaine » serait défait par l'appli au rechargement suivant : le
+   technicien perdrait la main sur ses propres données.
+3. **UNE FEUILLE DÉJÀ PARTIE NE GAGNE PLUS DE LIGNES.** `ensureFeuilleForWeek` ajoute d'office les
+   chantiers planifiés de la semaine, et `TECH_RANGES` connaît encore les affectations d'août : la
+   S34 d'Anthony sortait avec SA ligne « Portet » remplie **et** une ligne « Poste de Portet
+   (P.SIM) » vide juste à côté. Deux lignes pour le même chantier sur une feuille déjà envoyée,
+   c'est une invitation à saisir deux fois. La pose neutralise donc les ajouts automatiques de
+   cette semaine-là via `removedAutoIds` (le mécanisme du bouton « Retirer ce chantier »).
+   **Défaut trouvé par le test, pas à l'œil.**
+4. **LA FEUILLE DIT QU'ELLE EST DÉJÀ PARTIE.** `envoyeLe` est renseigné, et la date s'affiche sous
+   le bouton d'envoi (« Déjà envoyée le 21/08/2026. »). Sans cette phrase, un technicien qui
+   retrouve trois semaines pleines les renvoie « au cas où ». Elle sert aussi sur les semaines
+   qu'il a envoyées lui-même. On n'écrit **rien** quand on ne sait pas : pas de « jamais envoyée »
+   sur une semaine en cours de saisie, ce serait un reproche à quelqu'un qui n'a pas fini.
+
+**Le test : `scripts/test-feuilles-passees.html`** (Chrome headless, concaténé après `index.html`,
+même harnais que les autres). 30 contrôles, chacun avec son contre-exemple. Les trois qui comptent :
+la semaine déjà saisie survit à la pose ; la semaine effacée ne revient pas (compteur d'écritures à
+zéro au rechargement — et non nul quand on retire le registre) ; **les 39 feuilles repassent dans
+`buildExportPayload` et ressortent à l'identique**, ce qui prouve que le format posé est bien celui
+que l'appli sait relire et réémettre, pas seulement un objet qui s'affiche.
+
+**Deux choses vues en passant, à traiter côté bureau :**
+- **Morad EL ABBASSI a renvoyé sa S36 le 08/09** (elle est dans `dépôts appli` avec un `(1)`, pas
+  classée dans `S36`) : la version du 03/09 portait **1 h de nuit le mercredi**, la version
+  corrigée ne l'a plus. C'est la version du 08/09 qui a été reposée — la plus récente fait foi.
+  Le récap RH, lui, a peut-être encore l'heure de nuit.
+- **François PERRIN a saisi sa S36 entièrement en NUIT** (7 h de nuit × 5 jours, colonne N au lieu
+  de J). Reposé tel qu'envoyé — on ne corrige pas la feuille d'un technicien à sa place — mais la
+  paie l'a probablement lu ainsi.
+
+**NE PAS étendre `SEED_FEUILLES` à une semaine en cours ou à venir** : ce tableau ne décrit que du
+passé déjà transmis au bureau. Une semaine qui n'est pas finie se remplit dans l'appli.

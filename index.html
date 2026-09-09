@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-09-4';
+var APP_VERSION = '2026-09-09-5';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-09-4';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Rien qui te concerne cette fois : la mise à jour porte sur une fiche de bureau (Dambron-Voves, PGO du poste reçu). Ton appli et ta feuille d'heures ne changent pas.";
+var APP_NOUVEAUTE = "Tes semaines S34, S35 et S36 ne sont plus vides : les feuilles déjà transmises au bureau sont revenues dans l'appli, pour mémoire. La date d'envoi est écrite sous le bouton — tu n'as rien à renvoyer.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1064,6 +1064,12 @@ function renderTechGrid(){
 async function selectTech(t){
   currentTech=t;
   await kvSet('technicien', t);
+  /* AVANT que l'écran de l'appli n'apparaisse, et c'est volontaire : tant
+     que l'écran des noms est encore là, le technicien ne peut pas ouvrir
+     l'onglet des heures. Sinon `ensureFeuilleForWeek` pourrait créer la
+     feuille vide de la semaine affichée pendant qu'on pose les semaines
+     passées, et la première frappe la réécrirait par-dessus. */
+  await installerFeuillesPassees(t);
   document.getElementById('pickScreen').style.display='none';
   document.getElementById('appScreen').style.display='block';
   document.getElementById('whoName').textContent=t;
@@ -1867,6 +1873,161 @@ async function loadAndRenderHours(){
 }
 
 /* =====================================================================
+   LES SEMAINES DÉJÀ REMPLIES, REMISES DANS L'APPLI (09/09/2026)
+   ---------------------------------------------------------------------
+   Demandé par Patrice le même jour que la correction ci-dessous : « ceux
+   qui sont déjà remplis depuis la S34, j'aimerais que tu puisses les
+   remplir toi aussi et les remettre dans l'appli ». Une feuille qui reste
+   remplie ne sert de rappel qu'à partir de la semaine où elle a été saisie
+   DANS l'appli : les S34 à S36 étaient parties avant ce correctif, donc
+   chaque technicien ouvrait ses semaines passées sur un écran vide.
+
+   D'OÙ VIENNENT CES DONNÉES — AUCUNE N'EST RESSAISIE À LA MAIN. Le PDF
+   envoyé par l'appli porte la saisie exacte dans sa propriété `Keywords`
+   (`TELSAMDATA:`, cf. `embedPayloadInPdf`) : les 25 feuilles parties de
+   l'appli (la S34 d'Ahmed, puis toutes les S35 et S36) sont relues telles
+   quelles. Les 14 autres — les S34 remplies à la main avant l'appli, et
+   les trois semaines de congé paternité de Benjamin SOUPA préparées au
+   bureau — sont reprises du classeur Excel cellule par cellule, puis
+   recoupées avec les totaux par jour calculés par Excel lui-même : 14
+   feuilles, 0 écart. C'est un contrôle qui pouvait échouer, pas une
+   relecture de façade — deux classeurs sur douze ont une ligne « TOTAL »
+   restée fausse (Didier PERRIN et Benjamin SOUPA affichent 35 h pour 43 h
+   et 21 h), et ce sont les totaux PAR JOUR qui font foi.
+
+   TROIS RÈGLES DE POSE, ET C'EST LÀ QU'EST TOUT LE RISQUE :
+
+   1. ON N'ÉCRASE JAMAIS UNE SAISIE. Si la semaine contient déjà quoi que
+      ce soit sur ce téléphone, on ne touche pas. Ce que le technicien a
+      tapé lui-même vaut toujours mieux qu'une reconstitution, et il n'a
+      aucun moyen de récupérer ce qu'on lui aurait remplacé.
+
+   2. ON NE POSE QU'UNE FOIS. La pose est notée dans `seed_feuilles_posees`,
+      donc un technicien qui efface une de ces semaines ne la voit PAS
+      revenir au rechargement suivant. Sans ce registre, « Effacer et
+      recommencer cette semaine » serait défait par l'appli elle-même : il
+      perdrait la main sur ses propres données.
+
+   3. LA FEUILLE DIT QU'ELLE EST DÉJÀ PARTIE (`envoyeLe`), et la date
+      s'affiche sous le bouton d'envoi. Sans ça, un technicien qui
+      retrouve trois semaines pleines peut croire qu'il doit les renvoyer.
+
+   NE PAS étendre ce tableau à une semaine en cours ou à venir : il ne
+   décrit que du passé déjà transmis au bureau. Une semaine qui n'est pas
+   finie se remplit dans l'appli, pas ici.
+   ===================================================================== */
+const SEED_FEUILLES_VERSION = 1;
+const CLE_SEED_FEUILLES = 'seed_feuilles_posees';
+/* Clé volontairement SANS le préfixe `fh_` : `compterFeuillesEnAttente`
+   balaye toutes les clés `fh_*` en les lisant comme des feuilles, et ce
+   registre n'en est pas une. */
+const SEED_FEUILLES = [
+  {"tech":"Ahmed HAMOUCH","annee":2026,"semaine":34,"source":"appli","feuille":{"chantierLines":[{"id":"c_st_guillerme_0fcce9","nom":"St-Guillerme","lieu":"Ligne 63kV SSGUI-ZOZ-VERNAY, tronçon P43 - Poste de Saint-Guillerme","client":"","jours":{"0":{"j":7},"1":{"j":7}}},{"id":"c_s8po9xao","nom":"Givors Bans - Madeleine / Sardon piquage Madeleine (63kV)","lieu":"Postes Givors Bans \u0026 Sardon + LA 63kV Givors Bans-Sardon et Givors Bans-Madeleine","client":"","jours":{"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-07T16:36:25"}},
+  {"tech":"Ahmed HAMOUCH","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":null,"nom":"ICP Revigny ","lieu":"","client":"","jours":{"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"HH128LX","commentaires":"","envoyeLe":"2026-08-30T16:33:59"}},
+  {"tech":"Ahmed HAMOUCH","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_8479ntwq","nom":"Fleyriat - Brou - La Cluse","lieu":"Ligne(s) Fleyriat - Brou - La Cluse / Cize (GMR travaux OPPC)","client":"RODA","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-07T09:28:55"}},
+  {"tech":"Anthony DENIS","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"Portet","lieu":"","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"","immat":"","commentaires":"","envoyeLe":"2026-08-21T08:54:00"}},
+  {"tech":"Anthony DENIS","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"","immat":"HK-008-Kx","commentaires":"","envoyeLe":"2026-08-28T17:30:47"}},
+  {"tech":"Anthony DENIS","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_8479ntwq","nom":"Fleyriat - Brou - La Cluse","lieu":"Ligne(s) Fleyriat - Brou - La Cluse / Cize (GMR travaux OPPC)","client":"RODA","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"","immat":"","commentaires":"","envoyeLe":"2026-09-04T06:20:47"}},
+  {"tech":"Benjamin DIRAT","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"Avarie arudy","lieu":"","client":"","jours":{}},{"id":null,"nom":"Le hourat","lieu":"","client":"","jours":{"0":{"j":11},"1":{"j":11},"2":{"j":7},"3":{"j":7},"4":{"j":7}}},{"id":null,"nom":"Fin de semaine","lieu":"","client":"","jours":{}},{"id":null,"nom":"Poste de Portet","lieu":"","client":"","jours":{}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"0":1,"1":1},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-08-25T17:44:00"}},
+  {"tech":"Benjamin DIRAT","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"44750","immat":"HG-260-RR","commentaires":"Plaque d’immatriculation camion Benjamin soupa que j’ai en ma possession car absent . \n\nRAS ","envoyeLe":"2026-08-28T20:54:51"}},
+  {"tech":"Benjamin DIRAT","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"45775","immat":"HG-260-RR","commentaires":"RAS ","envoyeLe":"2026-09-04T13:07:25"}},
+  {"tech":"Benjamin SOUPA","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"","lieu":"","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7}}}],"removedAutoIds":[],"absences":[{"key":"paternite","jours":{"3":7,"4":7}}],"pd":{},"gd":{},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-07T13:53:00"}},
+  {"tech":"Benjamin SOUPA","annee":2026,"semaine":35,"source":"papier","feuille":{"chantierLines":[],"removedAutoIds":[],"absences":[{"key":"paternite","jours":{"0":7,"1":7,"2":7,"3":7,"4":7}}],"pd":{},"gd":{},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-07T13:54:00"}},
+  {"tech":"Benjamin SOUPA","annee":2026,"semaine":36,"source":"papier","feuille":{"chantierLines":[],"removedAutoIds":[],"absences":[{"key":"paternite","jours":{"0":7,"1":7,"2":7,"3":7,"4":7}}],"pd":{},"gd":{},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-07T13:55:00"}},
+  {"tech":"Bilal HAMOUCH","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"orleans","lieu":"","client":"omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"30000","immat":"","commentaires":"","envoyeLe":"2026-08-21T08:47:00"}},
+  {"tech":"Bilal HAMOUCH","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"37229","immat":"Hg315rr","commentaires":"","envoyeLe":"2026-08-31T11:31:42"}},
+  {"tech":"Bilal HAMOUCH","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_8479ntwq","nom":"Fleyriat - Brou - La Cluse","lieu":"Ligne(s) Fleyriat - Brou - La Cluse / Cize (GMR travaux OPPC)","client":"RODA","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"1":1},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-04T13:01:45"}},
+  {"tech":"Didier PERRIN","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"Arudy - Le Hourat","lieu":"","client":"","jours":{"0":{"j":11},"1":{"j":11}}},{"id":null,"nom":"Poste PORTET","lieu":"","client":"","jours":{"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"0":1,"1":1},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-08-25T08:13:00"}},
+  {"tech":"Didier PERRIN","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_audit_multi_postes_bruges_cubn_3e27cb","nom":"AUDIT MULTI POSTES (Bruges, Cubnezais, Garies, Marquis, Merignac, Pessac, Saucats)","lieu":"","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"30845","immat":"HJ-948-LJ","commentaires":"RAS","envoyeLe":"2026-08-30T12:00:58"}},
+  {"tech":"Didier PERRIN","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"4":{"j":7}}},{"id":"c_campagnac_severac","nom":"Campagnac - Séverac","lieu":"Ligne 63kV Campagnac - Séverac","client":"","jours":{"2":{"j":7},"3":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"31699","immat":"HJ-948-LJ","commentaires":"","envoyeLe":"2026-09-04T12:54:26"}},
+  {"tech":"François PERRIN","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"Poste PORTET","lieu":"","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-08-25T08:15:00"}},
+  {"tech":"François PERRIN","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"RAS","envoyeLe":"2026-08-31T08:17:16"}},
+  {"tech":"François PERRIN","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"n":7},"1":{"n":7},"2":{"n":7},"3":{"n":7},"4":{"n":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-07T09:48:31"}},
+  {"tech":"Hugues VIRY","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"Chaineau la motte","lieu":"","client":"Omexom/selt","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"","immat":"","commentaires":"","envoyeLe":"2026-08-24T10:10:00"}},
+  {"tech":"Hugues VIRY","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_data4___marcoussis","nom":"DATA4 - Marcoussis","lieu":"Site DATA4 Marcoussis","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"","immat":"Hk711gr","commentaires":"","envoyeLe":"2026-08-28T18:48:39"}},
+  {"tech":"Hugues VIRY","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_iu4rci9b","nom":"Bradascou - Repaire - Rouverade (90kV)","lieu":"Ligne 90kV Bradascou-Repaire-Rouverade (RTE 2025-MCO-EEL-REPAIL41ZROUV-362)","client":"RODA","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"","immat":"Hk 711 gr","commentaires":"","envoyeLe":"2026-09-04T12:36:59"}},
+  {"tech":"Morad EL ABBASSI","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"st guillerme","lieu":"","client":"roda","jours":{"0":{"j":7},"1":{"j":7}}},{"id":null,"nom":"givors","lieu":"","client":"ineo","jours":{"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"0":1},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-08-21T09:00:00"}},
+  {"tech":"Morad EL ABBASSI","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"HJ850LJ","commentaires":"","envoyeLe":"2026-08-28T18:56:15"}},
+  {"tech":"Morad EL ABBASSI","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_8479ntwq","nom":"Fleyriat - Brou - La Cluse","lieu":"Ligne(s) Fleyriat - Brou - La Cluse / Cize (GMR travaux OPPC)","client":"RODA","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"2":1},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-08T11:12:50"}},
+  {"tech":"Pascal BONAVENTURE","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[],"removedAutoIds":[],"absences":[{"key":"conges","jours":{"0":7,"1":7,"2":7,"3":7,"4":7}}],"pd":{},"gd":{},"nacelle":{},"vehiculeMode":null,"km":"5336","immat":"","commentaires":"","envoyeLe":"2026-08-21T08:53:00"}},
+  {"tech":"Pascal BONAVENTURE","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_data4___marcoussis","nom":"DATA4 - Marcoussis","lieu":"Site DATA4 Marcoussis","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"6282","immat":"HL-596-QH","commentaires":"","envoyeLe":"2026-08-31T07:21:24"}},
+  {"tech":"Pascal BONAVENTURE","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_iu4rci9b","nom":"Bradascou - Repaire - Rouverade (90kV)","lieu":"Ligne 90kV Bradascou-Repaire-Rouverade (RTE 2025-MCO-EEL-REPAIL41ZROUV-362)","client":"RODA","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"6510","immat":"HL-596-QH","commentaires":"","envoyeLe":"2026-09-04T08:30:32"}},
+  {"tech":"Sid Ahmed BENZAMERA","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"arudy-le hourat","lieu":"","client":"RTE","jours":{"0":{"j":11},"1":{"j":11},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"0":1,"1":1},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-08-24T10:13:00"}},
+  {"tech":"Sid Ahmed BENZAMERA","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_data4___marcoussis","nom":"DATA4 - Marcoussis","lieu":"Site DATA4 Marcoussis","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-08-28T18:11:35"}},
+  {"tech":"Sid Ahmed BENZAMERA","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_e5849v6z","nom":"Chaineau - Cordy - Lamotte (90kV) — LOT 1 RODA","lieu":"Ligne 90 kV Chaineau – Cordy – Lamotte C1 et C2","client":"RODA","jours":{"0":{"j":7},"1":{"j":7}}},{"id":"c_chaineau_lot2_selt","nom":"Chaineau - Cordy - Lamotte (90kV) — LOT 2 SELT","lieu":"Ligne 90 kV Chaineau – Cordy – Lamotte C1 et C2","client":"SELT France","jours":{"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-04T08:55:48"}},
+  {"tech":"Vincent PERRIN","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"Poste PORTET","lieu":"","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"38751","immat":"","commentaires":"","envoyeLe":"2026-08-25T08:16:00"}},
+  {"tech":"Vincent PERRIN","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_audit_multi_postes_bruges_cubn_3e27cb","nom":"AUDIT MULTI POSTES (Bruges, Cubnezais, Garies, Marquis, Merignac, Pessac, Saucats)","lieu":"","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"39411","immat":"HG-183-RR","commentaires":"","envoyeLe":"2026-08-30T12:08:48"}},
+  {"tech":"Vincent PERRIN","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_e5849v6z","nom":"Chaineau - Cordy - Lamotte (90kV) — LOT 1 RODA","lieu":"Ligne 90 kV Chaineau – Cordy – Lamotte C1 et C2","client":"RODA","jours":{"0":{"j":7},"1":{"j":7}}},{"id":"c_chaineau_lot2_selt","nom":"Chaineau - Cordy - Lamotte (90kV) — LOT 2 SELT","lieu":"Ligne 90 kV Chaineau – Cordy – Lamotte C1 et C2","client":"SELT France","jours":{"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"40875","immat":"HG-183-RR","commentaires":"","envoyeLe":"2026-09-04T10:37:49"}},
+  {"tech":"Younes MOUSSA","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"ORLÉANS","lieu":"","client":"OMEXOM","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-08-21T08:49:00"}},
+  {"tech":"Younes MOUSSA","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"RAS","envoyeLe":"2026-08-28T17:46:49"}},
+  {"tech":"Younes MOUSSA","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_8479ntwq","nom":"Fleyriat - Brou - La Cluse","lieu":"Ligne(s) Fleyriat - Brou - La Cluse / Cize (GMR travaux OPPC)","client":"RODA","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"1":1,"2":1},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-03T15:46:07"}}
+];
+
+/* Vierge = rien de ce que le technicien peut saisir. On regarde TOUT, pas
+   seulement les heures : une semaine où il n'a noté que ses kilomètres, une
+   nacelle ou un commentaire est une saisie, et elle ne doit pas être
+   remplacée. `feuilleSansHeures`, plus bas, répond à une autre question
+   (« cette feuille vaut-elle la peine d'être envoyée ? ») et ne convient
+   pas ici. */
+function feuilleVierge(e){
+  if(!e) return true;
+  const nb = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(n) ? 0 : n; };
+  const heures = (e.chantierLines||[]).some(l =>
+    l.jours && Object.keys(l.jours).some(d => nb(l.jours[d].j) > 0 || nb(l.jours[d].n) > 0));
+  const absences = (e.absences||[]).some(a =>
+    a.jours && Object.keys(a.jours).some(d => nb(a.jours[d]) > 0));
+  const marques = ['pd','gd','nacelle'].some(k => e[k] && Object.keys(e[k]).some(d => e[k][d]));
+  const divers = !!(e.vehiculeMode || String(e.km||'').trim() || String(e.immat||'').trim()
+                    || String(e.commentaires||'').trim());
+  /* Une ligne ajoutée à la main sans heures est déjà un geste du
+     technicien : il a choisi ce chantier, on ne le défait pas. */
+  const ajouts = (e.chantierLines||[]).some(l => l.addedManually);
+  return !heures && !absences && !marques && !divers && !ajouts;
+}
+
+async function installerFeuillesPassees(tech){
+  const aPoser = SEED_FEUILLES.filter(s => s.tech === tech);
+  if(!aPoser.length) return;
+  let registre = null;
+  try{ registre = await kvGet(CLE_SEED_FEUILLES); }catch(e){ /* magasin muet */ }
+  registre = registre || {};
+  let change = false;
+  for(const s of aPoser){
+    const cle = 'fh_' + tech + '_' + s.annee + '_' + s.semaine;
+    if(registre[cle]) continue;               // déjà traitée une fois : jamais deux
+    const existant = await kvGet(cle);
+    if(feuilleVierge(existant)){
+      /* Copie PROFONDE : sans elle, la première saisie du technicien
+         modifierait SEED_FEUILLES en mémoire. */
+      const feuille = JSON.parse(JSON.stringify(s.feuille));
+      /* UNE FEUILLE DÉJÀ PARTIE NE GAGNE PLUS DE LIGNES.
+         `ensureFeuilleForWeek` ajoute d'office les chantiers planifiés de la
+         semaine, et `TECH_RANGES` connaît encore les affectations d'août :
+         sans ce garde-fou, la S34 d'Anthony affichait SA ligne « Portet »
+         remplie ET une ligne « Poste de Portet (P.SIM) » vide juste à côté —
+         défaut trouvé par le test, pas à l'œil. Deux lignes pour le même
+         chantier, sur une feuille déjà envoyée, c'est une invitation à saisir
+         deux fois. La feuille envoyée est la référence : on neutralise les
+         ajouts automatiques de cette semaine-là, par le mécanisme prévu pour
+         ça (celui du bouton « Retirer ce chantier »). */
+      const lundi = mondayOfISOWeek(s.semaine, s.annee);
+      const dimanche = new Date(lundi); dimanche.setUTCDate(dimanche.getUTCDate() + 6);
+      const dejaLa = feuille.chantierLines.filter(l => l.id).map(l => l.id);
+      getWeekChantiers(tech, lundi, dimanche).forEach(wc => {
+        if(dejaLa.indexOf(wc.id) === -1 && feuille.removedAutoIds.indexOf(wc.id) === -1){
+          feuille.removedAutoIds.push(wc.id);
+        }
+      });
+      const ok = await kvSet(cle, feuille);
+      if(ok === false) continue;              // écriture refusée : on retentera au prochain démarrage
+    }
+    registre[cle] = SEED_FEUILLES_VERSION;    // posée, ou laissée de côté : dans les deux cas, c'est réglé
+    change = true;
+  }
+  if(change) await kvSet(CLE_SEED_FEUILLES, registre);
+}
+
+/* =====================================================================
    L'ENREGISTREMENT DE LA FEUILLE — RÉÉCRIT LE 09/09/2026
    ---------------------------------------------------------------------
    Défaut signalé par Patrice : « les feuilles remplies par les techniciens
@@ -2302,7 +2463,19 @@ function renderHoursUI(){
     + '</div>';
 
   const weekInfo = weekRange(currentOffset);
+  /* « CETTE FEUILLE EST-ELLE DÉJÀ PARTIE ? » — la question devient
+     inévitable le jour où l'appli remet en place des semaines passées
+     (cf. SEED_FEUILLES) : sans réponse à l'écran, un technicien qui
+     retrouve trois semaines pleines les renvoie « au cas où ». La date
+     vient de la feuille elle-même (`envoyeLe`), donc elle sert aussi sur
+     les semaines qu'il a envoyées lui-même. On n'écrit RIEN quand on ne
+     sait pas : pas de « jamais envoyée » sur une semaine en cours de
+     saisie, ce serait un reproche adressé à quelqu'un qui n'a pas fini. */
+  const dejaEnvoyee = e.envoyeLe && !isNaN(new Date(e.envoyeLe))
+    ? '<div class="h-send-sub">Déjà envoyée le ' + fmtDateFR(new Date(e.envoyeLe)) + '.</div>'
+    : '';
   const sendSection = '<div class="h-section">'
+    + dejaEnvoyee
     + '<button class="h-send-btn" id="emailBtn" onclick="emailFeuille()">'+ico('envoi')+'Envoyer ma feuille (S'+weekInfo.weekNum+')</button>'
     /* CETTE PHRASE SUIT LE CODE, ELLE N'EST PLUS ÉCRITE À LA MAIN.
        Signalé par Patrice le 09/09/2026 : elle annonçait encore « un résumé
