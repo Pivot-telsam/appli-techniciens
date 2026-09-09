@@ -51,8 +51,23 @@
   majBandeauValidation(38, 2026, 1);
   ok('base injoignable : JAMAIS « valide », meme sur une semaine validee',
      bar.className.indexOf('ok') === -1 && bar.className.indexOf('prev') >= 0, bar.className);
+  /* RETOUCHE LE 09/09/2026 : ce controle cherchait la phrase « impossible
+   * de verifier », qui appartient a UNE des deux branches. Or ce harnais
+   * s'ouvre forcement en `file:` — c'est un fichier concatene — donc c'est
+   * TOUJOURS l'autre branche qui s'execute, celle de la page locale. La
+   * phrase attendue etait donc inatteignable : un controle qui ne peut pas
+   * passer ne vaut pas mieux qu'un controle qui ne peut pas echouer.
+   *
+   * LA PROPRIETE PROTEGEE NE BOUGE PAS : quand la base est injoignable, on
+   * ne dit jamais « valide » (controle juste au-dessus) ET on explique
+   * pourquoi. On accepte donc l'une ou l'autre explication, et on exige
+   * qu'il y en ait une. */
   ok('base injoignable : on le DIT au technicien',
-     /impossible de v.rifier/i.test(bar.textContent), bar.textContent);
+     /ne peut pas .tre v.rifi|impossible de v.rifier/i.test(bar.textContent), bar.textContent);
+  // Contre-exemple : le bandeau ne se contente pas d'un etat, il dit quoi
+  // faire — ou, pour la page locale, ou aller voir.
+  ok('base injoignable : et il dit quoi faire',
+     /ne r.serve rien|ouvre l.appli en ligne/i.test(bar.textContent), bar.textContent);
 
   // --- 2 bis. RIEN sur la semaine en cours ni sur le passe ----------------
   // Defaut releve par Patrice le 03/09/2026 : le bandeau ambre « ne reserve

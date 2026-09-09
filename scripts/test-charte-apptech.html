@@ -1,0 +1,529 @@
+<pre id="verdictTest" style="position:fixed;top:0;left:0;background:#fff;color:#000;z-index:99999;font:11px monospace;padding:4px;">en cours</pre>
+<script>
+/* CONTROLES DE LA CHARTE SOMBRE « TELSAM OPS » (09/09/2026).
+ * A concatener apres index.html, puis Chrome --headless=new --dump-dom.
+ *
+ *   cat index.html scripts/test-charte-apptech.html > /tmp/run.html
+ *   chrome --headless=new --disable-gpu --virtual-time-budget=9000 --dump-dom /tmp/run.html
+ *
+ * CE QUE CE HARNAIS NE PEUT PAS FAIRE, ET IL FAUT LE SAVOIR : il ne dit
+ * rien de l'allure. C'est l'oeil de Patrice qui juge si c'est beau, et il
+ * bat toujours la mesure. Ce qui est ici, c'est ce qui se mesure et qui se
+ * casse en silence : une couleur restee de l'ancienne palette, une cible
+ * tactile trop petite, un emoji reintroduit, une phrase qui promet ce que
+ * le code ne fait pas.
+ *
+ * CHAQUE CONTROLE A SON CONTRE-EXEMPLE. Sans lui, un controle qui passe ne
+ * prouve que l'absence de plantage : c'est la regle du depot depuis le
+ * 24/08/2026, et elle a deja attrape trois defauts reels.
+ *
+ * PIEGE DEJA PAYE : ne pas chercher un motif dans tout le DOM avec grep.
+ * Le source de CE fichier fait partie du DOM, donc n'importe quelle chaine
+ * ecrite ici se trouve elle-meme. On lit le RENDU (textContent,
+ * getComputedStyle), pas la source.  */
+(async function () {
+  const R = []; let ko = 0;
+  function ok(nom, cond, detail) {
+    R.push((cond ? 'OK   ' : 'ECHEC') + ' | ' + nom + (detail ? '  -> ' + detail : ''));
+    if (!cond) ko++;
+  }
+  function mesure(txt){ R.push('     ' + txt); }
+  function fin() {
+    R.push('---');
+    R.push(R.filter(l => l.startsWith('OK')).length + ' controle(s) passes, ' + ko + ' en echec');
+    R.push(ko ? 'VERDICT: ECHEC' : 'VERDICT: TOUT PASSE');
+    document.getElementById('verdictTest').textContent = R.join('\n');
+  }
+  try {
+  for (let i = 0; i < 100 && typeof renderCard === 'undefined'; i++) await new Promise(r => setTimeout(r, 50));
+  if (typeof renderCard === 'undefined') { document.getElementById('verdictTest').textContent = 'page non construite'; return; }
+  /* IndexedDB ne tourne pas sous --virtual-time-budget : on remplit depuis
+   * SEED_DATA, ce qui est l'etat d'un premier chargement. C'est aussi
+   * pourquoi rien ici ne passe par kvGet/kvSet. */
+  chantiers = {}; for (const f of SEED_DATA) chantiers[f.id] = f;
+  const racine = getComputedStyle(document.documentElement);
+  const tok = n => racine.getPropertyValue(n).trim();
+
+  // =====================================================================
+  // 1. LA PALETTE EST BIEN CELLE DE LA CHARTE, ET L'ANCIENNE EST PARTIE
+  // =====================================================================
+  ok('1. le fond est le navy de la charte', tok('--ecran').toUpperCase() === '#0B0C24', tok('--ecran'));
+  ok('1. les quatre niveaux de surface existent',
+     tok('--ecran') && tok('--vue') && tok('--carte') && tok('--relief'),
+     [tok('--ecran'), tok('--vue'), tok('--carte'), tok('--relief')].join(' '));
+  ok('1. le terracotta et l indigo sont declares',
+     tok('--terra').toUpperCase() === '#E0A392' && tok('--indigo').toUpperCase() === '#4B4EDB',
+     tok('--terra') + ' / ' + tok('--indigo'));
+  // L'ANCIENNE PALETTE NE DOIT PLUS EXISTER. Un --amber encore declare
+  // serait aussitot reutilise, et l'ambre redeviendrait decorative.
+  const anciens = ['--bg','--surface','--surface-2','--border','--text','--text-muted',
+                   '--amber','--amber-dim','--cyan','--cyan-dim','--gray'].filter(n => tok(n) !== '');
+  ok('1. aucun jeton de l ancienne palette ne subsiste', anciens.length === 0, anciens.join(' ') || 'aucun');
+  // Contre-exemple : la lecture ne renvoie pas "vide" pour tout.
+  ok('1. contre-exemple : la lecture des jetons fonctionne vraiment',
+     tok('--jeton-qui-n-existe-pas') === '' && tok('--t1') !== '', tok('--t1'));
+  ok('1. le corps de page est peint avec le jeton, pas en dur',
+     getComputedStyle(document.body).backgroundColor === 'rgb(11, 12, 36)',
+     getComputedStyle(document.body).backgroundColor);
+
+  // =====================================================================
+  // 2. LES POLICES : DECLAREES, ET AVEC UN SECOURS SYSTEME
+  // ---------------------------------------------------------------------
+  // Le point qui compte n'est pas que la police arrive : c'est que l'appli
+  // reste LISIBLE quand elle n'arrive pas. Sur un chantier sans reseau,
+  // c'est le secours qui s'affiche.
+  // =====================================================================
+  const ffBody = getComputedStyle(document.body).fontFamily;
+  ok('2. le texte demande DM Sans', /DM Sans/i.test(ffBody), ffBody.slice(0, 80));
+  ok('2. et il a un secours systeme derriere', /system|Segoe UI|Roboto|Arial|sans-serif/i.test(ffBody));
+  /* ATTENTION AU SELECTEUR : `link[href*="fonts.googleapis"]` attrape AUSSI
+   * le `preconnect`, qui pointe sur le meme domaine. Le premier jet de ce
+   * controle mesurait donc le preconnect (aucun onload, aucune famille) et
+   * echouait en accusant l'appli. Il faut nommer le rel. */
+  const lienPolices = Array.from(document.querySelectorAll('link[rel="stylesheet"][href*="fonts.googleapis"]'));
+  ok('2. le domaine des polices est preconnecte',
+     document.querySelectorAll('link[rel="preconnect"][href*="fonts.g"]').length === 2,
+     document.querySelectorAll('link[rel="preconnect"][href*="fonts.g"]').length + ' preconnect');
+  ok('2. la feuille de polices est chargee SANS BLOQUER',
+     lienPolices.length === 1 && /media/i.test(lienPolices[0].outerHTML)
+       && /this\.media/.test(lienPolices[0].getAttribute('onload') || ''),
+     lienPolices.length ? (lienPolices[0].getAttribute('onload') || '(pas d onload)') : 'aucun lien');
+  ok('2. les trois familles de la charte sont demandees',
+     lienPolices.length === 1 && /League\+Spartan/.test(lienPolices[0].href)
+       && /DM\+Sans/.test(lienPolices[0].href) && /IBM\+Plex\+Mono/.test(lienPolices[0].href));
+  // Contre-exemple : le test ne dit pas oui a n'importe quoi.
+  ok('2. contre-exemple : une police non demandee est bien absente',
+     !/Comic Sans/i.test(ffBody));
+
+  // =====================================================================
+  // 3. AUCUN EMOJI DANS CE QUI S AFFICHE
+  // ---------------------------------------------------------------------
+  // Regle 4 de la charte. Un emoji est rendu par le systeme : il change de
+  // dessin d'un telephone a l'autre, ne prend pas la couleur du texte, et
+  // sur certains Android il sort en carre. Les fleches typographiques
+  // (-> «  » ...) ne sont pas des emoji et restent autorisees.
+  // =====================================================================
+  const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{2460}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
+  function emojiDans(t){ const m = String(t).match(EMOJI); return m ? m[0] : ''; }
+  ok('3. contre-exemple : le detecteur voit bien un emoji', emojiDans('bonjour 📤 !') === '📤');
+  ok('3. et il ne se declenche pas sur la typographie francaise',
+     emojiDans('du 14/09 au 18/09 — « ne reserve rien », l’indice n°6') === '');
+
+  const moi = 'Pascal BONAVENTURE';
+  currentTech = moi;
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('pickScreen').style.display = 'none';
+  document.getElementById('gateScreen').style.display = 'none';
+  document.getElementById('whoName').textContent = moi;
+  currentOffset = 1;                    // la semaine 38, celle qui a de la matiere
+  render();
+  const zoneCartes = document.getElementById('cardList');
+  ok('3. il y a bien des cartes a examiner', zoneCartes.querySelectorAll('.card').length > 0,
+     zoneCartes.querySelectorAll('.card').length + ' carte(s)');
+  ok('3. aucun emoji dans les cartes de chantier', emojiDans(zoneCartes.textContent) === '',
+     emojiDans(zoneCartes.textContent) || 'aucun');
+  ok('3. aucun emoji dans l en-tete', emojiDans(document.querySelector('header.top').textContent) === '',
+     emojiDans(document.querySelector('header.top').textContent) || 'aucun');
+  ok('3. aucun emoji dans le pied de page',
+     emojiDans(document.getElementById('legend').textContent) === '',
+     document.getElementById('legend').textContent.slice(0, 60));
+  renderHabilitations();
+  ok('3. aucun emoji dans l ecran des habilitations',
+     emojiDans(document.getElementById('habilitationsPanel').textContent) === '');
+  // Les icones ont pris leur place : ce n'est pas "moins d'emoji", c'est
+  // "des icones a la place".
+  ok('3. les icones dessinees sont bien la',
+     zoneCartes.querySelectorAll('svg.ic').length >= 4,
+     zoneCartes.querySelectorAll('svg.ic').length + ' icone(s)');
+  ok('3. contre-exemple : ico() refuse un nom inconnu', ico('nimportequoi') === '');
+
+  // =====================================================================
+  // 4. LE PIED DE PAGE NE DATE PLUS LES DONNEES AVEC L HORLOGE DU TELEPHONE
+  // ---------------------------------------------------------------------
+  // Il ecrivait « Donnees au » suivi de la date du jour : donc toujours
+  // aujourd'hui, y compris devant un fichier de la semaine derniere reste
+  // en cache. C'etait la seule chose qu'il avait l'air de dire, et elle
+  // etait fausse.
+  // =====================================================================
+  const pied = document.getElementById('legend').textContent;
+  ok('4. le pied de page ne pretend plus dater les donnees',
+     !/donn[eé]es au/i.test(pied), pied.slice(0, 70));
+  ok('4. mais il dit toujours qu il faut du reseau pour les documents',
+     /dropbox/i.test(pied) && /connexion/i.test(pied));
+
+  // =====================================================================
+  // 5. LA BARRE DU HAUT DIT LA DATE DES DONNEES, PAS CELLE DU JOUR
+  // ---------------------------------------------------------------------
+  // ATTENTION AU PIEGE : le jour ou ce harnais a ete ecrit, PLANNING_TECH.maj
+  // etait justement la date du jour. Un controle « ce n'est pas
+  // aujourd'hui » aurait donc passe pour la mauvaise raison, et n'aurait
+  // rien prouve. On DEPLACE l'horodatage et on verifie que la barre suit.
+  // =====================================================================
+  const vraiMaj = PLANNING_TECH.maj;
+  PLANNING_TECH.maj = '2026-08-11 06:42';
+  majBarreSync();
+  const txtSync = document.getElementById('syncTxt').textContent;
+  ok('5. la barre suit l horodatage du planning', /11\/08/.test(txtSync) && /06 h 42/.test(txtSync), txtSync);
+  PLANNING_TECH.maj = '2026-08-12 07:00';
+  majBarreSync();
+  ok('5. contre-exemple : elle change quand l horodatage change',
+     /12\/08/.test(document.getElementById('syncTxt').textContent),
+     document.getElementById('syncTxt').textContent);
+  PLANNING_TECH.maj = vraiMaj;
+  majBarreSync();
+  ok('5. la donnee reelle est restauree', PLANNING_TECH.maj === vraiMaj, PLANNING_TECH.maj);
+
+  // ---- « En ligne » n'est JAMAIS affirme sans preuve ------------------
+  // navigator.onLine dit oui sur un wifi d'hotel qui ne sort pas. La barre
+  // ne passe au vert que si l'appel reseau de l'appli a abouti.
+  reseauPreuve = false; majBarreSync();
+  ok('5. sans preuve de reseau, la barre dit « hors reseau »',
+     /hors r[eé]seau/i.test(document.getElementById('syncTxt').textContent)
+       && document.getElementById('syncBar').className.indexOf('enligne') === -1,
+     document.getElementById('syncTxt').textContent);
+  reseauPreuve = true; majBarreSync();
+  ok('5. contre-exemple : avec la preuve, elle dit « en ligne »',
+     /en ligne/i.test(document.getElementById('syncTxt').textContent)
+       && document.getElementById('syncBar').className.indexOf('enligne') !== -1,
+     document.getElementById('syncTxt').textContent);
+
+  // ---- le compteur de feuilles a renvoyer ----------------------------
+  // IL NE PROMET PAS UN RENVOI AUTOMATIQUE. L'appli n'a pas de file
+  // d'attente qui repart seule : la maquette ecrivait « elle partira des
+  // que le reseau revient », ce qui est faux. On verifie donc que le mot
+  // employe est « a renvoyer », et pas une promesse.
+  feuillesEnAttente = 0; majBarreSync();
+  ok('5. aucune feuille en attente : le compteur se tait',
+     document.getElementById('syncCompte').textContent === '',
+     '[' + document.getElementById('syncCompte').textContent + ']');
+  feuillesEnAttente = 1; majBarreSync();
+  const cpt1 = document.getElementById('syncCompte').textContent;
+  ok('5. une feuille en attente : le compteur le dit au singulier',
+     /1 feuille à renvoyer/.test(cpt1), cpt1);
+  feuillesEnAttente = 3; majBarreSync();
+  ok('5. contre-exemple : trois feuilles, au pluriel',
+     /3 feuilles à renvoyer/.test(document.getElementById('syncCompte').textContent),
+     document.getElementById('syncCompte').textContent);
+  ok('5. le compteur ne promet aucun renvoi automatique',
+     !/partira|automatique|d[eè]s que le r[eé]seau/i.test(
+       document.getElementById('syncBar').textContent),
+     document.getElementById('syncBar').textContent);
+  feuillesEnAttente = 0; majBarreSync();
+
+  // ---- les deux sens du marquage existent, et ils sont opposes -------
+  ok('5. la fonction de marquage existe en un seul endroit',
+     typeof marquerEnvoiFeuille === 'function');
+  {
+    const vraiKvSet = kvSet, vraiCompte = compterFeuillesEnAttente;
+    let ecrit = null;
+    kvSet = async (k, v) => { ecrit = JSON.parse(JSON.stringify(v)); };
+    compterFeuillesEnAttente = async () => {};
+    hoursEntry = { chantierLines: [] }; hoursKeyCurrent = 'fh_test_2026_38';
+    await marquerEnvoiFeuille(false);
+    const rate = ecrit;
+    await marquerEnvoiFeuille(true);
+    const parti = ecrit;
+    kvSet = vraiKvSet; compterFeuillesEnAttente = vraiCompte;
+    hoursEntry = null; hoursKeyCurrent = null;
+    ok('5. un envoi rate marque la feuille « en attente »',
+       rate && rate.envoiEnAttente === true && !!rate.envoiEchoueLe,
+       JSON.stringify(rate));
+    ok('5. contre-exemple : un envoi qui aboutit efface le marquage',
+       parti && parti.envoiEnAttente === false && !!parti.envoyeLe,
+       JSON.stringify(parti));
+  }
+
+  // =====================================================================
+  // 6. TOUTE CIBLE TACTILE FAIT AU MOINS 44 PX
+  // ---------------------------------------------------------------------
+  // C'est la seule regle de la charte qui se mesure, donc la seule qu'on
+  // peut casser sans le voir. Les fleches de semaine etaient a 38 px et
+  // les cases d'heures a 39 px.
+  //
+  // DEUX EXCEPTIONS NOMMEES, ET SEULEMENT DEUX : le bouton « Changer » et
+  // le lien « Retirer », que la maquette validee dessine a 36 px. Elles
+  // sont listees ici pour qu'un NOUVEL element trop petit echoue quand
+  // meme — une tolerance globale a 36 px ne protegerait plus rien.
+  // =====================================================================
+  const CIBLE = 44, TOLERE = { 'switch-btn': 36, 'h-del-btn': 36 };
+  currentTab = 'heures';
+  await loadAndRenderHours().catch(() => { hoursEntry = { chantierLines: [{ id: SEED_DATA[0].id, nom: SEED_DATA[0].nom, lieu: SEED_DATA[0].lieu, jours: {} }], removedAutoIds: [], absences: [{ key: 'conges', jours: {} }], pd: {}, gd: {}, nacelle: {}, vehiculeMode: null, km: '', immat: '', commentaires: '' }; renderHoursUI(); });
+  document.getElementById('hoursPanel').style.display = 'flex';
+  function trop(racineEl){
+    const sel = 'button, a.doc-btn, a.h-send-btn, input.h-num, input.h-km-input, select.h-picker, .sec-btn, .pyl-chip, .statut-chip, .h-veh-btn, .h-toggle-btn';
+    const petits = [];
+    racineEl.querySelectorAll(sel).forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.height === 0 && r.width === 0) return;          // pas affiche : rien a mesurer
+      let seuil = CIBLE;
+      for (const cls in TOLERE) if (el.classList.contains(cls)) seuil = TOLERE[cls];
+      if (r.height < seuil - 0.6) petits.push((el.className || el.tagName) + ' ' + Math.round(r.height) + 'px');
+    });
+    return petits;
+  }
+  const petitsEntete = trop(document.getElementById('appScreen'));
+  ok('6. aucune cible trop petite dans l appli', petitsEntete.length === 0,
+     petitsEntete.slice(0, 6).join(' | ') || 'aucune');
+  mesure('cibles mesurees : ' + document.getElementById('appScreen')
+         .querySelectorAll('button, a.doc-btn, a.h-send-btn, input.h-num, select.h-picker, .sec-btn, .h-veh-btn, .h-toggle-btn').length);
+  // Contre-exemple : un bouton volontairement trop petit doit etre attrape.
+  {
+    const faux = document.createElement('button');
+    faux.textContent = 'trop petit';
+    faux.style.cssText = 'height:20px;min-height:0;padding:0;display:block';
+    document.getElementById('cardList').appendChild(faux);
+    const vus = trop(document.getElementById('appScreen'));
+    ok('6. contre-exemple : un bouton de 20 px est bien attrape',
+       vus.length === 1 && /20px/.test(vus[0]), vus.join(' | '));
+    faux.remove();
+  }
+
+  // =====================================================================
+  // 7. AUCUNE OMBRE SUR LES SURFACES D INTERFACE
+  // ---------------------------------------------------------------------
+  // Sur un fond sombre une ombre ne se voit pas : la profondeur vient de
+  // l'ecart entre les quatre niveaux de surface. Une ombre ajoutee « pour
+  // detacher » ne fait que salir le navy.
+  // =====================================================================
+  currentTab = 'chantiers'; render();
+  const sansOmbre = ['.card', '.week-nav', '.doc-btn', '.tab-btn', '.badge'];
+  const avecOmbre = sansOmbre.filter(s => {
+    const el = document.querySelector(s);
+    return el && getComputedStyle(el).boxShadow !== 'none';
+  });
+  ok('7. aucune ombre sur les surfaces d interface', avecOmbre.length === 0, avecOmbre.join(' ') || 'aucune');
+  // Contre-exemple : la plaque du logo de l'ecran d'ouverture, elle, EN A
+  // une (c'est une image posee, pas une surface d'interface). Si le test ne
+  // la voyait pas, c'est qu'il ne sait pas voir d'ombre du tout.
+  {
+    const p = document.querySelector('.sp-plate');
+    ok('7. contre-exemple : le test sait voir une ombre quand il y en a une',
+       !p || getComputedStyle(p).boxShadow !== 'none',
+       p ? getComputedStyle(p).boxShadow.slice(0, 40) : '(splash deja retire)');
+  }
+
+  // =====================================================================
+  // 8. L IDENTITE DU CHANTIER PAR LISERE, ET ELLE N IMITE JAMAIS UNE ALERTE
+  // =====================================================================
+  const cartes = Array.from(document.querySelectorAll('#cardList .card'));
+  ok('8. chaque carte porte un lisere de chantier',
+     cartes.length > 0 && cartes.every(el => /^4px/.test(getComputedStyle(el).borderLeftWidth + 'px')
+        || parseFloat(getComputedStyle(el).borderLeftWidth) >= 3.5),
+     cartes.length ? getComputedStyle(cartes[0]).borderLeftWidth : 'aucune carte');
+  const teintes = cartes.map(el => el.style.getPropertyValue('--ch').trim());
+  ok('8. la teinte vient de la palette d identite',
+     teintes.length > 0 && teintes.every(t => TEINTES_CHANTIER.indexOf(t) !== -1),
+     teintes.join(' '));
+  // LE POINT QUI COMPTE : aucune teinte d identite ne peut etre confondue
+  // avec le rouge, l ambre ou le vert, qui veulent dire quelque chose.
+  const semantiques = [tok('--rouge'), tok('--ambre'), tok('--vert')].map(s => s.toUpperCase());
+  ok('8. aucune teinte d identite ne reprend une couleur semantique',
+     TEINTES_CHANTIER.every(t => semantiques.indexOf(t.toUpperCase()) === -1),
+     semantiques.join(' '));
+  // Et la teinte est STABLE : c'est ce qui permet de relier la carte a la
+  // ligne de la feuille d'heures.
+  ok('8. la teinte d un chantier est stable d un appel a l autre',
+     teinteChantier(SEED_DATA[0]) === teinteChantier(SEED_DATA[0]));
+  ok('8. contre-exemple : deux chantiers differents ne prennent pas tous la meme',
+     new Set(SEED_DATA.slice(0, 12).map(teinteChantier)).size >= 3,
+     new Set(SEED_DATA.slice(0, 12).map(teinteChantier)).size + ' teinte(s) sur 12 fiches');
+
+  // =====================================================================
+  // 9. LES JETONS PORTENT L INDICE, ET NE MONTRENT TOUJOURS PAS na / nc
+  // ---------------------------------------------------------------------
+  // La decision de Patrice du 25/08/2026 tient : le controle des documents
+  // vit dans le suivi, pas dans l'appli terrain, ou « rien recu »
+  // inquieterait sans action possible. Ce lot change le dessin du jeton,
+  // pas ce qu'il montre.
+  // =====================================================================
+  const jPgo = statusBadge('pgo', 'PGO', 'ok', '6 (13/08/26) — couvre TELSAM : epissures et recettes');
+  ok('9. le jeton affiche l indice abrege', /ind\.6/.test(jPgo), jPgo.replace(/<[^>]+>/g, ' ').trim());
+  /* CE QU ON LIT SUR LE JETON, PAS CE QU IL PORTE. La phrase entiere est
+   * bien dans le `title` — c'est voulu, elle reste consultable — donc le
+   * controle doit regarder le TEXTE AFFICHE. Mon premier jet cherchait le
+   * mot dans tout le balisage et accusait l'appli a tort. */
+  const jPgoVu = jPgo.replace(/\stitle="[^"]*"/g, '').replace(/<[^>]+>/g, ' ');
+  ok('9. et pas la phrase entiere de la fiche sur le jeton',
+     !/epissures/.test(jPgoVu) && jPgoVu.trim().length < 24, jPgoVu.trim());
+  ok('9. l etat complet reste dans l infobulle', /title="[^"]*OK[^"]*"/.test(jPgo));
+  ok('9. sans indice, il retombe sur le mot d etat',
+     /vérifier/.test(statusBadge('pdp', 'PDP', 'warn', '')), statusBadge('pdp', 'PDP', 'warn', '').replace(/<[^>]+>/g, ' ').trim());
+  ok('9. « rien recu » ne s affiche pas au technicien', statusBadge('pdp', 'PDP', 'nc', '') === '');
+  ok('9. « sans objet » non plus', statusBadge('ist', 'IST', 'na', '') === '');
+  ok('9. contre-exemple : un etat bloquant, lui, s affiche en rouge',
+     /class="badge bad"/.test(statusBadge('pdp', 'PDP', 'bad', '')),
+     statusBadge('pdp', 'PDP', 'bad', ''));
+  ok('9. abregeIndice ne fabrique rien a partir de rien', abregeIndice('') === '');
+
+  // =====================================================================
+  // 10. LE BANDEAU DE VALIDATION : L ETAT, PUIS CE QU IL FAUT FAIRE
+  // =====================================================================
+  {
+    const bar = document.getElementById('validBar');
+    const vraies = typeof semainesValidees !== 'undefined' ? semainesValidees : null;
+    semainesValidees = ['2026-S38'];
+    majBandeauValidation(38, 2026, 1);
+    ok('10. semaine validee : c est ecrit en gras, et l action suit',
+       bar.querySelector('b') && /valid/i.test(bar.querySelector('b').textContent)
+         && /r[eé]server/i.test(bar.textContent), bar.textContent);
+    ok('10. et le bandeau porte une icone dessinee', !!bar.querySelector('svg.ic'));
+    majBandeauValidation(39, 2026, 2);
+    ok('10. contre-exemple : semaine non validee, on dit de ne rien reserver',
+       /ne r[eé]serve rien/i.test(bar.textContent)
+         && bar.className.indexOf('prev') !== -1, bar.textContent);
+    ok('10. aucun emoji dans le bandeau', emojiDans(bar.textContent) === '');
+    semainesValidees = vraies;
+  }
+
+  // =====================================================================
+  // 11. L ETAT VIDE DIT POURQUOI, ET IL DONNE UNE SORTIE
+  // ---------------------------------------------------------------------
+  // Avant : « Rien de prevu pour toi cette semaine-la. » — ni la raison,
+  // ni ou aller. LA SECONDE SORTIE N APPARAIT QUE SI ELLE EXISTE : un
+  // bouton « derniere semaine planifiee » qui ne mene nulle part est pire
+  // que pas de bouton.
+  // =====================================================================
+  currentOffset = SEMAINES_DEVANT_MAX;         // loin devant : personne n y est place
+  render();
+  const vide = document.querySelector('#cardList .empty');
+  ok('11. une semaine sans affectation affiche l etat vide', !!vide);
+  ok('11. il dit de quelle semaine il parle',
+     vide && /Aucune affectation en S/.test(vide.textContent), vide ? vide.textContent.slice(0, 40) : '');
+  ok('11. il dit POURQUOI', vide && /pas encore pos/i.test(vide.textContent));
+  ok('11. il propose de revenir a cette semaine',
+     vide && Array.from(vide.querySelectorAll('.sec-btn')).some(b => /cette semaine/i.test(b.textContent)),
+     vide ? Array.from(vide.querySelectorAll('.sec-btn')).map(b => b.textContent).join(' | ') : '');
+  ok('11. et il propose la derniere semaine ou il a du travail',
+     vide && Array.from(vide.querySelectorAll('.sec-btn')).some(b => /derni[eè]re semaine planifi/i.test(b.textContent)));
+  ok('11. il porte une icone dessinee, pas un emoji',
+     vide && !!vide.querySelector('svg.ic') && emojiDans(vide.textContent) === '');
+  // Contre-exemple 1 : sur une semaine servie, aucun etat vide.
+  currentOffset = 1; render();
+  ok('11. contre-exemple : une semaine servie n affiche aucun etat vide',
+     !document.querySelector('#cardList .empty')
+       && document.querySelectorAll('#cardList .card').length > 0,
+     document.querySelectorAll('#cardList .card').length + ' carte(s)');
+  // Contre-exemple 2 : un technicien sans AUCUNE affectation ne se voit pas
+  // proposer une "derniere semaine planifiee" qui n'existe pas.
+  {
+    const vraiTech = currentTech;
+    currentTech = '__personne_qui_n_existe_pas__';
+    currentOffset = 0; render();
+    const v2 = document.querySelector('#cardList .empty');
+    ok('11. contre-exemple : sans aucune affectation, pas de sortie inventee',
+       v2 && !/derni[eè]re semaine planifi/i.test(v2.textContent),
+       v2 ? (v2.textContent.match(/S\d+/) || [''])[0] + ' / ' + v2.querySelectorAll('.sec-btn').length + ' sortie(s)' : 'pas d etat vide');
+    ok('11. et offsetDerniereSemainePlanifiee le dit franchement',
+       offsetDerniereSemainePlanifiee() === null);
+    currentTech = vraiTech;
+    ok('11. contre-exemple : pour un vrai technicien, elle existe',
+       offsetDerniereSemainePlanifiee() !== null,
+       JSON.stringify(offsetDerniereSemainePlanifiee()));
+    currentOffset = 1; render();
+  }
+
+  // =====================================================================
+  // 12. LE LOGO : VECTORIEL DANS LES EN-TETES, PLAQUE JPEG SUR LE SPLASH
+  // ---------------------------------------------------------------------
+  // Ce n'est pas un detail d'esthetique. Le trace du « s » de l'animation
+  // est un releve au pixel dans le repere de l'image JPEG (viewBox
+  // 0 0 550 291) : remplacer cette image par le vectoriel, cadre autrement,
+  // ferait retomber le « s » entre le « a » et le « m ». C'est deja arrive,
+  // et aucun test visuel ne l'attrape.
+  // =====================================================================
+  {
+    const entete = document.querySelector('.brand-logo-sm');
+    const accueil = document.querySelector('.brand-logo');
+    const plaque = document.querySelector('.sp-plate');
+    ok('12. le logo d en-tete est vectoriel',
+       entete && /^data:image\/svg\+xml/.test(entete.getAttribute('src') || ''),
+       entete ? (entete.getAttribute('src') || '').slice(0, 26) : 'absent');
+    ok('12. celui des ecrans d accueil aussi',
+       accueil && /^data:image\/svg\+xml/.test(accueil.getAttribute('src') || ''));
+    ok('12. contre-exemple : la plaque du splash reste le JPEG',
+       !plaque || /^data:image\/jpeg/.test(plaque.getAttribute('src') || ''),
+       plaque ? (plaque.getAttribute('src') || '').slice(0, 22) : '(splash deja retire)');
+    ok('12. et les deux ne sont pas la meme image',
+       !plaque || entete.getAttribute('src') !== plaque.getAttribute('src'));
+  }
+
+  // =====================================================================
+  // 13. LES LIBELLES D ENVOI GARDENT LEUR ICONE APRES UN ENVOI
+  // ---------------------------------------------------------------------
+  // Les trois boutons d'envoi memorisent leur libelle avant de le
+  // remplacer par « Envoi en cours... », puis le remettent. Avec
+  // `textContent`, l'icone en SVG serait perdue au premier envoi : le
+  // bouton reviendrait nu, et ca ne se verrait qu'apres coup. Ce controle
+  // lit la SOURCE des fonctions, faute de pouvoir declencher un vrai
+  // envoi reseau ici — c'est la seule forme atteignable, et il protege
+  // contre le retour de `textContent`.
+  // =====================================================================
+  {
+    const src = [emailFeuille, downloadExcelFeuille, envoyerSuivi].map(f => f.toString()).join('\n');
+    const restaure = (src.match(/\.innerHTML\s*=\s*(originalLabel|lbl)/g) || []).length;
+    const memorise = (src.match(/btn\s*\?\s*btn\.innerHTML/g) || []).length;
+    ok('13. les trois boutons memorisent leur libelle en HTML', memorise === 3, memorise + '/3');
+    ok('13. et le restaurent en HTML', restaure === 3, restaure + '/3');
+    ok('13. contre-exemple : plus aucun ne restaure en texte brut',
+       !/\.textContent\s*=\s*(originalLabel|lbl)/.test(src));
+    currentTab = 'heures';
+    if (typeof renderHoursUI === 'function' && hoursEntry) renderHoursUI();
+    const bEnvoi = document.getElementById('emailBtn');
+    ok('13. et le bouton rendu porte bien une icone',
+       bEnvoi && !!bEnvoi.querySelector('svg.ic'),
+       bEnvoi ? bEnvoi.textContent.trim().slice(0, 40) : 'bouton absent');
+  }
+
+  // =====================================================================
+  // 14. LA JAUGE DE SEMAINE : VIDE DEVANT, PLEINE DERRIERE
+  // ---------------------------------------------------------------------
+  // Elle ne mesure PAS les heures saisies (celles-la se lisent en clair
+  // dans la feuille) : elle dit ou on en est dans la semaine affichee.
+  // =====================================================================
+  {
+    const jauge = document.getElementById('jaugeSemaine');
+    const barreDe = () => jauge.querySelector('i').style.width;
+    const s = weekRange(3); majJaugeSemaine(s.mon, s.sun);
+    ok('14. une semaine a venir : la jauge est vide', barreDe() === '0%', barreDe());
+    const p = weekRange(-3); majJaugeSemaine(p.mon, p.sun);
+    ok('14. contre-exemple : une semaine ecoulee : elle est pleine', barreDe() === '100%', barreDe());
+    const c = weekRange(0); majJaugeSemaine(c.mon, c.sun);
+    const v = parseInt(barreDe(), 10);
+    ok('14. la semaine en cours : quelque part entre les deux', v > 0 && v <= 100, barreDe());
+  }
+
+  // =====================================================================
+  // 15. AUCUNE SEMAINE SUR L ECRAN DES HABILITATIONS
+  // ---------------------------------------------------------------------
+  // Une habilitation n'appartient a aucune semaine. Le selecteur n'y sert a
+  // rien, et surtout le bandeau ambre « ne reserve rien » s'affichait
+  // au-dessus d'un ecran qui ne parle pas de planning : un avertissement
+  // pose la ou il n'a pas d'objet apprend a ne plus lire le bandeau.
+  // =====================================================================
+  {
+    const vu = s => { const el = document.querySelector(s); return el && el.style.display !== 'none'; };
+    currentTab = 'habilitations'; updateTabsUI();
+    ok('15. sur les habilitations, pas de selecteur de semaine', !vu('.week-nav'));
+    ok('15. ni de jauge de semaine', !vu('.jauge'));
+    ok('15. ni de bandeau « ne reserve rien »', !vu('.valid-bar'));
+    ok('15. mais la barre d etat des donnees reste, elle', vu('.sync-bar'));
+    ok('15. et le lien vers le dossier est bien la',
+       !!document.querySelector('#habilitationsPanel a.h-send-btn[href*="dropbox"]'));
+    // Contre-exemple : sur l'onglet des chantiers, tout revient.
+    currentTab = 'chantiers'; updateTabsUI(); render();
+    ok('15. contre-exemple : sur les chantiers, la semaine est de retour',
+       vu('.week-nav') && vu('.jauge'),
+       document.querySelector('.week-nav').textContent.replace(/\s+/g, ' ').trim().slice(0, 30));
+    ok('15. contre-exemple : et le bandeau de validation aussi',
+       document.querySelector('.valid-bar').style.display !== 'none');
+  }
+
+  fin();
+  } catch (e) {
+    R.push('EXCEPTION : ' + (e && e.message ? e.message : e));
+    if (e && e.stack) R.push(String(e.stack).split('\n').slice(0, 4).join('\n'));
+    ko++;
+    fin();
+  }
+})();
+</script>

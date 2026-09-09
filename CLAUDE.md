@@ -5378,3 +5378,182 @@ contrôles NEUFS gardent ce que l'ancien balisage ne pouvait pas garder : **il n
 et **c'est celui de la lecture seule qui gagne**.
 
 **`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.**
+
+## AppTech passe au thème sombre « Telsam Ops » (09/09/2026)
+
+Dernier geste de la charte. Valeurs reprises **telles quelles** de
+`maquette-charte/maquette-apptech.html`, validée par Patrice — on ne les réoptimise pas
+(règle acquise le 08/09).
+
+**L'appli était DÉJÀ sombre**, mais dans un autre registre : un gris-vert industriel
+(`#0C1012`) avec de l'ambre `#FFB000` et du cyan `#2FD8CB`. Le travail n'a donc pas été
+« passer en sombre » mais **changer de famille de couleurs** et appliquer les cinq gestes de
+la maquette.
+
+### LE POINT LE PLUS IMPORTANT : L'AMBRE REDEVIENT SÉMANTIQUE
+
+Elle portait l'onglet actif, le badge « cette semaine », le bouton « Documents », le numéro
+de chantier, les jours de PD et le bouton d'envoi. **Six usages décoratifs**, qui lui
+retiraient tout sens : quand tout est ambre, l'ambre ne veut plus dire « à vérifier ». Même
+histoire pour le cyan, qui coloriait le PGO, le grand déplacement et la mesure de touret.
+
+Répartition maintenant tenue, et à ne pas défaire :
+
+| couleur | ce qu'elle dit | où |
+|---|---|---|
+| terracotta `#E0A392` | **identité** | étiquettes, onglet actif, badge de semaine, PD/nacelle, jauge |
+| indigo `#4B4EDB` | **action** | un seul bouton plein par écran, en bas |
+| ambre `#F5B54A` | « à vérifier » | bandeau prévisionnel, jeton warn, barre hors réseau |
+| vert `#3FD9A4` | « en règle » | jeton ok, barre en ligne |
+| rouge `#FF6B85` | « bloquant » | consignation, NIP, jeton bad |
+| bleu→magenta (6 teintes) | **identité d'un chantier** | liseré gauche de la carte et de la ligne d'heures |
+
+**LES SIX TEINTES D'IDENTITÉ SONT TOUTES DANS L'ARC BLEU-MAGENTA, ET CE N'EST PAS UN GOÛT.**
+`#5EA8FF #7A7DF2 #A585F5 #C87BEE #EE7BD2 #4FC3E8`. Une identité de chantier qui pourrait
+tomber sur le rouge, l'ambre ou le vert ferait lire une alerte là où il n'y en a pas. La
+maquette montrait trois cartes en vert, indigo et ambre : c'étaient trois exemples, pas une
+règle — sur 72 fiches il faut une règle. Le rang vient d'une somme pondérée des caractères
+du numéro : stable d'un écran à l'autre, sans rien stocker.
+
+### CE QUI EST NOUVEAU, ET POURQUOI
+
+**1. La barre d'état des données, en haut et en permanence.** Elle répond à une question que
+l'appli ne savait pas répondre : « ce que je lis, c'est d'aujourd'hui ou de mardi dernier ? ».
+
+> **LE PIED DE PAGE Y RÉPONDAIT, ET IL MENTAIT.** Il écrivait « Données au » suivi de
+> `new Date()`, **la date du téléphone** : donc toujours aujourd'hui, y compris devant un
+> fichier de la semaine dernière resté en cache. C'était la seule chose qu'il avait l'air de
+> dire, et elle était fausse. La barre lit maintenant l'horodatage de `PLANNING_TECH`, celui
+> que la chaîne du matin écrit.
+
+Quatre refus dans cette barre, tous délibérés :
+- **pas de « synchronisé il y a 4 min »** comme la maquette : l'appli ne synchronise rien,
+  elle EST le fichier ;
+- **« En ligne » n'est affirmé que si le réseau a été PROUVÉ** — c'est-à-dire si l'appel à la
+  base des semaines validées a abouti (`reseauPreuve`). `navigator.onLine` dit « oui » sur un
+  wifi d'hôtel qui ne sort pas ; même règle que le bandeau de validation ;
+- **aucune promesse de renvoi automatique.** La maquette écrivait « elle partira dès que le
+  réseau revient » : **c'est faux, il n'y a pas de file d'attente qui repart seule.** La barre
+  écrit donc ce qu'il faut FAIRE — « 1 feuille à renvoyer ». Le jour où le renvoi automatique
+  existera, c'est cette phrase qu'il faudra changer, pas avant ;
+- **elle ne compte pas les feuilles commencées**, seulement celles dont un envoi a ÉCHOUÉ.
+
+**2. Le marquage des envois ratés (`envoiEnAttente`), qui donne son chiffre à ce compteur.**
+Avant, un envoi raté ne laissait **aucune trace** : le message disparaissait au premier
+« OK », et plus rien ne rappelait au technicien que sa semaine n'était pas partie — il
+pouvait la croire envoyée pendant quinze jours. Le drapeau vit sur la feuille elle-même
+(`fh_<tech>_<année>_<semaine>`), donc il survit à la fermeture de l'appli, et ne s'efface que
+par un envoi qui aboutit. **Les deux sens sont dans `marquerEnvoiFeuille(parti)`, une seule
+fonction, exprès** : écrits en ligne c'étaient deux branches jumelles, et le jour où l'une
+part, le compteur ne s'éteint (ou ne s'allume) plus jamais sans que rien ne le dise.
+
+**3. L'état vide dit pourquoi, et il donne une sortie.** « Rien de prévu pour toi cette
+semaine-là » ne disait ni pourquoi ni quoi faire. Maintenant : la raison (« le planning n'est
+pas encore posé par le bureau ») et deux boutons. **La seconde sortie n'apparaît que si elle
+existe** — un bouton « dernière semaine planifiée » qui ne mène nulle part est pire que pas
+de bouton.
+
+**4. Les jetons portent l'INDICE, pas le mot d'état.** « PGO / ind.6 » est ce que le
+technicien compare au document qu'il a en main ; « PGO · OK » ne se vérifie contre rien. Le
+mot d'état passe en infobulle, la couleur le dit déjà.
+
+> **LA RÈGLE D'AFFICHAGE N'A PAS BOUGÉ : ni `na` ni `nc`.** La maquette dessinait quatre
+> jetons PDP/PGO/IST/MAT avec un état « rien reçu », et un bloc rouge « IST non validée par
+> RTE ». **Ce n'est pas repris**, parce que ça contredirait la décision de Patrice du
+> 25/08/2026, écrite juste au-dessus de `statusBadge` : le contrôle des documents vit dans
+> `suivi-chantiers`, **volontairement pas ici**, parce que c'est Patrice qui décide des
+> départs et qu'une alerte de ce genre inquiéterait le technicien sans action possible. Ce lot
+> change le **dessin** du jeton, pas ce qu'il montre. À rouvrir seulement sur demande
+> explicite de sa part. (Le cas de Cantegrit est déjà couvert autrement : son alerte
+> `alertes` porte le texte complet sur l'IST non validée.)
+
+**5. Aucune semaine sur l'écran des habilitations.** Une habilitation n'appartient à aucune
+semaine, et le bandeau ambre « ne réserve rien » s'affichait au-dessus d'un écran qui ne parle
+pas de planning. Un avertissement posé là où il n'a pas d'objet apprend à ne plus lire le
+bandeau — donc à ne plus le lire le jour où il compte. Même raisonnement que la règle du
+03/09/2026 sur la semaine en cours.
+
+### TROIS PIÈGES PAYÉS, À NE PAS RÉINTRODUIRE
+
+**a) `textContent` mange les icônes.** Les trois boutons d'envoi mémorisent leur libellé
+avant d'afficher « Envoi en cours... », puis le remettent. Avec `textContent`, l'icône SVG
+serait perdue au premier envoi et le bouton reviendrait nu — visible seulement après coup,
+donc facile à ne jamais voir. C'est `innerHTML` aux six endroits, et un contrôle le garde.
+
+**b) L'en-tête collant mangeait 38 % de l'écran.** Avec la barre d'état en plus, `header.top`
+faisait **330 px** sur un téléphone de 860 : le nom du chantier passait dessous dès qu'on
+faisait défiler la carte. **Seule la barre d'état reste collée** — c'est elle que la charte
+demande « en permanence », pas le bloc entier. Et **elle est HORS de `<header>`** : collé en
+haut, un élément ne suit que tant que son parent est à l'écran ; dans l'en-tête, elle
+disparaissait après deux cartes, donc elle n'était plus « en permanence » du tout. Son fond
+translucide est posé sur un fond opaque (`linear-gradient(...) , var(--ecran)`), sinon on lit
+le texte des cartes au travers.
+
+**c) LE LOGO EST VECTORIEL DANS LES EN-TÊTES, MAIS LA PLAQUE JPEG RESTE SUR L'ÉCRAN
+D'OUVERTURE.** Ne pas « finir le travail » en remplaçant la seconde : le tracé du « s » de
+l'animation est un **relevé au pixel dans le repère de cette image** (`viewBox 0 0 550 291`).
+Le vectoriel est cadré serré, donc le « s » dessiné retomberait entre le « a » et le « m ».
+C'est déjà arrivé, et aucun test ne l'attrape. Deux classes distinctes : `js-logo` (vectoriel)
+et `js-logo-plaque` (JPEG, splash uniquement).
+
+### LES POLICES NE BLOQUENT PAS L'AFFICHAGE
+
+League Spartan / DM Sans / IBM Plex Mono viennent de Google. Une feuille de style externe est
+normalement **bloquante** : sur un chantier sans réseau, le téléphone attendrait la réponse
+jusqu'au délai d'expiration **devant un écran vide**. Le `media="print"` + `onload` la charge
+sans bloquer le rendu, et `display=swap` fait s'afficher le texte tout de suite dans la police
+du système. **Ne pas « simplifier » en `rel="stylesheet"` seul** : ça remettrait l'attente
+devant un écran blanc, là où l'appli sert. C'est aussi la réponse à la question ouverte sur
+l'embarquement des polices : **inutile ici** (~250 Ko économisés), la dégradation est propre.
+
+### CIBLES TACTILES : 44 PX, ET C'EST MESURÉ
+
+Seule règle de la charte qui se mesure, donc seule qu'on peut casser sans le voir. Étaient en
+dessous : les flèches de semaine (**38 px**) et les cases d'heures (**39 px**), soit les
+quatorze cases que le technicien touche le plus souvent de toute l'appli. Deux exceptions
+nommées à 36 px, parce que la maquette les dessine ainsi : « Changer » et « Retirer ce
+chantier ». Elles sont **listées nommément dans le contrôle**, pour qu'un nouvel élément trop
+petit échoue quand même — une tolérance globale à 36 px ne protégerait plus rien.
+
+### Vérifié — 164 contrôles, 0 échec
+
+`scripts/test-charte-apptech.html` (**84, nouveau**), `test-planning-appli` 37,
+`test-validation` 26, `test-conges-paternite` 17.
+
+**Contre-examen** : les 84 contrôles neufs rejoués sur le fichier d'avant donnent **16 échecs
+puis une exception** (`ico is not defined`). Ils savent dire non.
+
+> **QUATRE CONTRÔLES VOISINS ÉTAIENT AU ROUGE DEPUIS PLUSIEURS JOURS, ET AUCUN NE PARLAIT DE
+> CETTE REFONTE.** Ils ont été retouchés le même jour, parce qu'une suite bloquée au rouge
+> n'est plus lue — et qu'elle emporte avec elle les 30 contrôles justes qui l'entourent. Les
+> quatre avaient le même défaut de forme : **ils affirmaient ce que le code ne contrôle pas**,
+> ou **ils ne pouvaient pas passer**.
+> - « la semaine +2 est servie aussi » exigeait que le bureau ait posé son planning. Mesuré le
+>   09/09 : le planning Teams ne contient **rien après le 18/09** (3 cellules nommées, toutes
+>   d'encadrement). L'appli n'y peut rien. Remplacé par « aucune semaine du planning ne sort
+>   vide », et **le fait reste imprimé à chaque passage** (« semaines présentes dans le
+>   planning : 2026-S37, 2026-S38 »).
+> - « repli complet sur TECH_RANGES (jamais de vide) » exigeait 8 personnes depuis la recopie
+>   manuelle — **abandonnée le 01/09** (« c'est le planning qui dit vrai »). Exiger 8, c'était
+>   exiger le retour d'un mécanisme retiré exprès. On vérifie que la bascule se déclenche, et
+>   **on imprime la taille du filet** : 3 personnes sur 13, ce qui n'est plus un filet.
+> - « un collègue aux jours différents voit ses jours listés » demandait que la mention
+>   « mêmes jours que toi » apparaisse **deux fois** — un hasard de la donnée du moment.
+> - « les autres, aux mêmes jours que moi, gardent la mention » espérait qu'un collègue ait,
+>   par hasard, exactement mes jours. Les deux cas sont maintenant **fabriqués dans la même
+>   scène**, ce qui vérifie enfin que l'appli sait les distinguer — tout l'enjeu pour un
+>   logement partagé.
+>
+> C'est le pendant de la règle du 24/08 : **un contrôle qui ne peut pas échouer ne prouve
+> rien, et un contrôle qui ne peut pas passer détruit la suite entière.**
+
+### DEUX FAITS TROUVÉS EN VÉRIFIANT, QUI NE SONT PAS DES DÉFAUTS DE CODE
+
+1. **Le planning Teams est vide après le 18/09** (ci-dessus), alors que `APP_NOUVEAUTE`
+   annonçait Creney 26-117 du 28/09 au 09/10 : **personne n'est placé dessus dans
+   `PLANNING_TECH`**. Un technicien lit donc l'annonce et ne trouve la carte sur aucune de ses
+   semaines.
+2. **L'alerte de Cantegrit 26-003 parle de l'« IST indice A du 31/08/26 »**, alors que la
+   fiche du suivi porte l'**indice B reçu le 07/09**, toujours non validé par RTE. Le fond est
+   juste (ne pas engager sans IST validée) mais la lettre est périmée, et **trois techniciens
+   y sont lundi 14/09**. Texte d'alerte de sécurité : **pas réécrit sans l'accord de Patrice.**

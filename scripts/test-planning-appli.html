@@ -59,7 +59,40 @@
   ok('1. la semaine en cours sert toujours du monde', parSem[0] >= 8, String(parSem[0]));
   // LE DEFAUT SIGNALE : c'est la semaine PROCHAINE qui etait vide (1 personne).
   ok('1. la semaine prochaine ne sert plus 1 seule personne', parSem[1] >= 6, String(parSem[1]));
-  ok('1. la semaine +2 est servie aussi', parSem[2] >= 6, String(parSem[2]));
+  /* CE CONTROLE A ETE RETOUCHE LE 09/09/2026, ET IL FAUT SAVOIR POURQUOI.
+   * Il exigeait « au moins 6 personnes servies a +2 semaines », et il
+   * echouait — non pas a cause d'un defaut de l'appli, mais parce que le
+   * planning Teams n'est PAS REMPLI au-dela de la semaine 38 (mesure du
+   * 09/09 : 3 cellules nommees apres le 18/09, toutes d'encadrement).
+   *
+   * Un controle ne doit porter que sur ce que le CODE garantit. Celui-la
+   * demandait au bureau d'avoir pose son planning : l'appli n'y peut rien,
+   * donc il criait au loup a chaque passage — et un controle bruyant est
+   * abandonne en trois jours, ce qui detruit aussi les 30 autres.
+   *
+   * Ce qui reste garanti, et qui est verifie : l'appli sert TOUTES les
+   * semaines que son planning contient. Si une semaine a des dates dans
+   * PLANNING_TECH et n'affiche personne, c'est un vrai defaut. Le nombre
+   * brut, lui, reste IMPRIME a chaque passage, pour qu'on continue a voir
+   * l'etat du planning sans qu'il fasse echouer la suite. */
+  const semainesDuPlanning = new Set();
+  for (const cid in PLANNING_TECH.tech) {
+    for (const t in PLANNING_TECH.tech[cid]) {
+      for (const iso of PLANNING_TECH.tech[cid][t]) {
+        const i = isoWeekInfo(new Date(iso + 'T00:00:00Z'));
+        semainesDuPlanning.add(i.year + '-S' + i.week);
+      }
+    }
+  }
+  R.push('     semaines presentes dans le planning : ' + Array.from(semainesDuPlanning).sort().join(', '));
+  const semainesVides = [];
+  for (let o = -2; o <= 8; o++) {
+    const w = weekRange(o);
+    const cle = w.year + '-S' + w.weekNum;
+    if (semainesDuPlanning.has(cle) && personnesDeLaSemaine(o).size === 0) semainesVides.push(cle);
+  }
+  ok('1. aucune semaine du planning ne sort vide', semainesVides.length === 0,
+     semainesVides.join(', ') || 'aucune');
 
   // Les cas repares a la main doivent etre la
   function chantierDe(tech, iso) {
@@ -92,12 +125,26 @@
   ok('1. personne sur DEUX chantiers le meme jour', doubles.length === 0,
      doubles.length ? doubles.slice(0, 3).join(' | ') : 'aucun');
 
-  // Contre-exemple : si le bloc est neutralise, on retombe sur la recopie
+  /* Contre-exemple : si le bloc planning est neutralise, l'appli doit le
+   * SAVOIR et retomber sur les dates saisies a la main.
+   *
+   * RETOUCHE LE 09/09/2026 : ce controle exigeait « au moins 8 personnes »
+   * depuis ce repli. Il en trouve 3, et c'est normal — la recopie manuelle
+   * a ete ABANDONNEE le 01/09/2026 (« c'est le PLANNING qui dit vrai »), donc
+   * exiger 8 personnes de ce cote, c'est exiger le retour d'un mecanisme
+   * retire expres. On verifie ce qui reste vrai : la bascule se declenche.
+   *
+   * MAIS ON IMPRIME LA TAILLE DU FILET, parce qu'elle a un sens : c'est ce
+   * que verrait un technicien si le planning ne se chargeait pas. A 3
+   * personnes sur 13, ce n'est plus un filet. A dire a Patrice, pas a
+   * corriger ici. */
   const vraiDu = PLANNING_TECH.du;
   PLANNING_TECH.du = '';
-  ok('1. bloc neutralise : repli complet sur TECH_RANGES (jamais de vide)',
-     !planningTechActif() && personnesDeLaSemaine(0).size >= 8, String(personnesDeLaSemaine(0).size));
+  const filet = personnesDeLaSemaine(0).size;
+  ok('1. bloc neutralise : l appli le detecte et bascule', !planningTechActif(),
+     'repli : ' + filet + ' personne(s) servie(s) par les dates saisies a la main');
   PLANNING_TECH.du = vraiDu;
+  ok('1. et la bascule est bien reversible', planningTechActif());
 
   // =======================================================================
   // 2. LES CASES QUI RESTENT COCHEES
@@ -228,9 +275,20 @@
     if (different) {
       currentTech = moi;
       const h2 = blocEquipe(cas.cid, sem.mon, sem.sun, mesJours);
+      /* RETOUCHE LE 09/09/2026 : l'assertion d'origine demandait que la
+       * mention « memes jours que toi » apparaisse DEUX FOIS dans le bloc
+       * (indexOf different de lastIndexOf). Elle ne pouvait donc passer que
+       * si deux collegues au moins partageaient exactement mes jours — un
+       * hasard de la donnee du moment, sans rapport avec la propriete
+       * verifiee. On regarde maintenant LA LIGNE de ce collegue-la : elle
+       * doit porter SES jours, et surtout pas la mention. */
+      const ligne = h2.split('<div class="equipe-l">')
+                      .find(x => x.indexOf(different.nom) !== -1) || '';
       ok('3. un collegue aux jours differents voit ses jours listes',
-         h2.indexOf(different.nom) !== -1 && h2.indexOf('mêmes jours que toi') !== h2.lastIndexOf('mêmes jours que toi'),
-         different.nom + ' : ' + different.jours.length + 'j contre ' + mesJours.length + 'j pour moi');
+         ligne !== '' && !/mêmes jours que toi/.test(ligne)
+           && JOURS.some(j => ligne.indexOf(j) !== -1),
+         different.nom + ' : ' + different.jours.length + 'j contre ' + mesJours.length
+           + 'j pour moi -> ' + ligne.replace(/<[^>]+>/g, ' ').trim().slice(0, 60));
     } else {
       R.push('     (aucun ecart de jours dans la donnee reelle : on fabrique le cas ci-dessous)');
     }
@@ -252,8 +310,26 @@
     const bloc = h3.split('<div class="equipe-l">').find(x => x.indexOf('Hugues VIRY') !== -1) || '';
     ok('3. un collegue present 2 jours voit SES jours listes',
        /lun/i.test(bloc) && /mar/i.test(bloc) && !/mêmes jours/.test(bloc), bloc.slice(0, 120));
-    ok('3. et les autres, aux memes jours que moi, gardent la mention',
-       /mêmes jours que toi/.test(h3));
+    /* RETOUCHE LE 09/09/2026 : ce controle esperait qu'un collegue ait, par
+     * hasard, exactement mes jours. Quand la donnee ne l'offre pas, il
+     * echoue sans qu'aucun defaut n'existe. On FABRIQUE donc les deux cas
+     * dans la meme scene : Hugues sur deux jours (ses jours listes) et un
+     * autre exactement sur les miens (la mention). C'est la seule facon de
+     * verifier que l'appli sait DISTINGUER les deux — ce qui est tout
+     * l'enjeu pour un logement partage. */
+    PLANNING_TECH.tech[cidFaux]['Anthony DENIS'] = mesJours2.slice();
+    const h4 = blocEquipe(cidFaux, sem.mon, sem.sun, mesJours2);
+    const ligneMeme = h4.split('<div class="equipe-l">')
+                        .find(x => x.indexOf('Anthony DENIS') !== -1) || '';
+    const ligneAutre = h4.split('<div class="equipe-l">')
+                         .find(x => x.indexOf('Hugues VIRY') !== -1) || '';
+    ok('3. et celui qui a exactement mes jours garde la mention',
+       /mêmes jours que toi/.test(ligneMeme),
+       ligneMeme.replace(/<[^>]+>/g, ' ').trim().slice(0, 60));
+    ok('3. contre-exemple : dans la MEME scene, l autre a ses jours listes',
+       ligneAutre !== '' && !/mêmes jours que toi/.test(ligneAutre)
+         && /lun/i.test(ligneAutre) && /mar/i.test(ligneAutre),
+       ligneAutre.replace(/<[^>]+>/g, ' ').trim().slice(0, 60));
     PLANNING_TECH.tech[cidFaux] = sauve;
     ok('3. la donnee reelle est restauree apres le test',
        JSON.stringify(PLANNING_TECH.tech[cidFaux]) === JSON.stringify(sauve));
