@@ -5761,3 +5761,240 @@ une ligne — le commit passe alors. Le contrôle n'interdit rien : il oblige à
 *Note : ce lot ne touche PAS `index.html`, donc pas de `APP_VERSION` à incrémenter — et surtout
 pas de quatrième écran d'ouverture dans la même journée pour une règle qui ne change rien pour
 le technicien.*
+
+---
+
+## Neuf demandes de Patrice sur le suivi (09/09/2026) — statuts, pilotage, et la préplanification
+
+Une liste de neuf points, envoyée d'un bloc. Deux étaient ambigus et ont été tranchés par
+Patrice avant de coder — c'est ce qui a évité de construire le mauvais objet :
+
+- **« un onglet Facturer »** ne voulait pas dire un écran. Réponse de Patrice : *« cela
+  concernait les statuts. Ce n'était pas clair. Le facturé en partie doit devenir facture
+  partiel et ajouter le statut refusé. »* Aucun nouvel écran n'a donc été créé pour ça.
+- **la préplanification** : *« le choix 1 et le choix 3 en même temps »*, c'est-à-dire les deux
+  chemins à la fois — le planning qui propose tout seul, ET un bouton depuis l'affaire.
+
+### Les statuts : quatorze, et « Refusé » n'est pas « Perdu »
+
+`AF_STATUTS` passe de 13 à 14. « Facturé en partie » devient **« Facturation partielle »**, et
+**« Refusé »** s'ajoute juste avant « Perdu / annulé ».
+
+**Ce ne sont pas deux mots pour la même chose.** Refusé = le client a dit non à notre devis.
+Perdu / annulé = l'affaire s'est arrêtée pour une autre raison (opération annulée, abandon).
+Les fondre empêchait de compter ce qu'on perd **en concurrence** — la seule part sur laquelle on
+peut agir. Le fichier commercial les séparait déjà : `AF_CLOS` contient `REFUS` **et** `ANNULE`
+comme deux mots distincts. `etapeAffaire` s'en sert : tous les devis clos disent `REFUS` ⇒
+l'affaire est *refusée* ; un seul `ANNULE` ou `PERDU` dans le lot ⇒ *perdue*. Mesuré sur le
+fichier du 09/09 : aucune des 3 affaires closes ne tombe dans le cas « refusée » — la branche
+existe pour les prochaines, elle ne réécrit rien de l'existant.
+
+**`afFinie(cle)` est né de là.** La liste « soldée ou perdue » était recopiée à SEPT endroits.
+En ajouter un huitième sans le voir aurait fait compter les refusées parmi les affaires en cours
+dans une vue et pas dans les autres — le genre d'écart qu'on ne voit qu'en additionnant deux
+écrans à la main. Une seule liste (`AF_CLES_FINIES`), une seule fonction.
+
+**Trois listes hors de la page doivent bouger en même temps**, sinon un statut choisi dans la
+page est refusé par la base sans que personne comprenne pourquoi :
+`functions/api/affaires.js` (`STATUTS`), `partage/test-api-affaires.html` (contrôles A, E et M)
+et `partage/bloc-test-saisie-affaires.html`. Le **contrôle M** compare les deux listes texte
+contre texte : c'est lui qui attrape l'oubli.
+
+### La ligne entière porte la couleur du statut
+
+Demande : *« garder le principe des couleurs par statut, mais colorer l'intégralité de la ligne
+plutôt que d'utiliser une mention ».* La couleur ne tenait qu'au liseré d'une liste déroulante au
+milieu de treize colonnes : pour savoir où en était une affaire il fallait viser cette colonne-là.
+
+Trois choses à ne pas « améliorer » :
+
+1. **Les teintes de ligne sont plus pâles que celles des jetons**, et ce n'est pas de la
+   coquetterie : un jeton fait 30 px de large, une ligne en fait 1280. La même valeur étalée sur
+   toute la largeur devient un aplat et le texte s'y perd.
+2. **Le gris n'a pas de fond.** « À chiffrer » et « Devis envoyé » représentent le gros du
+   tableau : les teinter aurait coloré 100 % des lignes, ce qui revient à ne rien colorer. C'est
+   le liseré vertical de 4 px qui dit leur famille.
+3. **Le survol ne remplace plus le fond.** Il posait `background:var(--blue-bg)` sur toute la
+   ligne — donc, depuis que la ligne est teintée, il aurait répondu « commande reçue » à chaque
+   passage de souris. C'est maintenant un voile (`box-shadow:inset … rgba(22,23,91,.055)`), qui
+   s'AJOUTE à la teinte au lieu de l'effacer.
+
+`.afCreee td{background:var(--blue-bg)}` a été retiré pour la même raison. La mention
+« créée ici » reste, en toutes lettres, dans la colonne du numéro.
+
+### Les deux dates prévisionnelles se tapent dans le tableau
+
+Elles existaient, en lecture seule. Elles sont maintenant deux cases dans la colonne
+« Prévisionnel », et **ce qui est tapé part dans la base commune** — colonnes `prev_debut` et
+`prev_fin` de la table `affaire`, posées par `COLONNES_TARDIVES` au premier appel de l'API.
+Raison, toujours la même : `AFFAIRES_RTE` est refaite de zéro à chaque passage de
+`scripts/affaires-rte.ps1`, une date corrigée dans la page y serait effacée au passage suivant
+sans que personne le voie.
+
+**Trois pièges payés en construisant ça :**
+
+- **`afDejaVu` criait au doublon sur une date.** Il comparait n'importe quel champ ; deux
+  affaires qui démarrent le même jour est un fait parfaitement normal. D'où
+  `AF_CHAMPS_UNIQUES` : seuls les quatre numéros (devis, commande RTE, commande client, facture)
+  peuvent être des doublons. Un avertissement qui se déclenche sur du normal cesse d'être lu, et
+  c'est le vrai doublon de commande qu'on ne verrait plus.
+- **Tab entre « début » et « fin » tapait dans le vide.** L'enregistrement à la sortie du champ
+  redessine le tableau, donc détruit la case où l'on vient d'arriver. `relatedTarget` du `blur`
+  dit vers quoi le focus partait ; on retrouve la même case après le redessin (`rendreFocus`).
+- **Une case du tableau ne doit pas déplier la fiche.** `afOuverte = num` n'est plus posé que
+  pour les cases qui sont déjà DANS la fiche (`inp.closest('.afDetailIn')`).
+
+La saisie remplace les dates de l'Excel **avant** tout calcul (`afAffaires()`), pas seulement à
+l'affichage : `etapeAffaire` se sert de `prevDebut` pour décider qu'une affaire a démarré, et la
+ligne aurait dit deux choses à la fois. L'original reste dans `_prevExcel` et s'affiche sous les
+cases quand les deux diffèrent — on ne fait pas disparaître ce que le fichier affirme.
+
+### L'onglet Pilotage
+
+Nouvel écran, en tête du groupe « Pilotage ». **Il ne recalcule rien de son côté** : toute la
+matière vient de `afAffaires()`, la fonction qui alimente déjà le tableau des affaires. Deux
+calculs parallèles finiraient par afficher deux chiffres d'affaires différents sur deux écrans
+voisins, et c'est le genre d'écart qui fait perdre confiance dans les deux à la fois.
+
+Ce qu'il montre : six chiffres clés (affaires en cours, commandé, encore en jeu, facturé, reste
+à facturer, perdu ou refusé), le CA par groupe client (bascule vers le détail par agence), le CA
+par année, l'argent rangé par étape du cycle, les affaires en cours par personne qui les suit, et
+la liste de ce qui reste à facturer.
+
+**Ce qu'il ne peut PAS dire, mesuré sur les 142 devis du fichier le 09/09/2026, et qu'il DIT
+plutôt que de l'inventer :**
+
+- **Aucune marge** : la colonne « achat » est vide sur les 142. Un taux de marge affiché ici
+  serait un chiffre sorti de nulle part, sur de l'argent.
+- **Aucun règlement** : la colonne « paiement » est vide elle aussi. « Facturé » ne veut donc pas
+  dire « encaissé », et l'écran ne prétend pas le savoir.
+- **9 devis sur 142 n'ont pas de montant** : tout total qui en contient un porte une étoile.
+
+Le jour où ces colonnes seront tenues, les indicateurs correspondants pourront s'ajouter sans
+rien changer d'autre. **Ne pas les inventer d'ici là.**
+
+### En-tête et barre d'affichage
+
+- **« + Nouveau chantier » est retiré.** Patrice : *« il ne sert à rien vu qu'il ne modifie pas
+  en ligne »* — il créait une fiche dans le navigateur de celui qui cliquait, invisible pour les
+  six autres. Il est remplacé par **« + Nouvelle affaire »**, qui ouvre EXACTEMENT la même
+  fenêtre que le bouton de la vue Affaires (`afOuvrirCreation`), jamais une seconde : deux
+  fenêtres de création finiraient par diverger sur un champ, et c'est celle qu'on n'a pas relue
+  qui écrirait faux. `addChantier()` reste dans le code, sans bouton.
+- **Les deux cases à cocher du haut sont retirées** (« Afficher les semaines passées », « Gantt :
+  toute la période »). Le code qui les lisait est resté tel quel — il est écrit
+  `document.getElementById('showPast') ? … : false` et retombe donc sur le comportement par
+  défaut, celui qu'elles avaient décochées. **Ne pas « nettoyer » ces trois lectures** : les
+  remettre un jour se fera en reposant le bloc HTML, et rien d'autre.
+- **Une case à cocher ne doit pas s'étirer.** La règle générale `textarea, input, select
+  {width:100%}` faisait mesurer 125 px à la case de la barre Affaires, dans un `label` en flex :
+  son libellé partait à 30 px de son propre carré, et passait sur deux lignes. Corrigé par
+  `label.checklbl>input[type=checkbox]{flex:none;width:auto}`. Vu à l'écran, pas dans le code.
+
+### La préplanification — les chantiers posés à l'avance en bas d'une semaine
+
+Demande de Patrice, dans ses mots : *« un client nous dit qu'il va dérouler en S48 et S49, il
+faudrait que nous puissions placer notre chantier sur ces semaines-là à l'avance, en bas des
+semaines concernées ».*
+
+**Ce que c'est** : la réserve du bas du planning, avancée de quelques semaines. Une pastille
+posée sur une semaine future, et rien d'autre. **Aucun technicien n'y est rattaché**, rien ne
+part vers l'appli technicien, et une semaine n'est pas « validée » parce qu'elle porte des
+préplanifications. Le jour venu, on fait glisser la pastille sur une personne — et c'est CE
+geste-là qui crée l'affectation, dans `/api/planning`, exactement comme avant.
+
+**Elle vit dans la base commune** (`/api/preplanif`, table `preplanif`, schéma version 7), jamais
+dans la page : sept personnes préparent le planning ensemble. Une préplanification rangée dans le
+navigateur de celui qui l'a posée serait invisible pour les six autres — c'est mot pour mot le
+reproche fait au bouton « Nouveau chantier » le même jour. **Tout le monde peut en poser**,
+contrairement à la validation de semaine : ça n'envoie personne nulle part et ça ne promet rien à
+un technicien.
+
+**La réserve du bas est désormais tenue SEMAINE PAR SEMAINE.** Patrice : *« les chantiers à
+affecter sont en doublon car regroupés pour les deux semaines ».* Le planning RTE réécrit le
+libellé d'un chantier au lundi de CHAQUE semaine où il tourne : l'union des deux semaines donnait
+donc deux pastilles voisines pour un même chantier, sans rien qui dise laquelle allait avec
+laquelle. `reserveParSem` remplace `reserve` pour l'affichage ; l'union ne sert plus qu'à l'ordre
+d'attribution des couleurs, qui doit rester le même pour les deux semaines. `effectif` et
+`prepares` sont eux aussi par semaine — « 3 placés » sous la pastille de la S37 alors que les
+trois sont en S38 dit exactement le contraire de ce qu'on vient y chercher.
+
+Chaque rangée reçoit trois familles, dans cet ordre, du plus décidé au moins décidé :
+
+1. ce que le planning Teams porte cette semaine-là ;
+2. ce que l'équipe a **préplanifié** dessus (bouton « + Ajouter un chantier à cette semaine », ou
+   le bouton « → S… » d'un résultat de recherche) — pastille normale, bouton « retirer » ;
+3. ce que les **dates prévisionnelles** des affaires y font tomber — pastille **en pointillé**,
+   sous-titre « proposé — 01/09/26 → 01/10/26 », bouton « épingler ».
+
+**Un pointillé n'est pas une décision**, et il ne doit jamais pouvoir se lire comme telle : c'est
+la raison du trait discontinu. Un chantier déjà présent dans une famille plus décidée n'est pas
+doublé par les suivantes — le repère est la FICHE (`f:<id>`), pas le texte du planning, sinon
+« 26-031 — Dambron - Voves » et la ligne Excel « DAMBRON - VOVES » ressortiraient comme deux
+chantiers.
+
+**Trois pièges, dont deux qui auraient rendu l'outil inutilisable :**
+
+- **Une fenêtre large est MARQUÉE, elle n'est pas écartée** — et ce point a été tranché par
+  Patrice, contre ma première version. Mesuré : 81 affaires portent des dates prévisionnelles,
+  **18 couvrent plus de trois mois** — jusqu'à 454 jours pour 26-016 (01/02/26 → 01/05/27).
+  Elles apparaissent donc dans TOUTES les semaines de l'année, et je les avais filtrées au-delà
+  de six semaines pour cette raison. Réponse de Patrice : *« je préfère que les affaires qui ont
+  une fenêtre longue restent quand même en bas du planning ».* Il a raison sur le fond : les
+  cacher revenait à décider à sa place quelle annonce de client mérite d'être vue, et **une
+  pastille absente ne se réclame pas** — on ne sait pas qu'elle manque.
+  Le compromis tenu : elles restent TOUTES, mais **derrière** les fenêtres précises (tri par
+  durée croissante, `out.sort` dans `preplanifProposees`) et avec la mention **« fenêtre large »**
+  écrite en toutes lettres sous la pastille. Ce qu'il fallait éviter n'était pas leur présence,
+  c'était qu'une annonce vague se lise comme une date ferme. `PREPLANIF_FENETRE_LARGE_JOURS = 45`
+  ne sert donc plus qu'à les distinguer — **il ne filtre plus rien, ne pas le rebrancher.**
+- **`isoWeekInfo` lit une date en UTC, `afDate` en construit une à minuit LOCAL.** À Paris, le
+  lundi 24/11 à 00:00 vaut le dimanche 23/11 à 22:00 UTC : passée telle quelle, la fonction rend
+  la semaine PRÉCÉDENTE. Et un lundi est exactement le cas qui nous occupe. D'où
+  `semaineDeDateLocale()` et `isoJourLocal()` — ne pas les court-circuiter.
+- **Un bouton posé SUR une pastille arme le pinceau et démarre un glissement.** Les deux
+  gestionnaires de `.plChip` s'arrêtent maintenant sur `ev.target.closest('.plChipAct')` : sans
+  ça, cliquer « épingler » repeignait la case suivante avec le chantier, ou le posait sur une
+  personne.
+
+**Le second chemin, depuis l'affaire.** Bouton « Préplanifier au planning » dans la fiche d'une
+affaire : il pré-remplit les semaines depuis les dates prévisionnelles (01/09/26 → 01/10/26 donne
+S36 à S40) et pose le chantier sur toute la plage. Une semaine de fin plus petite que celle de
+début veut dire qu'on passe l'année (S51 → S02) — refuser ce cas ferait retaper la saisie tous
+les ans en janvier. `derniereSemaineISO()` évite d'écrire « 52 » en dur : 2026 a 53 semaines, et
+une préplanification de fin d'année atterrirait sur la mauvaise.
+
+*Vérifié à l'écran, en mode partagé, sur un serveur d'essai local qui imite les quatre API :
+ajouter un chantier à S37, le retirer, épingler une proposition de S38, puis préplanifier 26-031
+de S48 à S49 depuis l'onglet Affaires — les deux semaines le portent bien, avec « préplanifié par
+Patrice » et son bouton « retirer ». Bancs d'essai : bloc-test-affaires 94/94,
+bloc-test-saisie-affaires 91/91, test-api-affaires 64/64, bloc-test-couleurs 10/10,
+bloc-test-validation-suivi 16/16.*
+
+*(`partage/bloc-test-notes.html` ne rend pas de verdict — il appelle `showView`, qui n'existe
+plus, et reste bloqué. C'était déjà le cas AVANT ce lot, vérifié en le rejouant sur la version
+précédente du fichier : ce n'est pas une régression, mais c'est un banc qui ne protège plus rien.)*
+
+### Le contrôle des chantiers ne demandait pas l'impossible (correctif du 09/09/2026)
+
+`scripts/controle-chantiers.ps1` a signalé 26-117 Creney - Troyes ainsi : *« PDP invérifiable :
+aucun fichier reconnaissable et aucune référence dans la fiche (renseigner `pdp.ref`) »*.
+
+Vérifié à la main dans Dropbox : il n'y a **aucun PDP**, sous aucun nom. La fiche le dit déjà
+(`pdp.statut = 'nc'`) et porte l'alerte rouge qui va avec — article 1 du devis 26100 prévoit un
+plan de prévention ligne, intervention du 28/09 au 09/10, **à réclamer à SEMI France**.
+
+La consigne du contrôle était donc **impossible à suivre** : on ne renseigne pas la référence
+d'un document qui n'existe pas. Le rappel serait revenu tous les matins, indéfiniment, sur un
+manque déjà constaté et déjà signalé — c'est exactement ainsi qu'un contrôle cesse d'être lu, et
+c'est le même rappel qui porte les vrais manques.
+
+`EtatDocument` lit maintenant aussi `pdp.statut` / `pgo.statut` :
+
+- `'nc'` → *« PDP NON REÇU à ce jour — la fiche le dit déjà : c'est à réclamer au client, il n'y
+  a rien à renseigner ici »* ;
+- `'na'` (sans objet sur ce chantier) → sort de la liste, c'est une réponse et pas un manque.
+
+**Le contrôle n'est PAS adouci** : un PDP non reçu avec un technicien placé reste un manque, et
+le chantier reste prioritaire. Seuls les MOTS changent, pour décrire ce qu'il faut faire au lieu
+de demander une saisie sans objet.
