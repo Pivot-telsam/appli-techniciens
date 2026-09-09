@@ -5661,3 +5661,71 @@ le changer sans le dire n'a rien à voir avec la charte de l'écran.*
   encore.** Pour la circulation : tant qu'elle n'est pas signée, ils circulent à pied, **et
   ils le savent**. L'alerte de la fiche n'est donc pas à réécrire.
 - **Le planning** au-delà du 18/09 sera posé prochainement.
+
+## Le rappel d'épinglage sur l'écran d'accueil (09/09/2026)
+
+Demandé par Patrice après le correctif d'enregistrement : « rajoute un rappel à ceux qui ne
+l'ont pas épinglé, notamment les possesseurs d'iPhone ».
+
+**Ce n'est pas un conseil de confort : c'est la seule parade à une perte que le code ne peut
+PAS empêcher.** Sur iPhone, Safari efface le stockage local d'un site qui n'a pas été ouvert
+pendant **sept jours**. Un technicien qui ouvre l'appli une fois par semaine depuis un onglet
+Safari peut donc retrouver ses semaines passées vides — et aucune correction côté appli n'y
+changera rien, puisque c'est le navigateur qui nettoie. **Les applications ajoutées à l'écran
+d'accueil sont exclues de ce nettoyage.** Sur Android, installer l'appli fait aussi passer son
+stockage en « durable ».
+
+À côté du rappel, l'appli **demande** maintenant le stockage durable
+(`navigator.storage.persist()`), en silence et sans jamais gêner l'affichage : Chrome
+l'accorde sans rien demander à une appli installée, Safari ne connaît pas cette demande —
+d'où le rappel, qui reste la vraie parade.
+
+### QUATRE RÈGLES DE CONDUITE, ET C'EST TOUT L'ENJEU DE CE BANDEAU
+
+**1. Il ne s'affiche QUE pour ceux qui en ont besoin.** Épinglée, l'appli démarre en mode
+autonome (`display-mode: standalone`, ou `navigator.standalone` sur iPhone) : le rappel
+disparaît alors tout seul, **sans que personne n'ait rien à cocher**.
+
+**2. Il ne s'affiche PAS sur ordinateur** (aucun point tactile, pointeur fin). Épingler n'y
+veut rien dire, et un conseil posé là où il n'a pas d'objet apprend à ne plus lire les
+bandeaux — donc à ne plus les lire le jour où ils comptent. Même règle que le bandeau « ne
+réserve rien » retiré de l'écran des habilitations. *Conséquence pratique : Patrice ne le voit
+pas depuis son PC ; pour le relire il faut un téléphone.*
+
+**3. La consigne CHANGE selon le téléphone, parce qu'une consigne fausse est pire que pas de
+consigne.** Sur iPhone : le bouton **Partager** de Safari, puis « Sur l'écran d'accueil ». Sur
+Android : le menu à trois points de Chrome, puis « Ajouter à l'écran d'accueil ». Le *pourquoi*
+change aussi : sur iPhone on nomme l'effacement au bout d'une semaine (c'est le fait qui
+décide), sur Android on ne promet que ce qui est vrai.
+
+**4. « Plus tard » le met en veille, pas en silence** — quinze jours, pas pour toujours : le
+risque, lui, ne disparaît pas.
+
+> **ET LE REPORT EST NOTÉ DANS LE STOCKAGE LOCAL, VOLONTAIREMENT.** Donc **si Safari efface
+> tout, le report saute avec, et le rappel revient**. C'est exactement le bon comportement :
+> il se remontre en priorité à ceux qui viennent de perdre leurs données. On ne le déplace pas
+> vers un stockage plus solide « pour bien faire » — ce serait perdre cette propriété.
+
+Il est posé sur l'onglet **Ma feuille d'heures**, en dessous d'une éventuelle alerte de
+stockage (l'urgent d'abord : la première dit que la saisie en cours n'est pas gardée, la
+seconde comment faire mieux la semaine prochaine). C'est là que la perte se paie, et c'est
+l'écran que le technicien ouvre chaque semaine.
+
+C'est un **conseil** : il prend l'indigo de l'action, jamais l'ambre ni le rouge, qui doivent
+rester des avertissements.
+
+### Vérifié — 197 contrôles, 0 échec
+
+`test-charte-apptech` **117** (de 104 : +13 pour ce rappel), `test-planning-appli` 37,
+`test-validation` 26, `test-conges-paternite` 17.
+
+**Les quatre situations sont testées, pas seulement celle qui affiche** : iPhone non épinglé
+(le rappel sort, avec la manip Safari), Android (la manip devient celle de Chrome, et « Safari »
+n'apparaît plus), appli déjà épinglée (rien), ordinateur (rien), et report actif (rien). Plus
+l'ordre des deux bandeaux quand le stockage refuse en même temps.
+
+*Piège de harnais payé ici : sous `--virtual-time-budget`, l'horloge avance à toute vitesse et
+un garde-fou en millisecondes (`Date.now() - t0 > 7000`) expire avant que la page soit
+construite. Compter les TOURS, pas les millisecondes. Et le fichier d'aperçu concaténé doit être
+reconstruit après chaque modification — trois captures identiques ont d'abord fait chercher un
+défaut dans le code alors que l'aperçu datait d'avant.*

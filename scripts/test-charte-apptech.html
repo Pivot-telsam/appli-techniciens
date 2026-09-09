@@ -688,6 +688,98 @@
     ok('17. le relais reel est restaure', RELAY_URL === vraiRelais, RELAY_URL);
   }
 
+  // =====================================================================
+  // 18. LE RAPPEL D EPINGLAGE NE PARLE QU A CEUX QUI EN ONT BESOIN
+  // ---------------------------------------------------------------------
+  // Demande de Patrice le 09/09/2026, « notamment les possesseurs
+  // d'iPhone ». C'est la seule parade a une perte que le code ne peut pas
+  // empecher : Safari efface le stockage d'un site non ouvert pendant sept
+  // jours, sauf si l'appli est sur l'ecran d'accueil.
+  //
+  // TOUT LE RISQUE EST QU IL S AFFICHE AU MAUVAIS MONDE. Un conseil pose
+  // la ou il n'a pas d'objet apprend a ne plus lire les bandeaux — c'est
+  // la meme regle que le bandeau « ne reserve rien » retire de l'ecran des
+  // habilitations. On teste donc les QUATRE situations.
+  // =====================================================================
+  {
+    const vraiTel = surTelephone, vraiEp = appEpinglee, vraiIp = surIPhone;
+    const vraiReport = rappelEpingleReporte;
+    hoursEntry = { chantierLines: [], removedAutoIds: [], absences: [], pd: {}, gd: {},
+                   nacelle: {}, vehiculeMode: null, km: '', immat: '', commentaires: '' };
+    hoursKeyCurrent = 'fh_test_2026_38';
+    currentTab = 'heures';
+    rappelEpingleReporte = () => false;
+
+    // 1. telephone, pas epinglee : il s'affiche
+    surTelephone = () => true; appEpinglee = () => false; surIPhone = () => true;
+    renderHoursUI();
+    const txtIphone = document.getElementById('hoursPanel').textContent;
+    ok('18. iPhone non epingle : le rappel s affiche',
+       /écran d’accueil|écran d'accueil/.test(txtIphone) && !!document.querySelector('#hoursPanel .banner.conseil'));
+    ok('18. il dit POURQUOI, et c est le fait qui compte',
+       /Safari efface/.test(txtIphone) && /une semaine/.test(txtIphone));
+    ok('18. et il donne la manip d un iPhone',
+       /Partager/.test(txtIphone) && /Safari/.test(txtIphone) && !/trois points/.test(txtIphone),
+       (txtIphone.match(/Appuie sur[^.]*\./) || [''])[0]);
+    ok('18. il propose de remettre a plus tard',
+       !!document.querySelector('#hoursPanel .banner-actions button'));
+    ok('18. c est un conseil, pas une alarme : ni ambre ni rouge',
+       getComputedStyle(document.querySelector('#hoursPanel .banner.conseil')).color
+         === 'rgb(199, 201, 251)',
+       getComputedStyle(document.querySelector('#hoursPanel .banner.conseil')).color);
+    ok('18. et aucun emoji dedans', emojiDans(txtIphone) === '');
+
+    // 2. Android : la manip change, parce qu'une consigne fausse est pire
+    //    que pas de consigne du tout
+    surIPhone = () => false;
+    renderHoursUI();
+    const txtAndroid = document.getElementById('hoursPanel').textContent;
+    ok('18. contre-exemple : sur Android, la manip est celle de Chrome',
+       /trois points/.test(txtAndroid) && /Chrome/.test(txtAndroid)
+         && !/Safari/.test(txtAndroid) && !/Partager/.test(txtAndroid),
+       (txtAndroid.match(/Ouvre le menu[^.]*\./) || [''])[0]);
+
+    // 3. deja epinglee : il disparait tout seul, sans rien a cocher
+    appEpinglee = () => true;
+    renderHoursUI();
+    ok('18. contre-exemple : appli epinglee, aucun rappel',
+       !document.querySelector('#hoursPanel .banner.conseil'));
+
+    // 4. sur ordinateur : epingler ne veut rien dire, donc on se taît
+    appEpinglee = () => false; surTelephone = () => false;
+    renderHoursUI();
+    ok('18. contre-exemple : sur ordinateur, aucun rappel',
+       !document.querySelector('#hoursPanel .banner.conseil'));
+
+    // 5. « Plus tard » met en veille, pas en silence
+    surTelephone = () => true;
+    rappelEpingleReporte = () => true;
+    renderHoursUI();
+    ok('18. contre-exemple : « plus tard » le masque',
+       !document.querySelector('#hoursPanel .banner.conseil'));
+    rappelEpingleReporte = vraiReport;
+    // Le report est bien borne dans le temps : quinze jours, pas pour toujours.
+    ok('18. le report est borne a quinze jours, pas definitif',
+       REPORT_EPINGLE_JOURS === 15 && /86400000/.test(vraiReport.toString()),
+       REPORT_EPINGLE_JOURS + ' jour(s)');
+
+    // 6. l'urgent d'abord : si le stockage refuse ET que l'appli n'est pas
+    //    epinglee, c'est l'alerte rouge qui est en tete.
+    appEpinglee = () => false;
+    _stockageOk = false;
+    renderHoursUI();
+    const html = document.getElementById('hoursPanel').innerHTML;
+    ok('18. l alerte de stockage passe avant le conseil d epinglage',
+       html.indexOf('banner red') !== -1 && html.indexOf('banner conseil') !== -1
+         && html.indexOf('banner red') < html.indexOf('banner conseil'));
+    _stockageOk = true;
+
+    surTelephone = vraiTel; appEpinglee = vraiEp; surIPhone = vraiIp;
+    hoursEntry = null; hoursKeyCurrent = null;
+    ok('18. les fonctions reelles sont restaurees',
+       surTelephone === vraiTel && appEpinglee === vraiEp && surIPhone === vraiIp);
+  }
+
   fin();
   } catch (e) {
     R.push('EXCEPTION : ' + (e && e.message ? e.message : e));

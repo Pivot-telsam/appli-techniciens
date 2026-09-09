@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-09-2';
+var APP_VERSION = '2026-09-09-3';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-09-2';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Correction importante sur ta feuille d'heures : elle est maintenant enregistrée à chaque chiffre que tu tapes, et « Enregistré à … » s'affiche à côté du titre. Avant, ce que tu venais de saisir pouvait être perdu si tu quittais l'appli tout de suite après. Et le texte sous le bouton d'envoi ne parle plus de mail : ta feuille part directement au bureau, tu n'as rien d'autre à faire.";
+var APP_NOUVEAUTE = "Ta feuille d'heures est maintenant enregistrée à chaque chiffre que tu tapes : « Enregistré à … » s'affiche à côté du titre. Et si l'appli n'est pas sur ton écran d'accueil, un rappel t'explique comment l'y mettre — sur iPhone c'est important : Safari efface les saisies d'une appli qu'on n'ouvre pas pendant une semaine.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -367,6 +367,12 @@ main{padding:16px; display:flex; flex-direction:column; gap:12px;}
 .banner.red{background:var(--rouge-fond); border-color:var(--rouge-filet); color:var(--rouge-t);}
 .banner.orange{background:var(--ambre-fond); border-color:var(--ambre-filet); color:var(--ambre);}
 .banner.touret{background:var(--indigo-fond); border-color:var(--indigo-filet); color:var(--indigo-pale);}
+/* Un CONSEIL, pas une alerte : il prend l'indigo de l'action, jamais
+   l'ambre ni le rouge, qui doivent rester des avertissements. */
+.banner.conseil{background:var(--indigo-fond); border-color:var(--indigo-filet); color:var(--indigo-pale);}
+.banner.conseil b{color:var(--t1);}
+.banner-actions{display:flex; gap:8px; margin-top:11px;}
+.banner-actions .sec-btn{flex:0 1 auto; padding:0 16px; font-size:12.5px;}
 
 /* ---- boutons d'action d'une carte ----
    TOUS DE LA MÊME COULEUR, ET C'EST VOLONTAIRE. Avant, « Documents »
@@ -1113,7 +1119,12 @@ const ICONES = {
   tableur:    '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10M15 10v10"/>',
   poubelle:   '<path d="M4 7h16M9.5 7V4h5v3M6.2 7l1 13h9.6l1-13"/>',
   plus:       '<path d="M12 5v14M5 12h14"/>',
-  info:       '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11.5v5"/>'
+  info:       '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11.5v5"/>',
+  /* Un téléphone avec un plus dedans, et pas une punaise : à 14 px la
+     punaise se réduit à trois traits illisibles, et surtout le geste n'est
+     pas le même sur iPhone et sur Android — l'icône doit dire « mets-la
+     sur ton téléphone », pas imiter un bouton précis. */
+  epingle:    '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 8.5v6M9 11.5h6"/>'
 };
 function ico(nom, cls){
   const d = ICONES[nom];
@@ -1950,6 +1961,103 @@ function htmlAlerteStockage(){
     + '« Envoyer ma feuille » : ce que tu vois ici serait perdu.</div>';
 }
 
+/* =====================================================================
+   LE RAPPEL D'ÉPINGLAGE SUR L'ÉCRAN D'ACCUEIL
+   ---------------------------------------------------------------------
+   Demandé par Patrice le 09/09/2026, « notamment les possesseurs
+   d'iPhone ». Ce n'est pas un conseil de confort : c'est la seule parade
+   à une perte de données que le code ne peut PAS empêcher.
+
+   LE FAIT : sur iPhone, Safari efface le stockage local d'un site qui n'a
+   pas été ouvert pendant sept jours. Un technicien qui ouvre l'appli une
+   fois par semaine depuis un onglet Safari peut donc retrouver ses
+   semaines passées vides — et aucune correction côté appli n'y changera
+   rien, puisque c'est le navigateur qui nettoie. Les applications
+   ajoutées à l'écran d'accueil sont exclues de ce nettoyage. Sur Android,
+   installer l'appli fait aussi passer son stockage en « durable ».
+
+   TROIS RÈGLES DE CONDUITE POUR CE BANDEAU :
+
+   1. IL NE S'AFFICHE QUE POUR CEUX QUI EN ONT BESOIN. Épinglée, l'appli
+      démarre en mode autonome (`display-mode: standalone`, ou
+      `navigator.standalone` sur iPhone) : le rappel disparaît alors tout
+      seul, sans que personne n'ait rien à cocher.
+
+   2. IL NE S'AFFICHE PAS SUR ORDINATEUR. Épingler n'y veut rien dire, et
+      un conseil hors sujet apprend à ne plus lire les bandeaux — c'est la
+      même règle que le bandeau « ne réserve rien » retiré de l'écran des
+      habilitations.
+
+   3. IL SE MET EN VEILLE, PAS EN SILENCE. « Plus tard » le masque quinze
+      jours, pas pour toujours : le risque, lui, ne disparaît pas. Et le
+      report est noté dans le stockage local — donc **si Safari efface
+      tout, le report saute avec, et le rappel revient**. C'est exactement
+      le bon comportement : il se remontre à ceux qui viennent de perdre
+      leurs données.
+
+   La consigne est différente selon le téléphone, parce qu'une consigne
+   fausse est pire que pas de consigne : sur iPhone c'est le bouton
+   Partager de Safari, sur Android le menu à trois points de Chrome.
+   ===================================================================== */
+const CLE_REPORT_EPINGLE = 'telsam_rappel_epingle';
+const REPORT_EPINGLE_JOURS = 15;
+
+function surIPhone(){
+  const ua = navigator.userAgent || '';
+  // Un iPad récent se présente comme un Mac : c'est le tactile qui le trahit.
+  return /iPad|iPhone|iPod/.test(ua)
+      || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+}
+function surTelephone(){
+  return (navigator.maxTouchPoints || 0) > 0
+      || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+}
+function appEpinglee(){
+  return (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches
+                             || window.matchMedia('(display-mode: fullscreen)').matches
+                             || window.matchMedia('(display-mode: minimal-ui)').matches))
+      || window.navigator.standalone === true;
+}
+function rappelEpingleReporte(){
+  try{
+    const t = parseInt(localStorage.getItem(CLE_REPORT_EPINGLE) || '0', 10);
+    if(!t) return false;
+    return (Date.now() - t) < REPORT_EPINGLE_JOURS * 86400000;
+  }catch(e){ return false; }
+}
+function reporterRappelEpingle(){
+  try{ localStorage.setItem(CLE_REPORT_EPINGLE, String(Date.now())); }catch(e){}
+  if(currentTab === 'heures') renderHoursUI();
+}
+function afficherRappelEpingle(){
+  return surTelephone() && !appEpinglee() && !rappelEpingleReporte();
+}
+function htmlRappelEpingle(){
+  if(!afficherRappelEpingle()) return '';
+  const commentFaire = surIPhone()
+    ? 'Appuie sur le bouton <b>Partager</b>, en bas de Safari, puis sur <b>« Sur l\'écran d\'accueil »</b>.'
+    : 'Ouvre le menu de Chrome (les trois points, en haut à droite), puis <b>« Ajouter à l\'écran d\'accueil »</b>.';
+  const pourquoi = surIPhone()
+    ? 'Sur iPhone, Safari efface ce que tu as saisi si tu n\'ouvres pas l\'appli pendant une semaine. Depuis l\'écran d\'accueil, tes feuilles sont gardées.'
+    : 'Tu la retrouves d\'une seule tape, et le téléphone garde mieux tes saisies.';
+  return '<div class="banner conseil">'
+    + '<strong>' + ico('epingle','ic-s') + ' Ajoute l\'appli à ton écran d\'accueil</strong>'
+    + pourquoi + '<br>' + commentFaire
+    + '<div class="banner-actions">'
+    + '<button type="button" class="sec-btn" onclick="reporterRappelEpingle()">Plus tard</button>'
+    + '</div></div>';
+}
+
+/* Et pendant qu'on y est, on DEMANDE au navigateur de ne pas effacer.
+   Chrome l'accorde sans rien demander à une appli installée ; Safari ne
+   connaît pas cette demande, d'où le rappel ci-dessus, qui reste la vraie
+   parade. Best effort, sans jamais gêner l'affichage. */
+(function demanderStockageDurable(){
+  try{
+    if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+  }catch(e){}
+})();
+
 /* Ceinture : le téléphone qui passe en arrière-plan ou ferme l'onglet.
    Avec l'écriture immédiate ci-dessus, il ne reste normalement rien à
    écrire — mais si une frappe est arrivée pendant qu'une écriture était en
@@ -2213,7 +2321,10 @@ function renderHoursUI(){
     + '<button class="h-send-btn secondary-link danger" onclick="effacerSemaine()">'+ico('poubelle','ic-s')+'Effacer et recommencer cette semaine</button>'
     + '</div>';
 
-  panel.innerHTML = htmlAlerteStockage()
+  /* L'alerte de stockage passe AVANT le rappel d'épinglage : la première
+     dit que la saisie en cours n'est pas gardée, la seconde comment faire
+     mieux la semaine prochaine. L'urgent d'abord. */
+  panel.innerHTML = htmlAlerteStockage() + htmlRappelEpingle()
     + chantiersSection + absencesSection + deplSection + vehSection + comSection + sendSection;
 }
 
