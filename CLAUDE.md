@@ -5729,3 +5729,35 @@ un garde-fou en millisecondes (`Date.now() - t0 > 7000`) expire avant que la pag
 construite. Compter les TOURS, pas les millisecondes. Et le fichier d'aperçu concaténé doit être
 reconstruit après chaque modification — trois captures identiques ont d'abord fait chercher un
 défaut dans le code alors que l'aperçu datait d'avant.*
+
+## Le PDF de la feuille d'heures garde l'ancienne palette (tranché le 09/09/2026)
+
+Question posée à Patrice après la refonte, réponse : **« garde le même ».**
+
+L'écran d'AppTech est passé à la charte sombre ; le PDF que l'appli envoie au bureau garde
+l'ambre `PDF_AMBER = [255,176,0]` sur `PDF_DARK = [12,16,18]`. **Ce n'est pas un oubli**, et
+c'est un raisonnement à retenir : ce PDF n'est pas un écran, c'est un **document que Karine et
+Pierre lisent depuis des semaines pour la paie**. Le refaire aux couleurs de la charte ne leur
+apporte rien et leur change un repère visuel sans les prévenir.
+
+> **LE PIÈGE EST UNE BONNE INTENTION.** Une session qui voit l'écran refait et le PDF resté en
+> ambre conclut naturellement qu'il reste du travail, et « finit la charte ». Un commentaire
+> dans le code n'y suffit pas — c'est la leçon du 02/09/2026 : *une règle sans mécanisme ne
+> tient pas.*
+
+Le mécanisme est **`scripts/check-pdf-palette.sh`**, pris automatiquement par
+`scripts/pre-commit.sh` : il refuse un commit qui change une des cinq constantes `PDF_*` de
+`index.html`, en rappelant la décision et sa raison. Il ne protège que les **valeurs** des
+couleurs, pas le code qui s'en sert.
+
+**Ce n'est pas une interdiction définitive.** Le jour où Patrice demande le contraire, il suffit
+d'écrire **qui** l'a demandé dans le message de commit, avec le mot `PALETTE-PDF-ASSUMEE` sur
+une ligne — le commit passe alors. Le contrôle n'interdit rien : il oblige à nommer la demande.
+
+*Vérifié dans un clone jetable, les quatre situations : rien de mis en scène → passe ;
+`index.html` modifié ailleurs → passe ; palette changée → refus avec le motif ; palette changée
++ mot-clé → passe. Et la chaîne `pre-commit.sh` le reprend bien (elle rend 1).*
+
+*Note : ce lot ne touche PAS `index.html`, donc pas de `APP_VERSION` à incrémenter — et surtout
+pas de quatrième écran d'ouverture dans la même journée pour une règle qui ne change rien pour
+le technicien.*
