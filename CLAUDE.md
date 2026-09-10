@@ -6522,3 +6522,35 @@ plus de ma mise à jour de fiche, une modification d'interface en cours qui n'es
 « dos épais à gauche » des cases, daté du 10/09). Committer le travail inachevé d'une autre session
 n'est pas à moi de le faire — mes deux corrections de scripts sont parties seules, et la fiche
 26-027 partira avec le prochain commit du suivi.*
+
+### RÉGLAGE POSÉ LE 10/09/2026 : LA TÂCHE RÉVEILLE LA MACHINE
+
+**Décision de Patrice, entre les deux options : « réveille le PC ».**
+
+Deux choses étaient nécessaires, et la première n'était pas évidente :
+
+1. **Les minuteries de réveil étaient DÉSACTIVÉES** dans le plan d'alimentation, sur secteur **et**
+   sur batterie (`SUB_SLEEP / RTCWAKE` = 0 dans les deux cas). Sans elles, cocher « réveiller
+   l'ordinateur » sur la tâche n'aurait **rien** fait — le réglage aurait paru posé et le cas se
+   serait reproduit à l'identique. Passées à « Activer » sur les deux (`powercfg
+   /setacvalueindex` + `/setdcvalueindex`, **aucun privilège administrateur nécessaire**, contrairement
+   à `powercfg /waketimers` qui, lui, en demande).
+2. **`WakeToRun` posé sur la tâche** « TELSAM - Veille documents RTE » (`Set-ScheduledTask`), sans
+   toucher au reste : action, compte `patrice.pivot`, `LogonType Interactive`, aucun mot de passe
+   stocké, `StartWhenAvailable` toujours à `True`. Vérifié après écriture.
+
+**La machine est un portable Dell Vostro 3525 en veille moderne (S0 faible consommation)** — pas
+un S3 classique. C'est pour ça que les minuteries de réveil comptent ici : sur ce type de veille,
+la tâche ne se rattrape pas toute seule à la reprise (mesuré le 10/09 : réveil à 07h59, et
+`NextRunTime` annonçait déjà 13h00, jamais un rattrapage du passage de 7h30).
+
+> **CE QUI N'EST PAS ENCORE PROUVÉ, ET QUI SE PROUVERA TOUT SEUL.** Le réglage est *armé*, pas
+> *éprouvé* : la seule vraie preuve est un passage à 7h30 machine endormie, donc demain matin. Le
+> test est gratuit et sans ambiguïté — l'horodatage de `veille/matin.json` et de `RAPPORT.md`. S'il
+> dit 7h30, le réveil a marché ; s'il dit l'heure à laquelle Patrice s'est assis, ou rien du tout,
+> il faut passer au filet : un déclencheur au **déverrouillage de session**, qui ne dépend d'aucun
+> matériel. Ne pas conclure sans regarder cet horodatage.
+
+*Effet de bord assumé, à savoir : sur batterie aussi la machine se réveillera à 7h30 et à 13h00.
+C'est un réveil par jour de plus en sac, contre une veille manquée — Patrice a tranché dans ce
+sens. `DisallowStartIfOnBatteries` était déjà à `False`, donc rien d'autre à changer.*
