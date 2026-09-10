@@ -6831,3 +6831,71 @@ alias, et **trois contre-exemples** — l'ancien numéro ne répond plus, aucune
 `bloc-test-rayures-ecarts` 24, `bloc-test-validation-suivi` 16, `bloc-test-couleurs` 10.
 Appli : `test-charte-apptech` 118, `test-feuilles-passees` 40, `test-planning-appli` 37,
 `test-validation` 26, `test-conges-paternite` 17. Les deux blocs `<script>` compilent, 0 `Ã`.
+
+---
+
+## REMPLI = VERT DANS LA FEUILLE D'HEURES (10/09/2026)
+
+**Demande de Patrice**, le jour même où les semaines S34 à S36 sont revenues remplies dans
+l'appli : « les données sont écrites en blanc, je trouve ça un peu fade, un peu moche et surtout
+pas très parlant. J'aimerais que ce soit vert comme sur le suivi ou comme le PDP quand il est bon.
+[…] Les jours où ils ont travaillé, le nombre d'heures, les nacelles, et cætera. »
+
+**CE QUI CHANGE À L'ÉCRAN.** Tout ce qu'un technicien renseigne dans sa feuille passe au vert de
+la charte (`--vert`, `#3FD9A4`) : les heures de jour et de nuit, les jours d'absence, PD, GD, la
+nacelle, le véhicule choisi, l'immatriculation, les kilomètres, le commentaire. Le trio habituel
+des états verts de l'appli — texte `--vert`, fond `--vert-fond`, filet `--vert-filet` — le même que
+`badge.ok`, `pyl-chip.on` et `valid-bar.ok`. La ligne « Déjà envoyée le … » prend la même couleur
+que ce qu'elle confirme (`.h-send-sub.deja`).
+
+**LE VERT DE L'APPLI N'EST PAS CELUI DU SUIVI, ET C'EST VOULU.** Le suivi est clair et sa pastille
+« bon » est un vert feuille (`--green-border:#639922`) ; l'appli est sombre. Recopier le vert du
+suivi sur le navy donnerait un vert éteint, à la limite du lisible en plein soleil. On garde donc
+le vert que l'appli utilise déjà pour « enregistré » et « en ligne » : c'est le même rôle — *c'est
+bon, c'est fait* — donc le même vert.
+
+**LE CODE COULEUR EST DÉSORMAIS UNIQUE, ET IL REMPLACE UNE RÈGLE ANTÉRIEURE.** PD, GD et la nacelle
+portaient le terracotta et l'indigo, avec pour raison écrite « ce sont des SAISIES, pas des états ».
+La raison tenait, mais elle produisait trois couleurs pour une seule idée. Patrice a tranché :
+**rempli = vert, partout dans la feuille.** Ce qui distingue PD de GD reste **écrit dans la case**
+(`h-toggle-val`), pas porté par la couleur — c'est ce que vérifie le contrôle
+« PD et GD restent distincts par le texte ». Ce qui n'a pas changé : **l'ambre reste une alerte**,
+elle n'entre pas dans la feuille.
+
+**LA COULEUR VIENT DU CONTENU, PAS D'UNE CLASSE POSÉE À L'ENVOI.** C'est
+`.h-num:not(:placeholder-shown)` qui peint, pas un `classList.add` dans `renderHoursUI`. Trois
+conséquences, et c'est pour elles que ce choix a été fait :
+- le vert **arrive sous le doigt** pendant la frappe, sans redessiner le champ où il tape (un
+  redessin lui ferait perdre le curseur au deuxième chiffre) ;
+- il est **encore là** sur une semaine passée rouverte des mois plus tard, sans rien avoir à
+  stocker de plus dans la feuille ;
+- il **disparaît si on efface**, donc il ne peut pas mentir.
+
+> **LA PANNE SILENCIEUSE EST DANS L'AUTRE SENS, ET ELLE M'A ÉCHAPPÉ AU PREMIER JET.**
+> Un champ **sans `placeholder`** ne peut jamais être `:placeholder-shown`, donc
+> `:not(:placeholder-shown)` l'attrape **toujours** : il s'afficherait **vert en étant vide**, et
+> annoncerait rempli une case que personne n'a touchée. J'ai saboté le fichier en retirant le
+> `placeholder` de l'immatriculation : **aucun contrôle « rempli = vert » n'a bronché**.
+> C'est exactement le contrôle qui ne peut pas échouer. D'où
+> « contre-exemple : vide, aucun champ n'est vert », qui vide les **24 champs** de l'écran et exige
+> que plus rien ne soit vert — celui-là attrape le sabotage (`h-km-input` vert à vide).
+> **Tout `placeholder` retiré d'un champ de la feuille rend son vert menteur.**
+
+**CE QUI EST DÉLIBÉRÉMENT RESTÉ COMME AVANT** : la colonne « nuit » garde son filet en pointillés
+une fois remplie — le vert ne repeint que la couleur, jamais `border-style`, sinon on ne
+distinguerait plus jour et nuit dans une ligne pleine (contrôle + contre-exemple sur le filet plein
+de la colonne jour). Le nom du chantier garde son liseré d'identité : c'est ce qui le relie à sa
+carte, ça n'a rien à voir avec « renseigné ».
+
+**Un point que Patrice n'a pas tranché et qu'il faut lui laisser** : les **absences** deviennent
+vertes elles aussi, parce que la règle est « renseigné », pas « travaillé ». Un arrêt de travail
+en vert peut surprendre. Signalé le 10/09/2026 ; laisser blanc les absences serait une exception à
+demander, pas à décider.
+
+**Vérifié — 258 contrôles, 0 échec**, et les deux sabotages attrapés (vert retiré → 4 échecs ;
+`placeholder` retiré → 1 échec). `test-charte-apptech` **138** (+20, section 19), `test-feuilles-passees` 40,
+`test-planning-appli` 37, `test-validation` 26, `test-conges-paternite` 17. Capture d'écran de la
+S34 d'Anthony DENIS relue à l'œil avant envoi. `APP_VERSION` `2026-09-10-5`, et `APP_NOUVEAUTE`
+**garde le rappel du renumérotage St-Guillerme** : elle ne s'affiche qu'une fois par version, donc
+la remplacer aurait effacé l'annonce de 26-080 pour tous ceux qui n'avaient pas encore ouvert
+l'appli.

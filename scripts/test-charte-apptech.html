@@ -801,6 +801,139 @@
        surTelephone === vraiTel && appEpinglee === vraiEp && surIPhone === vraiIp);
   }
 
+  // =====================================================================
+  // 19. VERT = RENSEIGNE : CE QUI EST REMPLI SE VOIT
+  // ---------------------------------------------------------------------
+  // Demande de Patrice le 10/09/2026 : les valeurs s'ecrivaient en blanc,
+  // donc muettes — et ca s'est vu le jour ou les semaines passees sont
+  // restees remplies dans l'appli. Rempli = vert, le meme vert que
+  // « enregistre », que « en ligne » et que la pastille verte du suivi.
+  //
+  // CE QUI SE CASSE EN SILENCE ICI : la regle est portee par
+  // `:placeholder-shown`. Le jour ou un champ perd son `placeholder`, il
+  // reste BLANC en etant rempli, et rien ne le signale. On mesure donc le
+  // rendu champ par champ, jamais la presence d'une regle CSS.
+  // =====================================================================
+  {
+    const sonde = document.createElement('span');
+    sonde.style.cssText = 'color:var(--vert)'; document.body.appendChild(sonde);
+    const VERT = getComputedStyle(sonde).color; sonde.remove();
+    const coul = el => getComputedStyle(el).color;
+    const estVert = el => coul(el) === VERT;
+
+    hoursKeyCurrent = 'fh_test_vert';
+    hoursEntry = {
+      chantierLines: [{ id: SEED_DATA[0].id, nom: SEED_DATA[0].nom, lieu: '',
+                        jours: { 0: { j: 7 }, 1: { n: 3 } } }],
+      removedAutoIds: [], absences: [{ key: 'conges', jours: { 2: 7 } }],
+      pd: { 0: true }, gd: { 1: true }, nacelle: { 0: true },
+      vehiculeMode: 'TELSAM', km: '1234', immat: 'AB-123-CD',
+      commentaires: 'RAS', envoyeLe: '2026-08-24T10:00:00.000Z' };
+    renderHoursUI();
+    document.getElementById('hoursPanel').style.display = 'flex';
+
+    // -- les heures de chantier : [d0 jour, d0 nuit, d1 jour, d1 nuit, ...]
+    const cases = document.querySelectorAll('#hoursPanel .h-chantier .h-num');
+    ok('19. l heure saisie est verte', cases.length === 14 && estVert(cases[0]),
+       cases.length + ' cases, lundi jour = ' + coul(cases[0]));
+    // Contre-exemple : la case d'a cote, vide, ne doit PAS etre verte.
+    ok('19. contre-exemple : une case vide reste blanche', !estVert(cases[1]),
+       coul(cases[1]));
+    // La colonne « nuit » se distingue par son filet en pointilles. Le vert
+    // ne repeint que la couleur : si un jour il touche `border-style`, on ne
+    // saura plus quelle case est la nuit une fois remplie.
+    ok('19. la nuit remplie garde son filet en pointilles',
+       estVert(cases[3]) && getComputedStyle(cases[3]).borderTopStyle === 'dashed',
+       coul(cases[3]) + ' / ' + getComputedStyle(cases[3]).borderTopStyle);
+    ok('19. contre-exemple : le jour rempli, lui, a un filet plein',
+       getComputedStyle(cases[0]).borderTopStyle === 'solid',
+       getComputedStyle(cases[0]).borderTopStyle);
+
+    // -- LE VERT VIENT DU CONTENU, PAS D'UNE CLASSE POSEE A L'ENVOI.
+    // C'est ce qui fait qu'il arrive sous le doigt pendant la frappe et
+    // qu'il est encore la sur une semaine passee rouverte des mois apres.
+    cases[1].value = '4';
+    ok('19. une case devient verte des la frappe, sans redessin', estVert(cases[1]),
+       coul(cases[1]));
+    cases[1].value = '';
+    ok('19. contre-exemple : effacee, elle redevient blanche', !estVert(cases[1]),
+       coul(cases[1]));
+
+    // -- les absences suivent la meme regle
+    const abs = document.querySelectorAll('#hoursPanel .h-absence-row .h-num');
+    ok('19. un jour d absence saisi est vert', abs.length === 7 && estVert(abs[2]),
+       abs.length + ' cases, mercredi = ' + coul(abs[2]));
+    ok('19. contre-exemple : un jour d absence vide reste blanc', !estVert(abs[0]),
+       coul(abs[0]));
+
+    // -- PD, GD et nacelle : coches, ils sont verts (ils portaient le
+    //    terracotta et l'indigo jusqu'au 10/09/2026)
+    const rangees = document.querySelectorAll('#hoursPanel .h-toggle-row');
+    const depl = rangees[0].querySelectorAll('.h-toggle-btn');
+    const nac  = rangees[1].querySelectorAll('.h-toggle-btn');
+    ok('19. PD et GD coches sont verts', estVert(depl[0]) && estVert(depl[1]),
+       coul(depl[0]) + ' / ' + coul(depl[1]));
+    ok('19. la nacelle cochee est verte', estVert(nac[0]), coul(nac[0]));
+    // Contre-exemple : un jour non coche ne doit pas etre vert.
+    ok('19. contre-exemple : un jour non coche n est pas vert',
+       !estVert(depl[2]) && !estVert(nac[1]),
+       coul(depl[2]) + ' / ' + coul(nac[1]));
+    // Le jour reste lisible DANS la case verte : sans lui, « PD » affiche,
+    // il ne sait plus quel jour il a coche (retour terrain du 24/08/2026).
+    ok('19. le jour de la semaine est ecrit dans la case cochee',
+       depl[0].querySelector('.h-toggle-day').textContent.trim().length > 0
+       && estVert(depl[0].querySelector('.h-toggle-day')),
+       depl[0].querySelector('.h-toggle-day').textContent);
+    // Ce qui distingue PD de GD est ECRIT, puisque la couleur ne le fait plus.
+    ok('19. PD et GD restent distincts par le texte',
+       depl[0].querySelector('.h-toggle-val').textContent.trim() === 'PD'
+       && depl[1].querySelector('.h-toggle-val').textContent.trim() === 'GD',
+       depl[0].querySelector('.h-toggle-val').textContent + ' / '
+       + depl[1].querySelector('.h-toggle-val').textContent);
+
+    // -- vehicule, immatriculation, kilometres, commentaires
+    const veh = document.querySelectorAll('#hoursPanel .h-veh-btn');
+    ok('19. le vehicule choisi est vert', estVert(veh[0]), coul(veh[0]));
+    ok('19. contre-exemple : celui qui n est pas choisi ne l est pas',
+       !estVert(veh[1]), coul(veh[1]));
+    const champs = document.querySelectorAll('#hoursPanel .h-km-input');
+    const com = document.querySelector('#hoursPanel .h-textarea');
+    ok('19. immatriculation, km et commentaire remplis sont verts',
+       champs.length === 2 && estVert(champs[0]) && estVert(champs[1]) && estVert(com),
+       [coul(champs[0]), coul(champs[1]), coul(com)].join(' / '));
+    // LA PANNE SILENCIEUSE EXACTE, ET ELLE VA DANS L'AUTRE SENS : un champ
+    // sans `placeholder` ne peut jamais etre `:placeholder-shown`, donc
+    // `:not(:placeholder-shown)` l'attrape TOUJOURS. Il s'afficherait vert
+    // EN ETANT VIDE, et annoncerait rempli une case que personne n'a
+    // touchee. Ce sabotage-la ne casse aucun controle « rempli = vert » :
+    // il faut vider tous les champs et verifier que plus rien n'est vert.
+    // (Verifie le 10/09/2026 en retirant le placeholder de l'immat.)
+    const tousChamps = document.querySelectorAll(
+      '#hoursPanel .h-num, #hoursPanel .h-km-input, #hoursPanel .h-textarea');
+    const gardes = []; tousChamps.forEach(el => { gardes.push(el.value); el.value = ''; });
+    const vertsAVide = [];
+    tousChamps.forEach(el => { if (estVert(el)) vertsAVide.push(el.className || el.tagName); });
+    ok('19. contre-exemple : vide, aucun champ n est vert',
+       tousChamps.length >= 23 && vertsAVide.length === 0,
+       tousChamps.length + ' champs, verts a vide : '
+       + (vertsAVide.slice(0, 4).join(' | ') || 'aucun'));
+    tousChamps.forEach((el, i) => { el.value = gardes[i]; });
+    ok('19. remis, chaque champ rempli est vert a nouveau',
+       Array.prototype.every.call(tousChamps, el => el.value === '' || estVert(el)),
+       Array.prototype.filter.call(tousChamps, el => el.value !== '').length + ' champs remplis');
+
+    // -- « Deja envoyee le ... » : la meme couleur que ce qu'elle confirme
+    const deja = document.querySelector('#hoursPanel .h-send-sub.deja');
+    const autreSub = document.querySelector('#hoursPanel .h-send-sub:not(.deja)');
+    ok('19. la ligne « deja envoyee » est verte',
+       !!deja && estVert(deja) && /24\/08\/2026/.test(deja.textContent),
+       deja ? deja.textContent.trim() : 'absente');
+    ok('19. contre-exemple : la phrase sous le bouton d envoi n est pas verte',
+       !!autreSub && !estVert(autreSub), autreSub ? coul(autreSub) : 'absente');
+
+    hoursEntry = null; hoursKeyCurrent = null;
+  }
+
   fin();
   } catch (e) {
     R.push('EXCEPTION : ' + (e && e.message ? e.message : e));

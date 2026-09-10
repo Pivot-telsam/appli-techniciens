@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-10-4';
+var APP_VERSION = '2026-09-10-5';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-10-4';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Le chantier St-Guillerme change de numéro : il devient 26-080 au lieu de 26-045. C'est le même chantier, rien d'autre ne bouge — c'est le numéro qui est écrit sur son dossier et sur nos documents. Tes semaines S34 à S36 sont toujours là, remplies.";
+var APP_NOUVEAUTE = "Ce que tu remplis dans ta feuille d'heures s'affiche maintenant en vert : les heures, les déplacements, la nacelle, le véhicule, le kilométrage. Tu vois d'un coup d'œil ce qui est déjà noté et ce qui reste à remplir, y compris sur tes semaines passées. Et un rappel : le chantier St-Guillerme porte désormais le numéro 26-080 au lieu de 26-045 — c'est le même chantier.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -468,6 +468,15 @@ footer.legend{max-width:640px; margin:8px auto 0; padding:0 16px;
 /* La colonne « nuit » se distingue par son filet, pas par `opacity` : un
    champ de saisie à demi transparent devient illisible en plein jour. */
 .h-num.nuit{border-style:dashed;}
+/* VERT = RENSEIGNE. Une case remplie se voit sans etre relue : c'est le
+   meme vert que « enregistre » et que « en ligne », et le meme role que
+   la pastille verte du suivi. On ne touche PAS `border-style`, sinon la
+   colonne « nuit » perdrait son filet en pointilles en se remplissant.
+   Piloté par `:placeholder-shown` et non par une classe : la couleur
+   arrive sous le doigt, sans redessiner le champ ou il tape. */
+.h-num:not(:placeholder-shown){
+  background:linear-gradient(var(--vert-fond),var(--vert-fond)),var(--touche);
+  border-color:var(--vert-filet); color:var(--vert); font-weight:500;}
 .h-row-actions{display:flex; justify-content:flex-end;}
 .h-del-btn{background:none; border:none; color:var(--t3); font-size:12.5px; cursor:pointer;
   padding:8px 6px; min-height:36px; display:inline-flex; align-items:center; gap:6px;}
@@ -495,14 +504,17 @@ footer.legend{max-width:640px; margin:8px auto 0; padding:0 16px;
 .h-toggle-val{font-family:'IBM Plex Mono',ui-monospace,Consolas,monospace;
   font-size:12.5px; font-weight:500; line-height:1.1;}
 .h-toggle-btn.pd,.h-toggle-btn.gd,.h-toggle-btn.n1,.h-toggle-btn.n2{border-style:solid;}
-/* PD, GD et nacelle sont des SAISIES, pas des états : elles prennent le
-   terracotta de l'identité et pas l'ambre, qui doit rester une alerte. */
-.h-toggle-btn.pd,.h-toggle-btn.n1,.h-toggle-btn.n2{
-  background:var(--terra-fond); border-color:var(--terra-filet); color:var(--terra);}
-.h-toggle-btn.pd .h-toggle-day,.h-toggle-btn.n1 .h-toggle-day,
-.h-toggle-btn.n2 .h-toggle-day{color:var(--terra);}
-.h-toggle-btn.gd{background:var(--indigo-fond); border-color:var(--indigo-filet); color:var(--indigo-pale);}
-.h-toggle-btn.gd .h-toggle-day{color:var(--indigo-pale);}
+/* PD, GD, nacelle et vehicule sont des SAISIES : coches, ils prennent le
+   vert de « renseigne », comme les cases d'heures. Ils portaient le
+   terracotta et l'indigo jusqu'au 10/09/26 ; Patrice a demande un seul
+   code : rempli = vert. Ce qui distingue PD de GD reste ecrit dans la
+   case (`h-toggle-val`), pas dans la couleur. Jamais l'ambre ici : elle
+   doit rester une alerte. */
+.h-toggle-btn.pd,.h-toggle-btn.gd,.h-toggle-btn.n1,.h-toggle-btn.n2{
+  background:linear-gradient(var(--vert-fond),var(--vert-fond)),var(--touche);
+  border-color:var(--vert-filet); color:var(--vert);}
+.h-toggle-btn.pd .h-toggle-day,.h-toggle-btn.gd .h-toggle-day,
+.h-toggle-btn.n1 .h-toggle-day,.h-toggle-btn.n2 .h-toggle-day{color:var(--vert);}
 .h-hint{font-size:11.5px; color:var(--t2); margin:2px 0 7px; line-height:1.4;}
 /* L'etat de l'enregistrement, a cote du titre de la section ou il tape. */
 .h-saved-tag{font-size:11px; font-weight:700; color:var(--vert); letter-spacing:0; text-transform:none;}
@@ -511,13 +523,16 @@ footer.legend{max-width:640px; margin:8px auto 0; padding:0 16px;
 .h-veh-btn{flex:1; background:var(--touche); border:1px solid var(--filet2); color:var(--t2);
   border-radius:11px; padding:11px; min-height:var(--cible); font-size:12.5px; cursor:pointer;
   text-align:center;}
-.h-veh-btn.active{background:var(--terra-fond); border-color:var(--terra-filet); color:var(--terra);
-  font-weight:500;}
+.h-veh-btn.active{background:linear-gradient(var(--vert-fond),var(--vert-fond)),var(--touche);
+  border-color:var(--vert-filet); color:var(--vert); font-weight:500;}
 .h-km-input,.h-textarea{
   background:var(--touche); border:1px solid var(--filet2); color:var(--t1);
   border-radius:11px; padding:11px 12px; min-height:var(--cible); font-size:13.5px; width:100%;
 }
 .h-km-input::placeholder,.h-textarea::placeholder{color:var(--t3);}
+.h-km-input:not(:placeholder-shown),.h-textarea:not(:placeholder-shown){
+  background:linear-gradient(var(--vert-fond),var(--vert-fond)),var(--touche);
+  border-color:var(--vert-filet); color:var(--vert);}
 .h-textarea{min-height:74px; resize:vertical; font-family:inherit;}
 /* UN SEUL BOUTON PLEIN INDIGO PAR ÉCRAN, en bas, à portée de pouce. */
 .h-send-btn{
@@ -530,6 +545,7 @@ footer.legend{max-width:640px; margin:8px auto 0; padding:0 16px;
   font-size:12.5px; padding:11px; min-height:var(--cible);}
 .h-send-btn.danger{border-color:var(--rouge-filet); color:var(--rouge-t);}
 .h-send-sub{font-size:11.5px; color:var(--t2); text-align:center; line-height:1.45;}
+.h-send-sub.deja{color:var(--vert);}
 
 /* ---------- porte d'entrée (mot de passe) ---------- */
 .gate-input{
@@ -2554,7 +2570,7 @@ function renderHoursUI(){
      sait pas : pas de « jamais envoyée » sur une semaine en cours de
      saisie, ce serait un reproche adressé à quelqu'un qui n'a pas fini. */
   const dejaEnvoyee = e.envoyeLe && !isNaN(new Date(e.envoyeLe))
-    ? '<div class="h-send-sub">Déjà envoyée le ' + fmtDateFR(new Date(e.envoyeLe)) + '.</div>'
+    ? '<div class="h-send-sub deja">Déjà envoyée le ' + fmtDateFR(new Date(e.envoyeLe)) + '.</div>'
     : '';
   const sendSection = '<div class="h-section">'
     + dejaEnvoyee
