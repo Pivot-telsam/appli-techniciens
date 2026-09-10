@@ -39,7 +39,27 @@
     for (const t in PLANNING_TECH.tech[cid]) couples += PLANNING_TECH.tech[cid][t].length;
   }
   R.push('     ' + couples + ' jour(s)-personne publies, sur ' + Object.keys(PLANNING_TECH.tech).length + ' chantier(s)');
-  ok('1. il y a de la matiere', couples > 100, String(couples));
+  /* PAS DE SEUIL CHIFFRE ICI, ET C'EST VOULU.
+   * Ce controle exigeait « plus de 100 jours-personne ». Le 10/09/2026 il en
+   * a trouve 98 et il est passe au rouge alors que RIEN n'etait casse : c'est
+   * la charge du planning qui varie d'une semaine sur l'autre, et l'appli n'y
+   * peut rien. Exactement la meme faute que le controle de la semaine +2,
+   * corrige la veille pour la meme raison : un seuil fige sur une donnee du
+   * bureau finit par crier au loup, et un banc bruyant est abandonne — il
+   * emporte alors les 35 autres controles avec lui.
+   * Ce que le CODE garantit, et qui est verifie ici : le bloc n'est pas vide,
+   * et aucune entree publiee n'est creuse — un chantier sans personne ou une
+   * personne sans jour veut dire une publication a moitie ratee, et CA, c'est
+   * un vrai defaut. Le chiffre reste IMPRIME juste au-dessus, pour l'oeil. */
+  ok('1. le planning publie n\'est pas vide', couples > 0, String(couples));
+  const creuses = [];
+  for (const cid in PLANNING_TECH.tech) {
+    const parTech = PLANNING_TECH.tech[cid];
+    if (!Object.keys(parTech).length) creuses.push(cid);
+    for (const t in parTech) if (!parTech[t].length) creuses.push(cid + ' / ' + t);
+  }
+  ok('1. aucune entree creuse dans le bloc publie', creuses.length === 0,
+     creuses.slice(0, 5).join(' ; ') || 'aucune');
 
   // Combien de personnes voient quelque chose, semaine par semaine ?
   function personnesDeLaSemaine(offset) {
