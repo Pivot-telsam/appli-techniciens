@@ -6654,3 +6654,130 @@ rendus de couleur avaient déjà divergé avant que `styleBulleChantier` ne les 
 pas dans la feuille de style, puisque c'est le repliement du nom qui la faisait grossir ;
 **contre-exemple**, une rangée de technicien reste plus haute (81 px). Et la colonne de gauche ne
 contient que les boutons, le nom étant bien, lui, dans les cases.
+
+---
+
+## Le numéro de chantier ouvre son dossier Dropbox (10/09/2026)
+
+Demande de Patrice : *« j'aimerais créer un lien vers Dropbox de chaque chantier. Tous ceux qui
+sont sur le suivi (les 7 personnes) ont les droits DropBox. J'aimerais donc à chaque fois que nous
+avons un numéro de chantier et quel que soit l'onglet, qu'on puisse cliquer dessus et avoir ainsi
+un raccourci vers le chantier dédié dans Dropbox. »*
+
+### AUCUN LIEN DE PARTAGE N'EST CRÉÉ, ET C'EST LE POINT IMPORTANT
+
+Les 7 personnes ont déjà les droits sur l'espace d'équipe : une **adresse web ordinaire** suffit.
+Chacun n'ouvre donc que ce à quoi son propre compte lui donne accès, et il n'y a **rien à passer
+en public**, rien à protéger par mot de passe, rien à vérifier avec `get_shared_link_metadata`.
+C'est l'inverse exact du circuit « App Tech » des techniciens, qui eux n'ont pas de compte Dropbox
+et à qui il faut un lien de partage public + mot de passe (cf. « Accès Dropbox »).
+
+> **NE PAS « AMÉLIORER » EN CRÉANT DES LIENS DE PARTAGE.** Ce serait 120 liens à créer, chacun
+> privé par défaut donc chacun à faire basculer à la main par Patrice, pour un résultat moins bon :
+> un lien de partage contourne les droits, une adresse `/home/` les respecte.
+
+**L'adresse n'est pas devinée** : c'est celle que l'API Dropbox rend elle-même (champ `url` d'un
+résultat de recherche), vérifiée le 10/09/2026 sur « Campagnac - Séverac 26-070 » —
+`https://www.dropbox.com/home/` + le chemin, **chaque segment encodé séparément**, les `/` restant
+des `/`. Elle est écrite en dur dans le banc d'essai : si l'encodage change, le banc crie.
+
+### LA TABLE : `DROPBOX_CHANTIERS`, refaite par `scripts/dropbox-chantiers.ps1`
+
+Même nature que `PLANNING_RTE`, `POSES_APPLI` ou `AFFAIRES_RTE` : **refaite de zéro à chaque
+passage**, elle vit **à côté** de `SEED_DATA` — donc **pas de `SEED_VERSION` à bumper** et aucun
+état local des collègues effacé. Ne jamais y écrire à la main.
+Forme : `{maj, racine:"Telsam Fibre/RTE", dossiers:{ "26-070": "Ligne aérienne/Campagnac - …" }}`.
+**120 numéros au 10/09/2026** — la table couvre TOUS les numéros trouvés dans Dropbox, pas
+seulement les 72 fiches : l'onglet Affaires en compte 131, et une affaire sans fiche a droit à son
+lien comme les autres.
+
+**LE RAPPROCHEMENT SE FAIT SUR LE NUMÉRO ÉCRIT DANS LE NOM DU DOSSIER, ET SUR RIEN D'AUTRE.**
+Jamais sur le libellé : c'est la règle du 25/08/2026 (« Fibrage Feyriat » sans le L pour le
+chantier FLEYRIAT). Un chantier dont le dossier n'a pas encore été renommé avec son numéro
+**ne reçoit pas de lien** — c'est voulu, un lien vers le mauvais dossier est pire que pas de lien.
+Deux raffinements, chacun pour un cas réel :
+- **le numéro terminal gagne sur le numéro englobant** : « Chaineau-Cordy-Lamotte 26-036-**1**-2 »
+  contient la suite `26-036-1`, mais le vrai dossier du lot 1 est son sous-dossier
+  « LOT 1 RODA 26-036-1 ». Sans cette règle, les deux lots pointaient sur le parent ;
+- **la forme fautive `26-40` est tolérée et SIGNALÉE**, uniquement si le nom ne contient aucun
+  numéro bien formé, si l'année commence par 2 et si le numéro **termine** le nom du dossier.
+  Sans ces trois conditions, on ramasse des dates : « OneDrive_2025-**11-24** »,
+  « **23-06**-05_complément FO CESTAS », « …consultation, 2026-**07-09** » — six faux numéros au
+  premier essai.
+
+`$ALIAS` (en tête du script) fait le pont quand le dossier est identifié **sans aucun doute** et
+que c'est son nom qui est fautif. Deux entrées au 10/09/2026, et chacune décrit une incohérence à
+corriger côté Dropbox, pas une règle à pérenniser.
+
+### CE QUI N'A PAS DE LIEN, ET POURQUOI ON NE LE FABRIQUE PAS
+
+**La grille du Planning.** Les cases y sont déjà cliquables — elles ouvrent la fiche, et le pinceau
+y peint un chantier. Un lien posé sur le numéro à l'intérieur d'une case volerait ces clics :
+c'est exactement le défaut « la cible du crayon est inatteignable » mesuré le 10/09/2026, où un
+élément décoratif prenait les clics du bouton. Le chemin reste de deux clics : la case ouvre la
+fiche, la fiche porte le bouton « Dossier Dropbox ».
+**Les infobulles de la carte** (Leaflet) ne sont pas du HTML interactif : un lien y serait mort.
+
+### LE BADGE DIT S'IL EST CLIQUABLE, SANS QU'ON AIT À SURVOLER
+
+`numBadge(numero)` est **le seul endroit** qui fabrique un badge de numéro — il était écrit à
+l'identique à quinze endroits, et le seizième aurait fini par ne pas recevoir le lien sans que rien
+ne le signale. Un banc relit le fichier source et refuse qu'il en revienne un.
+- **avec dossier** : teinte indigo (la couleur des actions dans la charte) + le losange Dropbox ;
+- **sans dossier** : l'ardoise du badge ordinaire, aucun lien.
+La différence se lit **sans survoler** : « un bouton caché au survol n'existe pas » (règle posée
+par Patrice le 10/09/2026). À l'impression, le losange disparaît et le badge reprend l'ardoise.
+
+**`event.stopPropagation()` n'est pas décoratif** : le badge vit dans des blocs eux-mêmes cliquables
+(une carte se déplie, une ligne d'affaire s'ouvre). Sans lui, ouvrir Dropbox déclencherait AUSSI
+l'action du bloc. Le banc l'éprouve sur du vrai DOM, avec son contre-exemple : sur un badge **sans**
+lien, le clic remonte bien — sinon le contrôle passerait sans rien prouver.
+
+Deux endroits portent en plus le mot **écrit en toutes lettres**, parce que c'est là qu'on vient
+chercher les documents : le bas de la fiche chantier (à côté de « Modifier ») et l'en-tête du
+dossier d'une affaire (à côté de « Voir la fiche chantier »).
+
+### CE QUE CE TRAVAIL A TROUVÉ DANS LA DONNÉE
+
+- **Le champ `dossierDropbox` de `SEED_DATA` n'était lu par AUCUNE ligne de la page.** Renseigné
+  sur 22 fiches sur 72, dans trois formats (chemin absolu, chemin relatif à antislashs, un cas à
+  antislash **double**), et la moitié pointant vers des dossiers depuis renommés. Il reste utilisé
+  par `veille-documents.ps1` et `controle-chantiers.ps1` — **ne pas le supprimer** — mais il n'est
+  plus la source des liens. *Le brancher sur `DROPBOX_CHANTIERS` ferait taire une bonne partie du
+  bruit de `controle-chantiers.ps1` : à faire, pas encore fait.*
+- **`ARTERIA/Hospitalet - Merens - Le Teich 26-40`** : zéro manquant. À renommer `26-040`.
+- **`Ligne aérienne/Verney - St Guillerme 26-080`** porte le numéro **26-080** alors que la fiche
+  du suivi est **26-045** — même affaire (devis 26008 Verney - St Guillerme), deux numéros.
+  L'alias tient le lien en attendant ; **c'est à Patrice de trancher lequel garder.**
+- **Sept fiches sur 72 n'ont aucun dossier reconnaissable** (six terminées, une active) et
+  **22 affaires vivantes sur 112** non plus — pour la plupart au stade « devis envoyé », donc
+  normal. Les quatre qui comptent sont en travaux : 26-019, 26-072, 26-095, 26-096.
+
+### Vérifié — `partage/bloc-test-dropbox.html`, 36 contrôles, 0 échec
+
+Chaque contrôle a son contre-exemple, et **le banc a été rejoué sur la version d'avant : 26 échecs**
+— il sait donc dire non. Les contrôles qui comptent : l'adresse est celle de l'API Dropbox (écrite
+en dur), un numéro inconnu ne reçoit **aucun** lien, le clic ne traverse pas (et traverse bien
+quand il n'y a pas de lien), les deux lots de Chaineau pointent chacun sur le sien, plus aucun
+badge n'est écrit à la main, et **la liste des sept fiches sans dossier est écrite en dur** — le
+jour où Patrice en renomme une, ce contrôle échoue, et c'est le signal qu'il faut la retirer.
+
+Rejoués sans régression : `bloc-test-affaires` 94, `bloc-test-saisie-affaires` 91,
+`bloc-test-reserve-grille` 47, `bloc-test-rayures-ecarts` 24, `bloc-test-couleurs` 10,
+`bloc-test-validation-suivi` 16. Les deux blocs `<script>` compilent, 0 `Ã`.
+**`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.**
+
+> **DEUX BANCS ÉTAIENT DÉJÀ ROUGES AVANT CE LOT, et il faut les solder.**
+> `bloc-test-cible-note` (13 échecs) et `bloc-test-cible-croix` (2). Vérifié en les rejouant sur le
+> commit précédent : **exactement les mêmes chiffres**, ce ne sont pas des régressions. Leurs
+> sélecteurs datent d'avant la refonte de la réserve du 10/09 et tombent maintenant sur les
+> nouvelles rangées (`plResCell plResTeams`, `plDate`). Reste à établir si la cible du crayon est
+> réellement abîmée ou si seuls les bancs le sont — **un banc rouge en permanence finit ignoré, et
+> il emporte avec lui les contrôles justes qui l'entourent.**
+
+### Un piège de banc d'essai, à connaître avant d'en rejouer un
+
+Les `bloc-test-*.html` sont des **blocs** : ils se concatènent APRÈS la page, ils ne s'ouvrent pas
+seuls. Et `grep VERDICT` sur le DOM ramène le **source** du script, pas son résultat — il faut lire
+le contenu de `<pre id="verdictTest">`, et lui seul. Deux fois de suite ce jour-là, la première
+lecture a fait croire à un échec généralisé qui n'existait pas.
