@@ -6094,6 +6094,14 @@ chantier dans des absences. Et **deux lignes « TOTAL » sont restées fausses**
 (Didier PERRIN affiche 35 h pour 43 h, Benjamin SOUPA 35 h pour 21 h + 14 h de paternité) : ce sont
 les **totaux PAR JOUR** qui font foi, pas le total de la semaine.
 
+**UNE SEULE FEUILLE A ÉTÉ REMISE EN FORME, ET C'EST PATRICE QUI L'A DEMANDÉ (10/09/2026).** Les
+quatre libellés de la S34 de Benjamin DIRAT donnaient à l'écran une ligne remplie et **trois lignes
+vides** ; sa décision : « tu peux regrouper ». Ils sont réunis sur la ligne qui porte les heures,
+dans son ordre — *Avarie arudy - Le hourat - Fin de semaine - Poste de Portet*, 11/11/7/7/7. **Aucun
+mot retiré, aucune heure déplacée.** C'est la seule feuille des 39 dont la forme s'écarte de la
+source, et il faut que ça reste l'exception : les autres sont reprises telles quelles, y compris
+quand le technicien a écrit son chantier en minuscules ou sans nom du tout.
+
 **Ce qui vit dans le code** (`appli-techniciens/index.html`) : `SEED_FEUILLES` (le tableau des 39
 feuilles, au format exact du magasin local), `feuilleVierge()` et `installerFeuillesPassees()`,
 appelée depuis `selectTech` **avant que l'écran de l'appli n'apparaisse** — sinon

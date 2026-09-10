@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-09-5';
+var APP_VERSION = '2026-09-10-1';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-09-5';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Tes semaines S34, S35 et S36 ne sont plus vides : les feuilles déjà transmises au bureau sont revenues dans l'appli, pour mémoire. La date d'envoi est écrite sous le bouton — tu n'as rien à renvoyer.";
+var APP_NOUVEAUTE = "Tes semaines S34, S35 et S36 ne sont plus vides : les feuilles déjà transmises au bureau sont revenues dans l'appli, telles qu'elles avaient été remplies. Elles sont là pour mémoire — la date d'envoi est écrite sous le bouton, tu n'as rien à renvoyer.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1912,6 +1912,13 @@ async function loadAndRenderHours(){
       s'affiche sous le bouton d'envoi. Sans ça, un technicien qui
       retrouve trois semaines pleines peut croire qu'il doit les renvoyer.
 
+   UNE SEULE FEUILLE A ÉTÉ REMISE EN FORME, ET C'EST PATRICE QUI L'A
+   DEMANDÉ (10/09/2026). Benjamin DIRAT avait écrit quatre libellés en
+   colonne B de sa S34, dont un seul portait des heures : à l'écran ça
+   faisait une ligne remplie et trois lignes vides. Ses quatre libellés
+   sont regroupés sur la ligne qui porte les heures, dans son ordre —
+   aucun mot retiré, aucune heure déplacée.
+
    NE PAS étendre ce tableau à une semaine en cours ou à venir : il ne
    décrit que du passé déjà transmis au bureau. Une semaine qui n'est pas
    finie se remplit dans l'appli, pas ici.
@@ -1928,7 +1935,7 @@ const SEED_FEUILLES = [
   {"tech":"Anthony DENIS","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"Portet","lieu":"","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"","immat":"","commentaires":"","envoyeLe":"2026-08-21T08:54:00"}},
   {"tech":"Anthony DENIS","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"","immat":"HK-008-Kx","commentaires":"","envoyeLe":"2026-08-28T17:30:47"}},
   {"tech":"Anthony DENIS","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_8479ntwq","nom":"Fleyriat - Brou - La Cluse","lieu":"Ligne(s) Fleyriat - Brou - La Cluse / Cize (GMR travaux OPPC)","client":"RODA","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"","immat":"","commentaires":"","envoyeLe":"2026-09-04T06:20:47"}},
-  {"tech":"Benjamin DIRAT","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"Avarie arudy","lieu":"","client":"","jours":{}},{"id":null,"nom":"Le hourat","lieu":"","client":"","jours":{"0":{"j":11},"1":{"j":11},"2":{"j":7},"3":{"j":7},"4":{"j":7}}},{"id":null,"nom":"Fin de semaine","lieu":"","client":"","jours":{}},{"id":null,"nom":"Poste de Portet","lieu":"","client":"","jours":{}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"0":1,"1":1},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-08-25T17:44:00"}},
+  {"tech":"Benjamin DIRAT","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"Avarie arudy - Le hourat - Fin de semaine - Poste de Portet","lieu":"","client":"","jours":{"0":{"j":11},"1":{"j":11},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"0":1,"1":1},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-08-25T17:44:00"}},
   {"tech":"Benjamin DIRAT","annee":2026,"semaine":35,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"44750","immat":"HG-260-RR","commentaires":"Plaque d’immatriculation camion Benjamin soupa que j’ai en ma possession car absent . \n\nRAS ","envoyeLe":"2026-08-28T20:54:51"}},
   {"tech":"Benjamin DIRAT","annee":2026,"semaine":36,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"45775","immat":"HG-260-RR","commentaires":"RAS ","envoyeLe":"2026-09-04T13:07:25"}},
   {"tech":"Benjamin SOUPA","annee":2026,"semaine":34,"source":"papier","feuille":{"chantierLines":[{"id":null,"nom":"","lieu":"","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7}}}],"removedAutoIds":[],"absences":[{"key":"paternite","jours":{"3":7,"4":7}}],"pd":{},"gd":{},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-07T13:53:00"}},
