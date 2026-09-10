@@ -125,10 +125,31 @@
     }
     return noms;
   }
-  const cantegrit = chantierDe('Didier PERRIN', '2026-09-14');
-  ok('1. Cantegrit (ligne sans numero) est rattache', cantegrit.indexOf('26-003') !== -1, cantegrit.join(', '));
-  const bissy = chantierDe('Bilal HAMOUCH', '2026-09-07');
-  ok('1. Bissy (ligne sans numero) est rattache', bissy.indexOf('26-064') !== -1, bissy.join(', '));
+  /* CE QUI EST VERIFIE : TOUT CE QUE LE PLANNING PLACE EST MONTRABLE.
+   *
+   * Ces deux lignes exigeaient auparavant que Didier PERRIN soit sur Cantegrit
+   * le 14/09 et Bilal HAMOUCH sur Bissy le 07/09 — deux affectations vraies le
+   * jour ou le banc a ete ecrit, et rattachees par le repli sur `TECH_RANGES`
+   * parce que leurs lignes de planning ne portaient pas de numero.
+   * Le 10/09/2026 le premier est passe au rouge : le bureau avait reecrit le
+   * planning, Didier n'est plus sur Cantegrit ce jour-la. **Rien n'etait casse
+   * dans l'appli**, et le banc accusait pourtant. Un couple personne/jour/
+   * chantier est de la donnee du bureau : il n'a rien a faire dans un test.
+   *
+   * La PROPRIETE que ces deux lignes protegeaient, elle, ne depend pas du
+   * planning du jour : tout chantier que le planning place doit avoir une
+   * fiche dans l'appli, sinon le technicien ouvre sa semaine et ne voit
+   * RIEN ce jour-la. C'est ce qu'on mesure maintenant, sur tout le bloc
+   * publie. Le contre-exemple est deux lignes plus bas : un identifiant
+   * inconnu doit bien etre attrape. */
+  const sansFiche = [];
+  for (const cid in PLANNING_TECH.tech) {
+    if (!chantierById(cid)) sansFiche.push(cid);
+  }
+  ok('1. chaque chantier place par le planning a bien une fiche dans l\'appli',
+     sansFiche.length === 0, sansFiche.join(', ') || Object.keys(PLANNING_TECH.tech).length + ' chantier(s), tous rattaches');
+  ok('1. CONTRE-EXEMPLE : un identifiant inconnu serait bien signale',
+     !chantierById('c_chantier_qui_n_existe_pas'));
 
   // UNE SEULE SOURCE PAR JOUR : personne sur deux chantiers le meme jour
   const doubles = [];

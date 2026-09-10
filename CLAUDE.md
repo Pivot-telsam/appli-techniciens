@@ -6290,3 +6290,219 @@ qu'un caractère perdu.
 un `[ATTENTION]` si un cas nouveau échappe à la table. Sans lui, le prochain commit abîmé repartirait
 en silence dans le fichier que Patrice envoie à ses collègues. Mesuré après correction :
 **0 séquence sur les 1 841 événements**, et 0 dans le fichier entier.
+
+## Trois demandes de Patrice sur le planning (10/09/2026) — volume, réserve, points d'attention
+
+Ses mots : *« rajouter comme il y avait auparavant une sorte de petite ombre sur le côté gauche des
+cases, ça leur donnait un peu de volume »* ; *« il y a trop de chantiers en bas […] il ne doit y
+avoir que les chantiers que nous avons mis nous en prévisionnel sur notre planning Teams, ou ceux
+que nous déposerons nous-mêmes […] j'ai l'impression que tu as mis même des choses sur six mois »* ;
+*« si j'ai des tourets à mesurer en S42 sur un chantier, plutôt que juste poser l'étiquette du
+chantier à cette date-là, j'aimerais que l'étiquette soit différente […] quelque chose qui dit
+attention, là, il y a quelque chose d'important à faire absolument ce jour-là. »*
+
+### 1. Le dos épais à gauche — c'est le liseré de B' qui lui manquait
+
+La variante B' du 08/09 au matin posait un **liseré gauche de 4 px** ; la passe « autocollant » du
+soir même l'a remplacé par un **contour complet de 1,5 px**, et la vignette s'est aplatie. On garde
+le contour fermé — c'est lui qui rend la vignette lisse et qui sépare deux teintes voisines — et on
+rend seulement le côté gauche épais : `border-left-width:4px` sur `.plBulle`, 4 px aussi sur
+`.plChip` (la réserve suit la grille, règle du 08/09).
+
+> **CE N'EST PAS UNE `box-shadow`, et c'est délibéré.** Une ombre portée sur 190 cases crée 190
+> couches de composition, et Windows y abandonne le lissage ClearType — c'est le défaut « texte
+> flou » déjà payé sur le survol. Une bordure ne coûte aucune couche.
+> Et `border-left-width` vient **APRÈS** le raccourci `border`, jamais avant : le raccourci réécrit
+> les quatre largeurs et l'effacerait en silence. Même piège que `background` sur la teinte.
+
+### 2. La réserve ne porte plus que ce que NOUS y avons mis
+
+Patrice avait raison sur les faits. La troisième famille de la réserve (`preplanifProposees`) fait
+tomber dans une semaine **toute affaire dont la fenêtre prévisionnelle la recouvre**, et 18 affaires
+sur 81 annoncent plus de trois mois — jusqu'à 454 jours pour 26-016. Elles apparaissaient donc dans
+**toutes les semaines de l'année**.
+
+> **CE QUI CHANGE PAR RAPPORT AU 09/09, ET POURQUOI CE N'EST PAS UN REVIREMENT.** La veille,
+> j'avais choisi de les MARQUER (« fenêtre large ») plutôt que de les écarter, au motif qu'une
+> pastille absente ne se réclame pas. **La règle reste juste, elle s'appliquait au mauvais objet** :
+> la réserve n'est pas un inventaire de ce que les clients ont annoncé, c'est la liste de ce que
+> l'équipe a décidé de poser. Une annonce vague n'y a pas sa place, **même marquée**.
+
+Le calcul n'est pas supprimé : une **case à cocher** dans la barre du bas (« Voir aussi les dates
+prévisionnelles des affaires ») le rallume à la demande. Elle vit dans une simple variable de page
+et **se remet décochée à chaque ouverture** — c'est voulu : l'état par défaut doit rester « rien
+d'automatique », sinon on retrouve la réserve encombrée sans savoir pourquoi. *Ne pas la ranger
+dans IndexedDB « pour bien faire » : ce serait perdre cette propriété.*
+
+**Les pastilles maigrissent.** Ce qui faisait l'épaisseur n'était pas le nom, c'étaient les **deux
+lignes posées dessous** — le décompte (« personne », « 2 placés ») et la rangée de boutons,
+affichés en permanence sur chaque pastille : 22 px de haut devenaient 58. Donc :
+- le libellé au repos, et rien d'autre. Il **n'est pas tronqué** (règle 7 de la charte) : il se
+  replie sur une deuxième ligne s'il le faut ;
+- le décompte ne s'affiche que s'il porte un chiffre — « personne » est le cas de presque toutes
+  les pastilles de la réserve, c'est même leur définition ;
+- les boutons attendent le survol, dans une **gouttière réservée** à droite. `visibility:hidden` et
+  **pas** `display:none` : sinon la pastille changerait de largeur au passage de la souris, toute la
+  rangée se réorganiserait sous le curseur et on cliquerait à côté. `:focus-within` garde le clavier ;
+- « retirer » devient ✕, et un ⚠ s'ajoute (point 3). Le reste (origine, dates, qui l'a posée)
+  descend dans l'infobulle.
+
+### 3. Les points d'attention — trois signaux, et un rappel en tête de vue
+
+Une préplanification peut désormais porter une **phrase courte** : « mesure des tourets »,
+« réception client », « coupure RTE ». Colonne `alerte` sur la table `preplanif`
+(schéma version 9), posée par `ALTER TABLE` au premier appel de l'API — aucune manip pour Patrice
+sur une base en service. Elle se saisit dans « + Ajouter » (champ facultatif, **placé AVANT la
+liste** : le clic sur un chantier valide la fenêtre, un champ posé dessous serait toujours vide au
+moment où il sert) ou par le ⚠ d'une pastille déjà posée.
+
+**Pas de case à cocher en plus : un motif écrit EST l'alerte.** Une case cochée sans motif ne dirait
+pas à quoi faire attention, et c'est justement ce qu'on veut lire.
+
+La pastille porte alors **trois signaux, et il les faut tous les trois** :
+1. le **contour** passe au rouge brique et s'épaissit (dos à 6 px). Il remplace le contour à la
+   teinte du chantier — c'est le seul endroit du planning où l'identité du chantier cède le pas, et
+   elle ne se perd pas pour autant puisque l'**aplat garde sa teinte** ;
+2. un **halo** clair, qui la détache de ses voisines dans une rangée pleine ;
+3. le **motif écrit en toutes lettres** sous le nom, précédé de ⚠.
+
+> **LE TROISIÈME EST LE PLUS IMPORTANT, et c'est celui qu'on sera tenté de retirer pour regagner la
+> hauteur qu'on vient de gagner ailleurs. NE PAS LE FAIRE** : sans lui, la pastille crie
+> « attention » sans dire à quoi, et il faut ouvrir la fiche pour l'apprendre. Rouge + épaisseur +
+> mot : ça tient au soleil, en noir et blanc, et pour un daltonien.
+
+**UN RAPPEL EN TÊTE DU PLANNING, parce qu'une alerte sur S42 ne se voit que si quelqu'un affiche
+S42 — et personne n'affiche S42 en septembre.** Bandeau `.plAlertes` : les points d'attention des
+13 semaines à venir, la plus proche d'abord, avec « dans N semaines » et un bouton qui emmène sur la
+bonne semaine. L'écart se compte depuis le **lundi affiché** et non depuis aujourd'hui : quand
+Patrice avance de quatre semaines pour préparer, le rappel doit parler de ce qu'il a sous les yeux.
+Le bouton n'apparaît qu'au-delà de la deuxième semaine — les deux premières sont déjà à l'écran.
+
+**L'ALERTE N'EST ÉCRITE QUE SI LE CHAMP EST DANS LE CORPS DE LA REQUÊTE** (`hasOwnProperty`, et une
+clause conditionnelle dans l'`ON CONFLICT`, pas un `COALESCE`). Une pose qui ne le porte pas — le
+bouton « épingler », la pose en série depuis l'onglet Affaires — ne doit pas effacer le point
+d'attention qu'un collègue vient d'écrire, et elle l'aurait fait **en silence** : la pastille serait
+simplement redevenue normale. Un champ envoyé **vide**, lui, efface bel et bien — c'est ainsi qu'on
+retire une alerte.
+
+### Vérifié — 264 contrôles, 0 échec, et à l'écran
+
+`bloc-test-affaires` 94, `bloc-test-saisie-affaires` 91, `bloc-test-rayures-ecarts` 24,
+`bloc-test-cible-note` 23, `bloc-test-validation-suivi` 16, `bloc-test-couleurs` 10,
+`bloc-test-cible-croix` 6. Les deux blocs `<script>` compilent, 0 `Ã`, 0 caractère de remplacement.
+`SEED_DATA` n'est pas touché : **pas de `SEED_VERSION` à bumper**.
+
+**Et à l'écran**, sur un aperçu qui force le mode partagé et injecte trois préplanifications (une
+avec alerte en S37, une sans en S38, une avec alerte en S42) : le bandeau des deux points
+d'attention, la pastille rouge « ⚠ Mesure des tourets » au milieu des pastilles minces, et le dos
+épais des vignettes de la grille.
+
+> **PIÈGE DE BANC D'ESSAI, PAYÉ ICI ET DÉJÀ CONNU SOUS UNE AUTRE FORME.**
+> `bloc-test-cible-note` et `bloc-test-cible-croix` sortaient **13 et 2 échecs** — sur le fichier
+> corrigé **comme sur celui d'avant**, donc sans aucun rapport avec ce lot. Cause : Chrome headless
+> ouvre par défaut une fenêtre étroite, les cases visées tombent **hors du viewport**, et
+> `elementFromPoint` rend `null` pour tout point hors écran. Avec `--window-size=1600,1200` les deux
+> bancs passent (23/23 et 6/6). **Toujours passer `--window-size` aux bancs qui mesurent une cible**,
+> et ne jamais conclure à une régression sans rejouer le banc sur le fichier d'avant.
+
+---
+
+## « Pourquoi je n'ai pas eu la veille du matin ? » (10/09/2026)
+
+Question de Patrice à 8h30. Trois causes distinctes, aucune n'était visible depuis son écran.
+
+### 1. LA TÂCHE DE 7h30 N'A PAS TOURNÉ — le PC dormait
+
+Mesuré, pas supposé : `NumberOfMissedRuns = 1`, dernier passage le **09/09 à 13h00**, et
+`Kernel-Power` montre une mise en veille à **03h48** puis un réveil à **07h59**. À 7h30 la machine
+dormait, donc la tâche a été **manquée** — elle est en `LogonType Interactive`, elle ne tourne que
+session ouverte.
+
+**ET LE RATTRAPAGE NE S'EST PAS DÉCLENCHÉ AU RÉVEIL**, alors que `StartWhenAvailable` est bien à
+`True` : trente minutes après la reprise, `NextRunTime` annonçait déjà **13h00**, pas un
+rattrapage. C'est le trou qui reste : *le passage du matin ne se fait pas si le PC dort à 7h30 et
+se réveille après.* Rien ne l'annonce à Patrice — il ne voit qu'une bulle absente.
+
+**Ce qui a été fait dans l'immédiat** : la chaîne a été relancée à la main (8h33), et tout ce qui
+suit vient de ce passage. **Ce qui reste à décider, et c'est à Patrice** : réveiller le PC pour la
+tâche (`-WakeToRun`, souvent neutralisé par le plan d'alimentation), ou ajouter un déclencheur à la
+reprise de session. Ne pas trancher seul : c'est un réglage de SA machine.
+
+### 2. DEUX ÉTAPES DE LA CHAÎNE ÉCHOUAIENT DEPUIS DEUX JOURS, EN SILENCE POUR LUI
+
+`matin.json` les signalait (c'est son rôle depuis le 02/09), mais **rien ne le lui disait** : le
+récap ne s'ouvre que s'il clique, et la bulle ne parle pas des étapes.
+
+**« Comptage des boîtes » — cassé depuis le 08/09.** `BOITES_TACHES` porte un commentaire
+`/* ... */` depuis la création de 26-117, et **`ConvertFrom-Json` refuse un commentaire**. Le
+script mourait sur `LireConstante`, donc `POSES_APPLI`, `AVANCEMENT_CHANTIERS` et
+`AVANCEMENT_DECLARE` ne bougeaient plus : **les poses déclarées par les techniciens n'arrivaient
+plus dans le suivi ni dans l'appli.**
+- `SansCommentaires()` retire les commentaires **hors chaînes** (un `//` vit dans chaque adresse
+  https, et un libellé de chantier peut contenir n'importe quoi).
+- Le comptage d'accolades ignore lui aussi chaînes et commentaires : une accolade écrite dans un
+  commentaire fermait la constante trop tôt, et l'erreur qui suivait ne disait pas où était le
+  problème.
+- **Ne pas « corriger » ça en retirant le commentaire du HTML** : il est utile, et un autre
+  reviendra. C'est la lecture qui devait savoir les lire.
+
+**« Historique des affaires » — n'avait JAMAIS tourné depuis la tâche.** Écrit la veille au soir,
+son paramètre valait `"$PSScriptRoot\..\suivi_chantiers_205.html"`.
+
+> **PIÈGE POWERSHELL 5.1 : `$PSScriptRoot` est VIDE dans la valeur par défaut d'un paramètre.**
+> Il n'est renseigné que dans le CORPS du script. Le chemin devenait donc
+> `\..\suivi_chantiers_205.html`, résolu en `C:\suivi_chantiers_205.html`, et le message ne parlait
+> que d'un fichier introuvable à la racine du disque. Les chemins par défaut se calculent
+> **après** le bloc `param`. Vérifié par une sonde : `[C:\...\scratchpad]` dans le corps,
+> `[\..\cible.txt]` dans le paramètre.
+
+Les deux étapes ont été rejouées : **9 boîtes posées** écrites, **1 844 événements** sur
+79 chantiers, `[encodage] aucun evenement abime`.
+
+### 3. CE QUE LA VEILLE DU JOUR DEMANDAIT VRAIMENT — un seul élément sur quatre
+
+**26-027 Hospitalet - La Tour de Carol** : `ADD-PDP-RTE-MED-XPE.pdf`, déposé le 09/09 à 18h33.
+C'est un **additif aux plans de prévention** : consigne temporaire « risque incendie »
+`RTE_2026_0887101_0`, applicable **jusqu'au 30/09/2026**, et **TELSAM y est nommée** parmi les
+entreprises qui doivent l'appliquer, avec **Christian CAZENAVE** comme signataire.
+- Copié dans **App Tech** (il ne remplace rien, aucun additif n'y était).
+- **Ce que le document révèle, et qui vaut plus que lui** : il désigne comme plan de prévention de
+  la liaison le **2026-PYR-EEL-003 V05 du 16/07/26**. Dropbox n'a que la **V0** (19/06) et la
+  **V03** (22/06), et App Tech la V0 : **la V05 n'est pas en notre possession**. Il cite aussi un
+  PDP de poste (`2026-LARO-AUDE_PO-L.CAR-001 indice 02`), absent lui aussi — or entrer dans le
+  poste sans PDP de poste est la faute que la règle du 25/08 interdit.
+- Fiche mise à jour **dans les deux dépôts** : `pdp` passe de `nc` à **`warn`** avec sa référence
+  et son indice réel (la fiche disait « aucun PDP reçu » alors qu'un PDP est dans App Tech depuis
+  juin), trois alertes précises côté suivi, une alerte en langage technicien côté appli.
+- **Le PGO n'a PAS été touché** : `PGO-CERDA3-liaison-V09` est bien dans App Tech, mais son texte
+  ne nomme TELSAM **nulle part** (0 occurrence, SPIE 5). La couverture TELSAM reste donc à
+  confirmer auprès d'INEO RHT — c'est dit dans une alerte, pas deviné dans un statut.
+
+Les trois autres éléments du rapport sont des **faux positifs déjà tranchés** : l'IST INEO de
+Cantegrit (règle du 27/08 — le document ne nomme pas TELSAM), le PPSPS INEO de Cross-Sausset, et
+la NDS de Fleyriat (le `.docx` est le même document que le `.pdf` déjà en place).
+
+### 4. DEUX BANCS D'ESSAI DE L'APPLI SONT PASSÉS AU ROUGE SUR UN SUCCÈS
+
+Le planning réécrit le matin a fait échouer **six contrôles** — et **rien n'avait changé dans
+l'appli**. C'est la troisième fois en trois jours, toujours la même faute de forme.
+
+| ce qui était figé | ce qui le remplace |
+|---|---|
+| `test-charte-apptech` : « Pascal BONAVENTURE, semaine +1, celle qui a de la matière » (5 échecs, « 0 carte ») | le couple (technicien, semaine) est **cherché dans la donnée** sur trois semaines, et **imprimé** ; s'il n'y en a aucun, c'est un vrai défaut et le contrôle le dit |
+| `test-planning-appli` : « Didier PERRIN est sur Cantegrit le 14/09 » | la **propriété** que ce contrôle protégeait : tout chantier que le planning place a bien une fiche dans l'appli — sinon le technicien ouvre sa semaine et ne voit rien. Avec son contre-exemple |
+
+> **UN COUPLE PERSONNE / JOUR / CHANTIER EST DE LA DONNÉE DU BUREAU : il n'a rien à faire dans un
+> test.** Le planning est réécrit deux fois par jour par cinq personnes. Tout banc qui en fige un
+> extrait finira rouge sur un succès, et une suite rouge n'est plus lue — elle emporte les 110
+> contrôles justes qui l'entourent.
+
+**État après correction : 238 contrôles côté appli, 0 échec** (`test-feuilles-passees` 40,
+`test-charte-apptech` 118, `test-planning-appli` 37, `test-validation` 26,
+`test-conges-paternite` 17).
+
+*Et un fichier qui n'a PAS été committé, volontairement : `suivi_chantiers_205.html` portait, en
+plus de ma mise à jour de fiche, une modification d'interface en cours qui n'est pas de moi (le
+« dos épais à gauche » des cases, daté du 10/09). Committer le travail inachevé d'une autre session
+n'est pas à moi de le faire — mes deux corrections de scripts sont parties seules, et la fiche
+26-027 partira avec le prochain commit du suivi.*

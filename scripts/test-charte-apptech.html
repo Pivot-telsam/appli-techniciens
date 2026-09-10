@@ -109,13 +109,34 @@
   ok('3. et il ne se declenche pas sur la typographie francaise',
      emojiDans('du 14/09 au 18/09 — « ne reserve rien », l’indice n°6') === '');
 
-  const moi = 'Pascal BONAVENTURE';
+  /* ON CHOISIT LE TECHNICIEN ET LA SEMAINE DANS LA DONNEE, JAMAIS EN DUR.
+   * Ce banc encodait « Pascal BONAVENTURE, semaine +1 (celle qui a de la
+   * matiere) ». Le 10/09/2026 il est passe au rouge sur CINQ controles
+   * (« 0 carte ») alors que rien n'avait change dans l'appli : le bureau
+   * avait simplement reecrit le planning Teams, et Pascal n'etait plus place
+   * cette semaine-la. Un banc qui fige un nom et une semaine finit rouge sur
+   * un succes, et une suite rouge cesse d'etre lue - elle emporte alors les
+   * 110 controles justes qui l'entourent.
+   * On cherche donc le premier couple (technicien, semaine) que le planning
+   * publie reellement, et on IMPRIME lequel : le jour ou il n'y en a aucun,
+   * c'est un vrai defaut et le controle le dit. */
+  let moi = null, offCartes = 0;
+  for (let o = 0; o <= 2 && !moi; o++) {
+    const { mon, sun } = weekRange(o);
+    for (const t of TECHS) {
+      if (getWeekChantiers(t, mon, sun).length) { moi = t; offCartes = o; break; }
+    }
+  }
+  R.push('     couple choisi dans la donnee : ' + (moi || 'AUCUN') + ', semaine ' + (offCartes >= 0 ? '+' + offCartes : offCartes));
+  ok('3. le planning place au moins une personne sur les trois prochaines semaines',
+     !!moi, moi ? moi + ' (semaine +' + offCartes + ')' : 'personne nulle part');
+  if (!moi) { moi = TECHS[0]; }
   currentTech = moi;
   document.getElementById('appScreen').style.display = 'block';
   document.getElementById('pickScreen').style.display = 'none';
   document.getElementById('gateScreen').style.display = 'none';
   document.getElementById('whoName').textContent = moi;
-  currentOffset = 1;                    // la semaine 38, celle qui a de la matiere
+  currentOffset = offCartes;            // la semaine trouvee juste au-dessus, pas une semaine figee
   render();
   const zoneCartes = document.getElementById('cardList');
   ok('3. il y a bien des cartes a examiner', zoneCartes.querySelectorAll('.card').length > 0,
@@ -398,7 +419,7 @@
   ok('11. il porte une icone dessinee, pas un emoji',
      vide && !!vide.querySelector('svg.ic') && emojiDans(vide.textContent) === '');
   // Contre-exemple 1 : sur une semaine servie, aucun etat vide.
-  currentOffset = 1; render();
+  currentOffset = offCartes; render();
   ok('11. contre-exemple : une semaine servie n affiche aucun etat vide',
      !document.querySelector('#cardList .empty')
        && document.querySelectorAll('#cardList .card').length > 0,
@@ -419,7 +440,7 @@
     ok('11. contre-exemple : pour un vrai technicien, elle existe',
        offsetDerniereSemainePlanifiee() !== null,
        JSON.stringify(offsetDerniereSemainePlanifiee()));
-    currentOffset = 1; render();
+    currentOffset = offCartes; render();
   }
 
   // =====================================================================
