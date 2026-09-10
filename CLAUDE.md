@@ -6347,210 +6347,142 @@ affichés en permanence sur chaque pastille : 22 px de haut devenaient 58. Donc 
 - « retirer » devient ✕, et un ⚠ s'ajoute (point 3). Le reste (origine, dates, qui l'a posée)
   descend dans l'infobulle.
 
-### 3. Les points d'attention — trois signaux, et un rappel en tête de vue
+### 3. Les points d'attention — ESSAYÉS ET ABANDONNÉS LE JOUR MÊME
 
-Une préplanification peut désormais porter une **phrase courte** : « mesure des tourets »,
-« réception client », « coupure RTE ». Colonne `alerte` sur la table `preplanif`
-(schéma version 9), posée par `ALTER TABLE` au premier appel de l'API — aucune manip pour Patrice
-sur une base en service. Elle se saisit dans « + Ajouter » (champ facultatif, **placé AVANT la
-liste** : le clic sur un chantier valide la fenêtre, un champ posé dessous serait toujours vide au
-moment où il sert) ou par le ⚠ d'une pastille déjà posée.
+Une préplanification pouvait porter une phrase (« mesure des tourets ») ; la pastille passait alors
+en rouge, avec un rappel en tête de vue puis, à sa demande, sans rappel et en tête de sa rangée.
+**Retiré dans la journée. Patrice : « on va laisser tomber l'alerte comme tu l'as mise, ça ne me
+convient pas — et d'ailleurs ça ne fonctionne pas, je ne vois pas le bouton. »**
 
-**Pas de case à cocher en plus : un motif écrit EST l'alerte.** Une case cochée sans motif ne dirait
-pas à quoi faire attention, et c'est justement ce qu'on veut lire.
+> **LES DEUX REPROCHES ÉTAIENT JUSTES, ET LE SECOND EXPLIQUE LE PREMIER.** Le ⚠ qui servait à
+> écrire le motif n'apparaissait **qu'au survol** de la pastille, et il ne s'affichait **pas du
+> tout** quand le chantier figurait déjà dans la réserve Teams de cette semaine-là : la
+> préplanification était alors fondue dans la ligne du planning (`if(vus.has(m)) return;`) et
+> perdait ses boutons. Il jugeait donc une fonction qu'il n'avait jamais pu essayer.
+>
+> **DEUX RÈGLES EN SORTENT, et la grille qui a remplacé tout ça les applique :**
+> 1. **un bouton caché au survol n'existe pas.** Dans une vue dense, l'économie de place se prend
+>    ailleurs — pas sur ce qui doit être trouvé. Les boutons de la grille du bas sont visibles en
+>    permanence, et un contrôle du banc le vérifie ;
+> 2. **ne jamais fondre deux registres en une seule ligne.** Une préplanification et une ligne du
+>    planning Teams cohabitent désormais **case par case** ; aucune n'absorbe l'autre.
 
-La pastille porte alors **trois signaux, et il les faut tous les trois** :
-1. le **contour** passe au rouge brique et s'épaissit (3 px, dos à 8 px). Il remplace le contour à
-   la teinte du chantier — c'est le seul endroit du planning où l'identité du chantier cède le pas,
-   et elle ne se perd pas pour autant puisque l'**aplat garde sa teinte** ;
-2. un **double anneau** : un liseré blanc de 2 px, puis un anneau rouge plein de 3 px. C'est
-   l'anneau extérieur saturé qui fait le travail — un halo pâle se noyait dans la barre claire de
-   la réserve. Le blanc intermédiaire n'est pas décoratif : sans lui, l'anneau touche le contour et
-   les deux se fondent en un seul gros bord mou ;
-3. le **motif écrit en toutes lettres** sous le nom, précédé de ⚠.
-
-> **LE TROISIÈME EST LE PLUS IMPORTANT, et c'est celui qu'on sera tenté de retirer pour regagner la
-> hauteur qu'on vient de gagner ailleurs. NE PAS LE FAIRE** : sans lui, la pastille crie
-> « attention » sans dire à quoi, et il faut ouvrir la fiche pour l'apprendre. Rouge + épaisseur +
-> mot : ça tient au soleil, en noir et blanc, et pour un daltonien.
-
-**PAS DE BANDEAU DE RAPPEL EN TÊTE DE VUE — j'en avais posé un, Patrice l'a retiré le jour même, et
-il a raison.** Ses mots : *« ce n'est pas la peine de mettre le bandeau rouge, ça va polluer la
-vision du planning ; juste le mettre la semaine concernée. Je n'ai pas besoin de savoir trois
-semaines à l'avance que je vais avoir des tourets à faire. Par contre, je ne veux pas les oublier la
-semaine où j'aurai besoin de les faire. »*
-
-> **CE QUE J'AVAIS MAL RAISONNÉ.** J'avais appliqué « une pastille absente ne se réclame pas » à un
-> cas où la pastille **n'est pas absente** : elle est posée sur sa semaine et elle apparaît d'elle-même
-> dès que cette semaine arrive à l'écran. Le bandeau ne répondait donc à aucun manque — il affichait
-> tous les jours, en rouge et en tête de planning, une échéance à trois mois. C'est la recette d'un
-> bandeau qu'on cesse de lire, et le jour où il compte vraiment il ne se voit plus. **Ne pas le
-> remettre.**
-
-**CE QUI GARANTIT QU'ON NE L'OUBLIE PAS LE JOUR VENU, et qu'il ne faut donc pas défaire : la
-pastille d'alerte OUVRE la rangée de sa semaine** (tri stable en tête de `majChipsPlanning`). Ce
-n'est pas un détail de présentation : la liste de pastilles est bornée à 132 px et **défile**. Une
-semaine chargée en porte une vingtaine — un point d'attention posé en dernier tomberait sous la
-ligne de défilement, donc invisible exactement la semaine où il faut le voir.
-
-**L'ALERTE N'EST ÉCRITE QUE SI LE CHAMP EST DANS LE CORPS DE LA REQUÊTE** (`hasOwnProperty`, et une
-clause conditionnelle dans l'`ON CONFLICT`, pas un `COALESCE`). Une pose qui ne le porte pas — le
-bouton « épingler », la pose en série depuis l'onglet Affaires — ne doit pas effacer le point
-d'attention qu'un collègue vient d'écrire, et elle l'aurait fait **en silence** : la pastille serait
-simplement redevenue normale. Un champ envoyé **vide**, lui, efface bel et bien — c'est ainsi qu'on
-retire une alerte.
-
-### Vérifié — 264 contrôles, 0 échec, et à l'écran
-
-`bloc-test-affaires` 94, `bloc-test-saisie-affaires` 91, `bloc-test-rayures-ecarts` 24,
-`bloc-test-cible-note` 23, `bloc-test-validation-suivi` 16, `bloc-test-couleurs` 10,
-`bloc-test-cible-croix` 6. Les deux blocs `<script>` compilent, 0 `Ã`, 0 caractère de remplacement.
-`SEED_DATA` n'est pas touché : **pas de `SEED_VERSION` à bumper**.
-
-**Et à l'écran**, sur un aperçu qui force le mode partagé et injecte trois préplanifications (une
-avec alerte en S37, une sans en S38, une avec alerte en S42) : la pastille rouge
-« ⚠ Mesure des tourets » **en tête** de la rangée S37, au milieu des pastilles minces ; **rien** de
-l'alerte de S42, qui n'est pas à l'écran et n'a donc pas à s'annoncer ; et le dos épais des
-vignettes de la grille.
-
-> **PIÈGE DE BANC D'ESSAI, PAYÉ ICI ET DÉJÀ CONNU SOUS UNE AUTRE FORME.**
-> `bloc-test-cible-note` et `bloc-test-cible-croix` sortaient **13 et 2 échecs** — sur le fichier
-> corrigé **comme sur celui d'avant**, donc sans aucun rapport avec ce lot. Cause : Chrome headless
-> ouvre par défaut une fenêtre étroite, les cases visées tombent **hors du viewport**, et
-> `elementFromPoint` rend `null` pour tout point hors écran. Avec `--window-size=1600,1200` les deux
-> bancs passent (23/23 et 6/6). **Toujours passer `--window-size` aux bancs qui mesurent une cible**,
-> et ne jamais conclure à une régression sans rejouer le banc sur le fichier d'avant.
+La colonne `alerte` reste en base et l'API continue de la lire et de l'écrire — la page ne l'affiche
+plus, mais une ligne écrite entre-temps ne doit pas disparaître en silence. **Ne pas supprimer la
+colonne d'une base en service pour « nettoyer ».**
 
 ---
 
-## « Pourquoi je n'ai pas eu la veille du matin ? » (10/09/2026)
+## LA RÉSERVE DEVIENT UNE GRILLE JOUR PAR JOUR (10/09/2026)
 
-Question de Patrice à 8h30. Trois causes distinctes, aucune n'était visible depuis son écran.
+**Demande de Patrice, mot pour mot** : *« les chantiers sur le planning qui sont en bas, la case
+doit être divisée en colonnes de jour comme pour le planning. En gros, le planning doit descendre et
+être la même chose en bas jour par jour, ce qui nous permettra d'affecter directement les chantiers,
+soit la semaine, soit si nous avons une intervention à faire sur un jour particulier, sur ce
+jour-là. Donc plus de classement horizontal en bas des chantiers préplanifiés, une répartition en
+colonnes par jour, en prolongement de celle qui est au-dessus du planning […] les chantiers seront
+les uns au-dessus des autres. »*
 
-### 1. LA TÂCHE DE 7h30 N'A PAS TOURNÉ — le PC dormait
+**CE QUE ÇA CHANGE VRAIMENT N'EST PAS LA FORME.** Une préplanification disait « ce chantier est
+attendu cette semaine-là », et rien d'autre. Quand le client annonce une ICP le mardi et rien de
+plus, il n'y avait aucun moyen de l'écrire : la semaine entière paraissait prise. Une
+préplanification a donc maintenant des **jours** et une **activité**.
 
-Mesuré, pas supposé : `NumberOfMissedRuns = 1`, dernier passage le **09/09 à 13h00**, et
-`Kernel-Power` montre une mise en veille à **03h48** puis un réveil à **07h59**. À 7h30 la machine
-dormait, donc la tâche a été **manquée** — elle est en `LogonType Interactive`, elle ne tourne que
-session ouverte.
+### La donnée
 
-**ET LE RATTRAPAGE NE S'EST PAS DÉCLENCHÉ AU RÉVEIL**, alors que `StartWhenAvailable` est bien à
-`True` : trente minutes après la reprise, `NextRunTime` annonçait déjà **13h00**, pas un
-rattrapage. C'est le trou qui reste : *le passage du matin ne se fait pas si le PC dort à 7h30 et
-se réveille après.* Rien ne l'annonce à Patrice — il ne voit qu'une bulle absente.
+Deux colonnes de plus sur `preplanif` (schéma **version 10**, posées par `ALTER TABLE` au premier
+appel de l'API — aucune manip pour Patrice sur une base en service) :
 
-**Ce qui a été fait dans l'immédiat** : la chaîne a été relancée à la main (8h33), et tout ce qui
-suit vient de ce passage. **Ce qui reste à décider, et c'est à Patrice** : réveiller le PC pour la
-tâche (`-WakeToRun`, souvent neutralisé par le plan d'alimentation), ou ajouter un déclencheur à la
-reprise de session. Ne pas trancher seul : c'est un réglage de SA machine.
+| colonne | forme | remarque |
+|---|---|---|
+| `jours` | chiffres ISO dans une chaîne : `'3'` = mercredi, `'12345'` ou **vide** = toute la semaine | **VIDE VEUT DIRE TOUTE LA SEMAINE**, et ce n'est pas un raccourci : c'est la valeur de toutes les lignes posées avant ce jour. Le lire comme « aucun jour » ferait disparaître l'existant sans rien afficher d'anormal. Le jour est stocké en NUMÉRO, pas en date : la semaine est déjà dans la clé, une date pourrait la contredire. |
+| `activite` | `icp` \| `touret` \| `mtfo` \| `travaux`, ou vide | **la liste est tenue deux fois** — `PREPLANIF_ACTIVITES` dans la page, `ACTIVITES` dans `functions/api/preplanif.js`. L'API refuse tout ce qui n'y est pas : en ajouter une seulement dans la page donnerait un refus incompréhensible. Le banc compare les deux listes, fichier contre fichier. |
 
-### 2. DEUX ÉTAPES DE LA CHAÎNE ÉCHOUAIENT DEPUIS DEUX JOURS, EN SILENCE POUR LUI
+`activite` et `jours` suivent la règle déjà posée pour `alerte` : **on n'écrit que ce qui est envoyé**
+(`hasOwnProperty` côté serveur, clause conditionnelle dans l'`ON CONFLICT`). Un clic sur une case ne
+connaît que les jours — il ne doit pas effacer l'activité choisie depuis l'onglet Affaires, et il
+l'aurait fait en silence.
 
-`matin.json` les signalait (c'est son rôle depuis le 02/09), mais **rien ne le lui disait** : le
-récap ne s'ouvre que s'il clique, et la bulle ne parle pas des étapes.
+### Trois registres dans la même rangée, et ils ne se confondent pas
 
-**« Comptage des boîtes » — cassé depuis le 08/09.** `BOITES_TACHES` porte un commentaire
-`/* ... */` depuis la création de 26-117, et **`ConvertFrom-Json` refuse un commentaire**. Le
-script mourait sur `LireConstante`, donc `POSES_APPLI`, `AVANCEMENT_CHANTIERS` et
-`AVANCEMENT_DECLARE` ne bougeaient plus : **les poses déclarées par les techniciens n'arrivaient
-plus dans le suivi ni dans l'appli.**
-- `SansCommentaires()` retire les commentaires **hors chaînes** (un `//` vit dans chaque adresse
-  https, et un libellé de chantier peut contenir n'importe quoi).
-- Le comptage d'accolades ignore lui aussi chaînes et commentaires : une accolade écrite dans un
-  commentaire fermait la constante trop tôt, et l'erreur qui suivait ne disait pas où était le
-  problème.
-- **Ne pas « corriger » ça en retirant le commentaire du HTML** : il est utile, et un autre
-  reviendra. C'est la lecture qui devait savoir les lire.
+- **ce que le planning Teams porte cette semaine-là** : toute la semaine, et **pas de clic**. Le
+  fichier Teams reste le maître (règle du 01/09/2026) ; croire l'avoir modifié d'ici serait pire que
+  de ne pas pouvoir le faire. Le bouton « toute la semaine » de cette semaine est grisé, et le
+  `title` dit pourquoi ;
+- **ce que nous avons posé** : la case se clique, elle s'ajoute et se retire, elle porte le nom de
+  l'activité ;
+- **une proposition** tirée des dates prévisionnelles (seulement si la case du haut est cochée) :
+  pointillé, et un clic la transforme en vraie pose.
 
-**« Historique des affaires » — n'avait JAMAIS tourné depuis la tâche.** Écrit la veille au soir,
-son paramètre valait `"$PSScriptRoot\..\suivi_chantiers_205.html"`.
+> **C'EST CE QUI EST À NOUS QUI EST MARQUÉ, PAS CE QUI VIENT DE TEAMS — et ce choix a été fait après
+> l'avoir vu à l'écran dans l'autre sens.** Premier jet : les cases de Teams étaient hachurées. Or
+> elles sont la quasi-totalité de la grille du bas, si bien que toute la réserve devenait un damier
+> — exactement le « ça salit la teinte » reproché aux reflets le 08/09. Et la hachure a déjà un sens
+> dans cette vue (absence à 45°, ICP à 135°) : la réemployer aurait brouillé une lecture qu'on
+> venait d'établir. Ce sont donc nos poses, peu nombreuses et les seules actionnables, qui portent
+> un anneau blanc intérieur et le nom de l'activité.
 
-> **PIÈGE POWERSHELL 5.1 : `$PSScriptRoot` est VIDE dans la valeur par défaut d'un paramètre.**
-> Il n'est renseigné que dans le CORPS du script. Le chemin devenait donc
-> `\..\suivi_chantiers_205.html`, résolu en `C:\suivi_chantiers_205.html`, et le message ne parlait
-> que d'un fichier introuvable à la racine du disque. Les chemins par défaut se calculent
-> **après** le bloc `param`. Vérifié par une sonde : `[C:\...\scratchpad]` dans le corps,
-> `[\..\cible.txt]` dans le paramètre.
+### L'ALIGNEMENT DES COLONNES — trois essais, et c'est le banc qui a tranché
 
-Les deux étapes ont été rejouées : **9 boîtes posées** écrites, **1 844 événements** sur
-79 chantiers, `[encodage] aucun evenement abime`.
+C'est la demande elle-même (« en prolongement de celle qui est au-dessus ») et c'est ce qui casse le
+plus facilement. **Aucun des deux premiers essais ne tenait, et aucun ne se voyait à l'œil** sur un
+écran étroit — là où les deux tables sont à leur largeur minimale et coïncident par accident.
 
-### 3. CE QUE LA VEILLE DU JOUR DEMANDAIT VRAIMENT — un seul élément sur quatre
-
-**26-027 Hospitalet - La Tour de Carol** : `ADD-PDP-RTE-MED-XPE.pdf`, déposé le 09/09 à 18h33.
-C'est un **additif aux plans de prévention** : consigne temporaire « risque incendie »
-`RTE_2026_0887101_0`, applicable **jusqu'au 30/09/2026**, et **TELSAM y est nommée** parmi les
-entreprises qui doivent l'appliquer, avec **Christian CAZENAVE** comme signataire.
-- Copié dans **App Tech** (il ne remplace rien, aucun additif n'y était).
-- **Ce que le document révèle, et qui vaut plus que lui** : il désigne comme plan de prévention de
-  la liaison le **2026-PYR-EEL-003 V05 du 16/07/26**. Dropbox n'a que la **V0** (19/06) et la
-  **V03** (22/06), et App Tech la V0 : **la V05 n'est pas en notre possession**. Il cite aussi un
-  PDP de poste (`2026-LARO-AUDE_PO-L.CAR-001 indice 02`), absent lui aussi — or entrer dans le
-  poste sans PDP de poste est la faute que la règle du 25/08 interdit.
-- Fiche mise à jour **dans les deux dépôts** : `pdp` passe de `nc` à **`warn`** avec sa référence
-  et son indice réel (la fiche disait « aucun PDP reçu » alors qu'un PDP est dans App Tech depuis
-  juin), trois alertes précises côté suivi, une alerte en langage technicien côté appli.
-- **Le PGO n'a PAS été touché** : `PGO-CERDA3-liaison-V09` est bien dans App Tech, mais son texte
-  ne nomme TELSAM **nulle part** (0 occurrence, SPIE 5). La couverture TELSAM reste donc à
-  confirmer auprès d'INEO RHT — c'est dit dans une alerte, pas deviné dans un statut.
-
-Les trois autres éléments du rapport sont des **faux positifs déjà tranchés** : l'IST INEO de
-Cantegrit (règle du 27/08 — le document ne nomme pas TELSAM), le PPSPS INEO de Cross-Sausset, et
-la NDS de Fleyriat (le `.docx` est le même document que le `.pdf` déjà en place).
-
-### 4. DEUX BANCS D'ESSAI DE L'APPLI SONT PASSÉS AU ROUGE SUR UN SUCCÈS
-
-Le planning réécrit le matin a fait échouer **six contrôles** — et **rien n'avait changé dans
-l'appli**. C'est la troisième fois en trois jours, toujours la même faute de forme.
-
-| ce qui était figé | ce qui le remplace |
+| essai | écart maximal mesuré |
 |---|---|
-| `test-charte-apptech` : « Pascal BONAVENTURE, semaine +1, celle qui a de la matière » (5 échecs, « 0 carte ») | le couple (technicien, semaine) est **cherché dans la donnée** sur trois semaines, et **imprimé** ; s'il n'y en a aucun, c'est un vrai défaut et le contrôle le dit |
-| `test-planning-appli` : « Didier PERRIN est sur Cantegrit le 14/09 » | la **propriété** que ce contrôle protégeait : tout chantier que le planning place a bien une fiche dans l'appli — sinon le technicien ouvre sa semaine et ne voit rien. Avec son contre-exemple |
+| mêmes règles CSS des deux côtés (même `table-layout:fixed`, même première colonne, même `min-width`) | **6 px** |
+| recopier sur la table du bas la largeur mesurée de celle du haut | **15 px**, puis 134 px |
+| **`<colgroup>` de onze `<col>` dans les deux tables, largeurs imposées en pixels** | **0,0 px** |
 
-> **UN COUPLE PERSONNE / JOUR / CHANTIER EST DE LA DONNÉE DU BUREAU : il n'a rien à faire dans un
-> test.** Le planning est réécrit deux fois par jour par cinq personnes. Tout banc qui en fige un
-> extrait finira rouge sur un succès, et une suite rouge n'est plus lue — elle emporte les 110
-> contrôles justes qui l'entourent.
+**LA CAUSE, ET ELLE EST À RETENIR : en `table-layout:fixed`, le navigateur ne lit QUE LA PREMIÈRE
+RANGÉE pour répartir les colonnes.** Or la première rangée de la grille du haut est celle des
+SEMAINES, faite de deux cellules à `colspan="5"` : une largeur posée sur `.plPers` ou sur les
+en-têtes de jour n'y était **jamais lue**. La réserve du bas, dont la première rangée a bien onze
+cellules, se répartissait autrement — d'où l'écart, qui s'accumulait colonne après colonne.
+S'y ajoutait la barre de défilement verticale de la réserve (15 px que la grille du haut n'a pas).
 
-**État après correction : 238 contrôles côté appli, 0 échec** (`test-feuilles-passees` 40,
-`test-charte-apptech` 118, `test-planning-appli` 37, `test-validation` 26,
-`test-conges-paternite` 17).
+> **La largeur des colonnes de ces deux tables vit dans le `<colgroup>`, et nulle part ailleurs.**
+> Il est lu quelles que soient les fusions de cellules. `alignerReserveSurGrille()` écrit dessus, à
+> chaque rendu et au redimensionnement de la fenêtre. **Ne pas remettre la largeur sur les cellules
+> en croyant simplifier : elle y serait ignorée en silence.**
 
-*Et un fichier qui n'a PAS été committé, volontairement : `suivi_chantiers_205.html` portait, en
-plus de ma mise à jour de fiche, une modification d'interface en cours qui n'est pas de moi (le
-« dos épais à gauche » des cases, daté du 10/09). Committer le travail inachevé d'une autre session
-n'est pas à moi de le faire — mes deux corrections de scripts sont parties seules, et la fiche
-26-027 partira avec le prochain commit du suivi.*
+Les deux défilements horizontaux sont par ailleurs **synchronisés** : deux tables de 1320 px dans
+une fenêtre plus étroite se désalignent au premier coup de molette.
 
-### RÉGLAGE POSÉ LE 10/09/2026 : LA TÂCHE RÉVEILLE LA MACHINE
+### La fenêtre « Préplanifier » de l'onglet Affaires
 
-**Décision de Patrice, entre les deux options : « réveille le PC ».**
+*« Il faudrait mettre un historique de ce qui a déjà été planifié, et nous devons pouvoir soit
+l'écraser, soit le modifier manuscritement. Et ensuite, un menu déroulant qui donne l'activité — ICP,
+touret, MTFO, travaux pour commencer — et avoir le choix de planifier ou à la semaine ou à la
+journée. »*
 
-Deux choses étaient nécessaires, et la première n'était pas évidente :
+Refaite en conséquence : **l'historique** des semaines déjà posées pour cette affaire (rapprochées
+par le NUMÉRO **et** par la FICHE — une ligne posée avant que l'affaire porte un numéro n'a que la
+fiche, et l'oublier ferait croire l'historique vide), chaque ligne portant son menu d'activité, son
+menu de jours et un « Retirer », plus un « Tout retirer ». Puis la pose d'une plage de semaines,
+avec activité et portée.
 
-1. **Les minuteries de réveil étaient DÉSACTIVÉES** dans le plan d'alimentation, sur secteur **et**
-   sur batterie (`SUB_SLEEP / RTCWAKE` = 0 dans les deux cas). Sans elles, cocher « réveiller
-   l'ordinateur » sur la tâche n'aurait **rien** fait — le réglage aurait paru posé et le cas se
-   serait reproduit à l'identique. Passées à « Activer » sur les deux (`powercfg
-   /setacvalueindex` + `/setdcvalueindex`, **aucun privilège administrateur nécessaire**, contrairement
-   à `powercfg /waketimers` qui, lui, en demande).
-2. **`WakeToRun` posé sur la tâche** « TELSAM - Veille documents RTE » (`Set-ScheduledTask`), sans
-   toucher au reste : action, compte `patrice.pivot`, `LogonType Interactive`, aucun mot de passe
-   stocké, `StartWhenAvailable` toujours à `True`. Vérifié après écriture.
+**Deux façons d'écraser, et les deux sont demandées** : ligne par ligne dans l'historique, ou en
+masse en reposant une plage — la pose est un `upsert` sur (semaine, chantier), donc reposer S48→S49
+réécrit ces deux semaines sans toucher aux autres.
 
-**La machine est un portable Dell Vostro 3525 en veille moderne (S0 faible consommation)** — pas
-un S3 classique. C'est pour ça que les minuteries de réveil comptent ici : sur ce type de veille,
-la tâche ne se rattrape pas toute seule à la reprise (mesuré le 10/09 : réveil à 07h59, et
-`NextRunTime` annonçait déjà 13h00, jamais un rattrapage du passage de 7h30).
+**La fenêtre ne se ferme pas à chaque modification**, elle se redessine : corriger trois semaines
+demanderait sinon de la rouvrir trois fois.
 
-> **CE QUI N'EST PAS ENCORE PROUVÉ, ET QUI SE PROUVERA TOUT SEUL.** Le réglage est *armé*, pas
-> *éprouvé* : la seule vraie preuve est un passage à 7h30 machine endormie, donc demain matin. Le
-> test est gratuit et sans ambiguïté — l'horodatage de `veille/matin.json` et de `RAPPORT.md`. S'il
-> dit 7h30, le réveil a marché ; s'il dit l'heure à laquelle Patrice s'est assis, ou rien du tout,
-> il faut passer au filet : un déclencheur au **déverrouillage de session**, qui ne dépend d'aucun
-> matériel. Ne pas conclure sans regarder cet horodatage.
+### Vérifié — 299 contrôles, 0 échec, et à l'écran
 
-*Effet de bord assumé, à savoir : sur batterie aussi la machine se réveillera à 7h30 et à 13h00.
-C'est un réveil par jour de plus en sac, contre une veille manquée — Patrice a tranché dans ce
-sens. `DisallowStartIfOnBatteries` était déjà à `False`, donc rien d'autre à changer.*
+`bloc-test-affaires` 94, `bloc-test-saisie-affaires` 91, **`bloc-test-reserve-grille` 35 (nouveau)**,
+`bloc-test-rayures-ecarts` 24, `bloc-test-cible-note` 23, `bloc-test-validation-suivi` 16,
+`bloc-test-couleurs` 10, `bloc-test-cible-croix` 6. Les deux blocs `<script>` compilent, 0 `Ã`.
+`SEED_DATA` n'est pas touché : **pas de `SEED_VERSION` à bumper.**
+
+Le banc neuf mesure ce qui compte et **il a réellement échoué trois fois avant de passer** : les
+onze colonnes du bas tombent-elles sous celles du haut (à l'écran, en pixels), les deux listes
+d'activités se répondent-elles (page contre fichier de l'API), une chaîne de jours vide vaut-elle
+bien toute la semaine, une case venue de Teams refuse-t-elle le clic. Chaque contrôle a son
+contre-exemple : « mardi seulement » remplit **une** case et pas cinq, les neuf autres restent
+libres, et le bouton de la semaine vide n'est pas marqué comme prise.
+
+**Et à l'écran** : les deux grilles l'une sous l'autre, séparateur S37/S38 compris, avec un chantier
+posé au mardi (« Touret ») et un autre sur jeudi puis trois jours de la semaine suivante (« ICP »,
+« MTFO ») ; et la fenêtre de l'onglet Affaires avec ses trois semaines d'historique modifiables.
