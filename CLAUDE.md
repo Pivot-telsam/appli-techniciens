@@ -6469,9 +6469,9 @@ réécrit ces deux semaines sans toucher aux autres.
 **La fenêtre ne se ferme pas à chaque modification**, elle se redessine : corriger trois semaines
 demanderait sinon de la rouvrir trois fois.
 
-### Vérifié — 299 contrôles, 0 échec, et à l'écran
+### Vérifié — 307 contrôles, 0 échec, et à l'écran
 
-`bloc-test-affaires` 94, `bloc-test-saisie-affaires` 91, **`bloc-test-reserve-grille` 35 (nouveau)**,
+`bloc-test-affaires` 94, `bloc-test-saisie-affaires` 91, **`bloc-test-reserve-grille` 43 (nouveau)**,
 `bloc-test-rayures-ecarts` 24, `bloc-test-cible-note` 23, `bloc-test-validation-suivi` 16,
 `bloc-test-couleurs` 10, `bloc-test-cible-croix` 6. Les deux blocs `<script>` compilent, 0 `Ã`.
 `SEED_DATA` n'est pas touché : **pas de `SEED_VERSION` à bumper.**
@@ -6486,3 +6486,125 @@ libres, et le bouton de la semaine vide n'est pas marqué comme prise.
 **Et à l'écran** : les deux grilles l'une sous l'autre, séparateur S37/S38 compris, avec un chantier
 posé au mardi (« Touret ») et un autre sur jeudi puis trois jours de la semaine suivante (« ICP »,
 « MTFO ») ; et la fenêtre de l'onglet Affaires avec ses trois semaines d'historique modifiables.
+
+### DEUX DÉFAUTS DE CETTE GRILLE, SIGNALÉS PAR PATRICE LE JOUR MÊME
+
+#### 1. « Tu ne me mets que des couleurs » — la case doit porter le chantier écrit
+
+*« En bas, tu ne me mets que des couleurs, ce n'est pas lisible avec le nom du chantier sur la
+gauche, ce n'est pas ce que je veux : je veux le même affichage qu'en haut, le chantier écrit dans
+les pastilles. En l'état, ce n'est ni lisible ni praticable. »*
+
+**L'erreur était de raisonnement, pas de goût.** J'avais transposé la grille du haut en mettant le
+chantier en tête de RANGÉE — là où le haut met le technicien — et les cases n'étaient plus que des
+aplats colorés. On lisait donc une couleur, puis on repartait vers la gauche pour savoir de quoi il
+s'agissait, dix fois par rangée.
+
+La case porte maintenant **exactement le même contenu qu'en haut**, par la **même fonction**
+(`contenuBulleChantier` : le n° d'affaire en mono, le nom en dessous), plus l'activité quand elle
+est précisée. Même hauteur de case (46 px), donc une seule grammaire pour les deux grilles.
+*Le recopier à la main ici aurait garanti qu'un jour les deux grilles n'écrivent plus le chantier de
+la même façon — c'est déjà arrivé aux trois rendus de couleur avant que `styleBulleChantier` ne les
+réunisse.*
+
+Le nom reste **aussi** en tête de rangée : c'est la poignée de glissement et le porteur des boutons
+de semaine. Il fait doublon avec les cases, et c'est voulu — sans lui, il n'y a plus rien à
+attraper pour monter le chantier sur un technicien.
+
+#### 2. « J'ai voulu planifier de S37 à S39, rien ne s'est passé » — L'ANNÉE
+
+**Ce n'était pas « rien » : les trois lignes sont bien parties dans la base, sous les clés
+`2025-S37`, `2025-S38`, `2025-S39`.** Un an en arrière, donc invisibles sur tous les plannings.
+
+**LA CAUSE :** la fenêtre prenait l'année de la **date prévisionnelle de l'affaire**
+(`prevDebut = 01/11/25` pour Lannemezan-Pragnères). C'était défendable tant qu'on se contentait des
+semaines proposées ; c'est faux dès qu'on en tape d'autres — et c'est justement l'usage. **Toute
+affaire ouverte en 2025 posait donc dans le passé, en silence.** Le défaut était dans la version du
+09/09, pas seulement dans la refonte.
+
+**LA RÈGLE, dans `anneePourSemaine()` : une semaine qu'on tape désigne la PROCHAINE.** On est en
+S37 : « S39 » veut dire dans deux semaines, « S02 » veut dire janvier prochain. La semaine en cours
+compte comme à venir. Ça ne dépend plus d'une date saisie il y a un an.
+
+**TROIS GARDE-FOUS AJOUTÉS DANS LE MÊME GESTE, parce qu'une règle seule ne suffit pas :**
+1. **la fenêtre ÉCRIT ce qu'elle va poser, année comprise**, et ça se met à jour à chaque frappe
+   (« → 3 semaines : 2026-S37, 2026-S38, 2026-S39 · toute la semaine »). Le défaut était invisible
+   parce que rien ne nommait l'année ;
+2. **l'historique affiche l'année**, et signale en rouge une semaine déjà passée — c'est le seul
+   endroit d'où on peut retirer les trois lignes de 2025 que ce défaut a laissées ;
+3. **une fenêtre prévisionnelle très large ne pré-remplit plus que son début.** Lannemezan va du
+   01/11/25 au 01/11/26 : la fenêtre proposait « S44 à S44 », soit **53 semaines**, et il ne restait
+   qu'un bouton de confirmation entre cette proposition et 53 lignes en base.
+
+> **COMMENT LE DÉFAUT A ÉTÉ TROUVÉ, et c'est la méthode à reprendre.** Pas en relisant le code : en
+> rejouant le geste de Patrice dans un harnais qui remplace `fetch` par un mouchard et **imprime ce
+> qui part sur le réseau**. Les trois `POST /api/preplanif` avec `"semaine":"2025-S37"` sautaient
+> aux yeux. Un défaut où « rien ne se passe » à l'écran alors que tout part correctement côté
+> client ne se voit QUE là.
+
+**Contrôles ajoutés** au banc (`bloc-test-reserve-grille.html`, 43 contrôles) : la case porte bien
+le n° et le nom, par les mêmes classes qu'en haut ; une semaine à venir tombe sur l'année en cours ;
+**contre-exemple** — une semaine déjà passée désigne l'année suivante.
+
+---
+
+## LES FAUX POSITIFS DE LA VEILLE SE TAISENT (10/09/2026)
+
+Trois signalements « App Tech en retard » revenaient à chaque passage depuis deux semaines, et les
+trois étaient **déjà arbitrés** :
+
+| chantier | signalement | pourquoi c'est un faux positif |
+|---|---|---|
+| 26-003 Cantegrit | IST `APS3T5108` | IST d'**INEO**, pas de TELSAM (dossier « IST INEO »). Règle du 27/08/2026 |
+| 26-002 Cross-Sausset | PPSPS `3H223` | PPSPS d'**INEO**. La question au SPS est posée, non tranchée |
+| 26-055 Fleyriat | NDS `.docx` | le `.docx` source et le `.pdf` déjà dans App Tech sont **le même document**, même nom, même date |
+
+> **Un contrôle qui réclame ce qu'on a décidé de ne pas faire finit par ne plus être lu — et c'est
+> le même rappel qui porte les vrais manques.** Les ré-arbitrer une quatrième fois n'aurait rien
+> changé : c'est un mécanisme qu'il fallait, pas de la mémoire.
+
+**`veille/exclusions-apptech.json`** — une règle par faux positif : numéro (ou nom de chantier),
+type de document, motif de nom de fichier, **et sa raison écrite, avec qui a tranché et quand**.
+
+**QUATRE DÉCISIONS, à ne pas défaire :**
+1. **on écarte des PRIORITAIRES, on ne cache pas.** Les lignes restent dans le rapport, dans une
+   section « Déjà arbitré », avec leur raison. Cacher sans le dire serait pire que tout lister ;
+2. **fichier absent ou illisible ⇒ AUCUNE exclusion, et le contrôle crie comme avant.** Un réglage
+   manquant ne doit jamais faire TAIRE un contrôle de sécurité. Le sens de la panne compte plus que
+   la panne ;
+3. **les exclusions vivent dans un fichier, pas dans le script** : Patrice doit pouvoir en retirer
+   une sans qu'on touche au code ;
+4. **une exclusion sans raison écrite est interdite** — elle redeviendrait un trou de mémoire au
+   bout de trois semaines.
+
+Effet mesuré : le rappel de `hook-veille-prompt.ps1` compte les `Prioritaire` de `dernier.json`, il
+passe donc de 3 à **0** sans qu'on ait touché au hook.
+
+**ÉPROUVÉ DANS LES TROIS SENS** : avec le fichier ⇒ « RIEN A SIGNALER » et trois lignes en « Déjà
+arbitré » ; **fichier retiré ⇒ les trois reviennent en « A TRAITER »** (le contrôle sait donc encore
+crier) ; **fichier cassé ⇒ un avertissement en clair et le contrôle reste bruyant.**
+
+> **`veille/` N'EST DANS AUCUN DES DEUX DÉPÔTS** (c'est le dossier parent, comme
+> `.claude/settings.json`) : ce fichier n'est donc **pas sauvegardé par Git**. Une copie de
+> référence est gardée dans `suivi-chantiers/scripts/exclusions-apptech.reference.json` — s'il
+> disparaît, la recopier. Sa disparition ne casse rien et se voit tout de suite : les trois
+> signalements reviennent.
+
+### Ce que la veille du 10/09 à 13h a rapporté d'autre
+
+**26-130 Cubnezais station HVDC — un PPSPS TELSAM, et un chantier qui n'existe pas encore.**
+Le document déposé le 10/09 à 12h04 s'appelle « NDS » mais c'est un **PPSPS**, indice A du
+27/01/2026, rédigé par Patrice PIVOT et contrôlé par Christian CAZENAVE, pour
+« GOLFE DE GASCOGNE — station de conversion de CUBNEZAIS », client **RTE-INELFE**. 43 occurrences de
+TELSAM : aucun doute sur son auteur.
+
+**Mais 26-130 n'a PAS de fiche dans le suivi.** Il n'existe que comme **affaire** (client SDEL,
+groupe VINCI, devis `TELSAMCC26097V3` du 21/08/26, 164 516,70 € HT), sans dossier App Tech et
+**sans aucun technicien planifié**. Rien n'est donc urgent, et rien n'a été créé : ouvrir le
+chantier pour de bon (fiche dans les deux dépôts, prévisionnel depuis le devis, boîtes, dossier
+App Tech, brief, demande de photos) est un vrai morceau, et il suppose de confirmer que l'affaire
+est commandée. **À proposer à Patrice, pas à décider seul.**
+
+*Attention en cherchant : il y a DEUX dossiers Cubnezais sous `RTE\Postes` — l'ancien `Cubnezais`
+(devis `DATA_CC_25033` puis `TELSAM_CC_25033`, commande 920082376, AST signé, PGO indices 2 à 4) et
+le nouveau `Cubnezais station HVDC 26-130`. Ce sont deux affaires distinctes.*
