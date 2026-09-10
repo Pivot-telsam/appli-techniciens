@@ -6781,3 +6781,53 @@ Les `bloc-test-*.html` sont des **blocs** : ils se concatènent APRÈS la page, 
 seuls. Et `grep VERDICT` sur le DOM ramène le **source** du script, pas son résultat — il faut lire
 le contenu de `<pre id="verdictTest">`, et lui seul. Deux fois de suite ce jour-là, la première
 lecture a fait croire à un échec généralisé qui n'existait pas.
+
+### St-Guillerme : 26-045 devient 26-080 (10/09/2026) — et ce qu'un renumérotage casse
+
+**Tranché par Patrice** après le rapport des incohérences ci-dessus : *« je l'ai renommé comme
+26-080 »*. Le dossier Dropbox, le fichier commercial et la fiche disent enfin la même chose —
+avant, l'affaire existait en `26-080` **sans fiche** dans l'onglet Affaires pendant que la fiche
+vivait en `26-045`, et un alias tenait le lien Dropbox.
+
+**L'IDENTIFIANT DE LA FICHE NE CHANGE PAS** : `c_st_guillerme_0fcce9`. C'est la règle du 25/08/2026
+posée en scindant Chaineau — `TECH_RANGES`, `REAL_DAYS` et `presence` le référencent, et le
+régénérer ferait disparaître les affectations passées **sans rien afficher d'anormal**. Seul le
+champ `numero` bouge.
+
+**Ce qui a été touché** : `numero` dans les deux dépôts, `dossierDropbox` de la fiche (il portait
+un **antislash double** et un chemin périmé, corrigé au passage), deux commentaires de code,
+l'alias du script Dropbox **retiré** (le rapprochement se fait maintenant tout seul par le numéro
+du dossier), `SEED_VERSION` v157 et `APP_VERSION` 2026-09-10-4.
+
+**LES CONSTANTES GÉNÉRÉES ONT ÉTÉ REFAITES LE JOUR MÊME, PAS LAISSÉES À DEMAIN.**
+`AVANCEMENT_CHANTIERS` est keyée par numéro : sans relance, la jauge d'avancement de 26-080 restait
+vide et celle de 26-045 pointait dans le vide. `boites-posees.ps1` la refait depuis l'appli, donc
+elle a suivi d'elle-même une fois l'appli corrigée.
+
+> **UN RENUMÉROTAGE SCINDE LA CHRONOLOGIE EN DEUX, ET ÇA NE SE VOIT PAS.**
+> `historique-fiches.ps1` rejoue l'historique git et cle chaque événement sur le numéro que la
+> fiche portait **ce jour-là**. Après le renumérotage : **9 événements sous `26-045`, 13 sous
+> `26-080`**, et le dossier de l'affaire n'affichait que les 13 — tout l'avant rangé sous un
+> numéro que plus rien n'ouvre. Le fichier restait valide, la page ne plantait pas.
+> D'où la table **`$RENUMEROTES`** en tête du script (`ancien -> actuel`), appliquée juste après
+> la lecture de `$f.numero`. Résultat mesuré : **22 événements sous `26-080`, `26-045` absent.**
+> **À compléter à chaque renumérotage, dans le même geste que la modification de `SEED_DATA`** —
+> c'est le seul endroit où l'ancien numéro doit survivre.
+
+**CE QUI RESTE VRAI ET QU'IL FAUT DIRE** : la ligne du planning Teams porte encore
+« depose tore optique st guillerme pyl43 … **26-045** ». Elle ne couvre que les **17 et 18/08**,
+donc du passé — aucune conséquence aujourd'hui, ces deux jours perdent seulement leur lien vers la
+fiche. Mais **la prochaine ligne St-Guillerme écrite dans Teams doit porter 26-080**, sinon la case
+ne se rattachera à rien : c'est la règle « un numéro écrit dans la ligne du planning vaut mieux que
+n'importe quel arbitrage de ma part » (04/09/2026).
+
+Et les **récaps de feuilles d'heures déjà envoyés aux RH portent l'ancien numéro** : l'historique
+de la paie ne se réécrit pas, `heuresTelsam` de la fiche est inchangé.
+
+**Vérifié — 322 contrôles, 0 échec.** Suivi : `bloc-test-dropbox` 40 (+4 : 26-080 rattaché sans
+alias, et **trois contre-exemples** — l'ancien numéro ne répond plus, aucune fiche ne porte plus
+26-045, et la fiche St-Guillerme porte bien 26-080 avec son identifiant d'origine),
+`bloc-test-affaires` 94, `bloc-test-saisie-affaires` 91, `bloc-test-reserve-grille` 47,
+`bloc-test-rayures-ecarts` 24, `bloc-test-validation-suivi` 16, `bloc-test-couleurs` 10.
+Appli : `test-charte-apptech` 118, `test-feuilles-passees` 40, `test-planning-appli` 37,
+`test-validation` 26, `test-conges-paternite` 17. Les deux blocs `<script>` compilent, 0 `Ã`.
