@@ -6360,10 +6360,13 @@ moment où il sert) ou par le ⚠ d'une pastille déjà posée.
 pas à quoi faire attention, et c'est justement ce qu'on veut lire.
 
 La pastille porte alors **trois signaux, et il les faut tous les trois** :
-1. le **contour** passe au rouge brique et s'épaissit (dos à 6 px). Il remplace le contour à la
-   teinte du chantier — c'est le seul endroit du planning où l'identité du chantier cède le pas, et
-   elle ne se perd pas pour autant puisque l'**aplat garde sa teinte** ;
-2. un **halo** clair, qui la détache de ses voisines dans une rangée pleine ;
+1. le **contour** passe au rouge brique et s'épaissit (3 px, dos à 8 px). Il remplace le contour à
+   la teinte du chantier — c'est le seul endroit du planning où l'identité du chantier cède le pas,
+   et elle ne se perd pas pour autant puisque l'**aplat garde sa teinte** ;
+2. un **double anneau** : un liseré blanc de 2 px, puis un anneau rouge plein de 3 px. C'est
+   l'anneau extérieur saturé qui fait le travail — un halo pâle se noyait dans la barre claire de
+   la réserve. Le blanc intermédiaire n'est pas décoratif : sans lui, l'anneau touche le contour et
+   les deux se fondent en un seul gros bord mou ;
 3. le **motif écrit en toutes lettres** sous le nom, précédé de ⚠.
 
 > **LE TROISIÈME EST LE PLUS IMPORTANT, et c'est celui qu'on sera tenté de retirer pour regagner la
@@ -6371,12 +6374,24 @@ La pastille porte alors **trois signaux, et il les faut tous les trois** :
 > « attention » sans dire à quoi, et il faut ouvrir la fiche pour l'apprendre. Rouge + épaisseur +
 > mot : ça tient au soleil, en noir et blanc, et pour un daltonien.
 
-**UN RAPPEL EN TÊTE DU PLANNING, parce qu'une alerte sur S42 ne se voit que si quelqu'un affiche
-S42 — et personne n'affiche S42 en septembre.** Bandeau `.plAlertes` : les points d'attention des
-13 semaines à venir, la plus proche d'abord, avec « dans N semaines » et un bouton qui emmène sur la
-bonne semaine. L'écart se compte depuis le **lundi affiché** et non depuis aujourd'hui : quand
-Patrice avance de quatre semaines pour préparer, le rappel doit parler de ce qu'il a sous les yeux.
-Le bouton n'apparaît qu'au-delà de la deuxième semaine — les deux premières sont déjà à l'écran.
+**PAS DE BANDEAU DE RAPPEL EN TÊTE DE VUE — j'en avais posé un, Patrice l'a retiré le jour même, et
+il a raison.** Ses mots : *« ce n'est pas la peine de mettre le bandeau rouge, ça va polluer la
+vision du planning ; juste le mettre la semaine concernée. Je n'ai pas besoin de savoir trois
+semaines à l'avance que je vais avoir des tourets à faire. Par contre, je ne veux pas les oublier la
+semaine où j'aurai besoin de les faire. »*
+
+> **CE QUE J'AVAIS MAL RAISONNÉ.** J'avais appliqué « une pastille absente ne se réclame pas » à un
+> cas où la pastille **n'est pas absente** : elle est posée sur sa semaine et elle apparaît d'elle-même
+> dès que cette semaine arrive à l'écran. Le bandeau ne répondait donc à aucun manque — il affichait
+> tous les jours, en rouge et en tête de planning, une échéance à trois mois. C'est la recette d'un
+> bandeau qu'on cesse de lire, et le jour où il compte vraiment il ne se voit plus. **Ne pas le
+> remettre.**
+
+**CE QUI GARANTIT QU'ON NE L'OUBLIE PAS LE JOUR VENU, et qu'il ne faut donc pas défaire : la
+pastille d'alerte OUVRE la rangée de sa semaine** (tri stable en tête de `majChipsPlanning`). Ce
+n'est pas un détail de présentation : la liste de pastilles est bornée à 132 px et **défile**. Une
+semaine chargée en porte une vingtaine — un point d'attention posé en dernier tomberait sous la
+ligne de défilement, donc invisible exactement la semaine où il faut le voir.
 
 **L'ALERTE N'EST ÉCRITE QUE SI LE CHAMP EST DANS LE CORPS DE LA REQUÊTE** (`hasOwnProperty`, et une
 clause conditionnelle dans l'`ON CONFLICT`, pas un `COALESCE`). Une pose qui ne le porte pas — le
@@ -6393,9 +6408,10 @@ retire une alerte.
 `SEED_DATA` n'est pas touché : **pas de `SEED_VERSION` à bumper**.
 
 **Et à l'écran**, sur un aperçu qui force le mode partagé et injecte trois préplanifications (une
-avec alerte en S37, une sans en S38, une avec alerte en S42) : le bandeau des deux points
-d'attention, la pastille rouge « ⚠ Mesure des tourets » au milieu des pastilles minces, et le dos
-épais des vignettes de la grille.
+avec alerte en S37, une sans en S38, une avec alerte en S42) : la pastille rouge
+« ⚠ Mesure des tourets » **en tête** de la rangée S37, au milieu des pastilles minces ; **rien** de
+l'alerte de S42, qui n'est pas à l'écran et n'a donc pas à s'annoncer ; et le dos épais des
+vignettes de la grille.
 
 > **PIÈGE DE BANC D'ESSAI, PAYÉ ICI ET DÉJÀ CONNU SOUS UNE AUTRE FORME.**
 > `bloc-test-cible-note` et `bloc-test-cible-croix` sortaient **13 et 2 échecs** — sur le fichier
