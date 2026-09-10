@@ -6469,9 +6469,9 @@ réécrit ces deux semaines sans toucher aux autres.
 **La fenêtre ne se ferme pas à chaque modification**, elle se redessine : corriger trois semaines
 demanderait sinon de la rouvrir trois fois.
 
-### Vérifié — 307 contrôles, 0 échec, et à l'écran
+### Vérifié — 311 contrôles, 0 échec, et à l'écran
 
-`bloc-test-affaires` 94, `bloc-test-saisie-affaires` 91, **`bloc-test-reserve-grille` 43 (nouveau)**,
+`bloc-test-affaires` 94, `bloc-test-saisie-affaires` 91, **`bloc-test-reserve-grille` 47 (nouveau)**,
 `bloc-test-rayures-ecarts` 24, `bloc-test-cible-note` 23, `bloc-test-validation-suivi` 16,
 `bloc-test-couleurs` 10, `bloc-test-cible-croix` 6. Les deux blocs `<script>` compilent, 0 `Ã`.
 `SEED_DATA` n'est pas touché : **pas de `SEED_VERSION` à bumper.**
@@ -6608,3 +6608,49 @@ est commandée. **À proposer à Patrice, pas à décider seul.**
 *Attention en cherchant : il y a DEUX dossiers Cubnezais sous `RTE\Postes` — l'ancien `Cubnezais`
 (devis `DATA_CC_25033` puis `TELSAM_CC_25033`, commande 920082376, AST signé, PGO indices 2 à 4) et
 le nouveau `Cubnezais station HVDC 26-130`. Ce sont deux affaires distinctes.*
+
+### TROISIÈME PASSE SUR LA RÉSERVE, LE MÊME JOUR — plus fine, et une colonne de moins
+
+*« Les bulles des chantiers à planifier sont redevenues trop larges, il faut quelque chose de
+beaucoup plus fin. Je ne comprends pas non plus à quoi sert la colonne complètement à gauche où il
+n'y a que les noms des chantiers, je ne lui vois aucune utilité. »*
+
+**Les deux remarques se répondent**, et la seconde est la conséquence directe du correctif d'une
+heure plus tôt : depuis que chaque case porte le chantier écrit, le nom en tête de rangée le
+répétait une onzième fois. Il ne restait qu'une colonne de doublons.
+
+**La colonne de gauche ne porte plus que les deux boutons de semaine entière.** Elle ne peut pas
+être supprimée — c'est elle qui répond à la colonne des techniciens du dessus, et sans elle les dix
+colonnes de jours ne tombent plus en face. La poignée de glissement n'est pas perdue pour autant :
+chaque case remplie est déjà glissable, et c'est un geste plus direct que d'aller chercher un nom à
+l'autre bout de la rangée. Le pinceau, lui, s'arme désormais au clic sur une case venue de Teams —
+les seules qui n'ont aucune autre action au clic.
+
+**LE NUMÉRO ET LE NOM PASSENT SUR UNE SEULE LIGNE**, et c'est ce qui a réglé la hauteur. Deux essais
+avant, tous deux mesurés par le banc et tous deux encore trop hauts :
+
+| | hauteur de rangée mesurée |
+|---|---|
+| nom sur sa propre ligne, replié librement | **62 px** |
+| nom sur sa propre ligne, borné à deux lignes | **62 px** (aucun gain : les noms font déjà deux lignes) |
+| **numéro et nom sur une seule ligne, coupée** | **38 px** |
+
+> **CE QUI COÛTE LA HAUTEUR, C'EST LE NOMBRE DE LIGNES, PAS LE REMBOURRAGE.** Un nom de chantier ne
+> tient jamais sur une colonne de 112 px : tant qu'il a sa propre ligne, il en prend deux ou trois,
+> et aucun réglage d'espacement n'y change rien. **Et les tailles de police ne baissent pas**
+> (10,5 et 11 px) : Patrice a signalé le 08/09 que « les écritures sont toutes petites », on gagne
+> sur les lignes, jamais sur la police.
+
+**C'EST UNE EXCEPTION ASSUMÉE À LA RÈGLE 7 DE LA CHARTE** (« un libellé ne doit jamais être
+tronqué »), et elle ne vaut QUE dans la réserve : dans la grille du haut, la case est le seul
+endroit où le nom s'écrit, le tronquer perd l'information. Ici le même nom est écrit jusqu'à dix
+fois sur la même rangée, il est en entier dans l'infobulle, et le **numéro d'affaire — le vrai
+identifiant — tient toujours en entier**. Ne pas étendre cette exception à la grille du haut.
+
+`contenuBulleChantier(texte, fiche, compact)` gagne un mode plutôt qu'un second rendu à côté : trois
+rendus de couleur avaient déjà divergé avant que `styleBulleChantier` ne les réunisse.
+
+**Contrôles ajoutés** (banc à 47) : aucune rangée de la réserve ne dépasse 42 px — mesuré à l'écran,
+pas dans la feuille de style, puisque c'est le repliement du nom qui la faisait grossir ;
+**contre-exemple**, une rangée de technicien reste plus haute (81 px). Et la colonne de gauche ne
+contient que les boutons, le nom étant bien, lui, dans les cases.
