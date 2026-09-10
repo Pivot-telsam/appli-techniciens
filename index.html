@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-10-1';
+var APP_VERSION = '2026-09-10-2';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-10-1';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Tes semaines S34, S35 et S36 ne sont plus vides : les feuilles déjà transmises au bureau sont revenues dans l'appli, telles qu'elles avaient été remplies. Elles sont là pour mémoire — la date d'envoi est écrite sous le bouton, tu n'as rien à renvoyer.";
+var APP_NOUVEAUTE = "Retourne sur tes semaines S34, S35 et S36 : elles ne sont plus vides. Les feuilles déjà transmises au bureau sont revenues dans l'appli, telles qu'elles avaient été remplies, pour te servir de rappel. La date d'envoi est écrite sous le bouton — tu n'as rien à renvoyer.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1907,6 +1907,9 @@ async function loadAndRenderHours(){
       revenir au rechargement suivant. Sans ce registre, « Effacer et
       recommencer cette semaine » serait défait par l'appli elle-même : il
       perdrait la main sur ses propres données.
+      La seule exception est une feuille CORRIGÉE après sa pose, et elle est
+      bornée par la même exigence — voir `SEED_FEUILLES_CORRIGEES` plus bas :
+      on ne remplace que ce qu'on a posé soi-même, resté intact.
 
    3. LA FEUILLE DIT QU'ELLE EST DÉJÀ PARTIE (`envoyeLe`), et la date
       s'affiche sous le bouton d'envoi. Sans ça, un technicien qui
@@ -1923,7 +1926,7 @@ async function loadAndRenderHours(){
    décrit que du passé déjà transmis au bureau. Une semaine qui n'est pas
    finie se remplit dans l'appli, pas ici.
    ===================================================================== */
-const SEED_FEUILLES_VERSION = 1;
+const SEED_FEUILLES_VERSION = 2;
 const CLE_SEED_FEUILLES = 'seed_feuilles_posees';
 /* Clé volontairement SANS le préfixe `fh_` : `compterFeuillesEnAttente`
    balaye toutes les clés `fh_*` en les lisant comme des feuilles, et ce
@@ -1992,6 +1995,86 @@ function feuilleVierge(e){
   return !heures && !absences && !marques && !divers && !ajouts;
 }
 
+/* La feuille telle qu'elle sera écrite dans le magasin local.
+   Copie PROFONDE : sans elle, la première saisie du technicien modifierait
+   SEED_FEUILLES en mémoire. */
+function feuillePrete(tech, s){
+  const feuille = JSON.parse(JSON.stringify(s.feuille));
+  /* UNE FEUILLE DÉJÀ PARTIE NE GAGNE PLUS DE LIGNES.
+     `ensureFeuilleForWeek` ajoute d'office les chantiers planifiés de la
+     semaine, et `TECH_RANGES` connaît encore les affectations d'août : sans ce
+     garde-fou, la S34 d'Anthony affichait SA ligne « Portet » remplie ET une
+     ligne « Poste de Portet (P.SIM) » vide juste à côté — défaut trouvé par le
+     test, pas à l'œil. Deux lignes pour le même chantier, sur une feuille déjà
+     envoyée, c'est une invitation à saisir deux fois. La feuille envoyée est la
+     référence : on neutralise les ajouts automatiques de cette semaine-là, par
+     le mécanisme prévu pour ça (celui du bouton « Retirer ce chantier »). */
+  const lundi = mondayOfISOWeek(s.semaine, s.annee);
+  const dimanche = new Date(lundi); dimanche.setUTCDate(dimanche.getUTCDate() + 6);
+  const dejaLa = feuille.chantierLines.filter(l => l.id).map(l => l.id);
+  getWeekChantiers(tech, lundi, dimanche).forEach(wc => {
+    if(dejaLa.indexOf(wc.id) === -1 && feuille.removedAutoIds.indexOf(wc.id) === -1){
+      feuille.removedAutoIds.push(wc.id);
+    }
+  });
+  return feuille;
+}
+
+/* =====================================================================
+   EMPREINTE D'UNE SAISIE — « est-ce que quelqu'un y a touché ? »
+   ---------------------------------------------------------------------
+   Elle ne retient QUE ce que le technicien peut taper. `removedAutoIds` et
+   `envoyeLe` en sont exclus : le premier est recalculé à chaque pose, le
+   second est une date d'envoi — deux champs qui bougent sans que personne
+   n'ait rien saisi, et qui feraient donc conclure à tort « il y a touché ».
+
+   Les clés sont TRIÉES et les nombres normalisés (« 7 », « 7,0 » et 7 sont
+   la même chose). Comparer deux `JSON.stringify` s'en remettrait à l'ordre
+   des clés, qui dépend de l'ordre d'écriture : deux saisies identiques
+   paraîtraient différentes une fois sur deux.
+   ===================================================================== */
+function empreinteSaisie(e){
+  if(!e) return '';
+  const n = v => { const x = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(x) ? '' : String(x); };
+  const jours = j => Object.keys(j||{}).sort().map(d => d + ':' + n((j[d]||{}).j) + '/' + n((j[d]||{}).n)).join(',');
+  const lignes = (e.chantierLines||[]).map(l =>
+      (l.id||'') + '|' + (l.nom||'') + '|' + (l.lieu||'') + '|' + (l.client||'')
+      + '|' + jours(l.jours) + '|' + (l.addedManually ? '1' : '')).join(';');
+  const abs = (e.absences||[]).map(a =>
+      a.key + '|' + Object.keys(a.jours||{}).sort().map(d => d + ':' + n(a.jours[d])).join(',')).join(';');
+  const marque = k => Object.keys(e[k]||{}).sort().filter(d => e[k][d]).map(d => d + ':' + e[k][d]).join(',');
+  return lignes + '#' + abs + '#' + marque('pd') + '#' + marque('gd') + '#' + marque('nacelle')
+       + '#' + (e.vehiculeMode||'') + '#' + String(e.km||'').trim()
+       + '#' + String(e.immat||'').trim() + '#' + String(e.commentaires||'').trim();
+}
+
+/* =====================================================================
+   CORRIGER UNE FEUILLE DÉJÀ POSÉE — et seulement si personne n'y a touché
+   ---------------------------------------------------------------------
+   La règle « on ne pose qu'une fois » protège le technicien, mais elle a un
+   revers : une feuille reposée puis corrigée n'atteint plus ceux qui ont
+   déjà ouvert l'appli. Vécu tout de suite. La version du 09/09/2026 au soir
+   posait la S34 de Benjamin DIRAT en QUATRE lignes (ses quatre libellés de
+   la feuille papier, dont trois sans aucune heure) ; Patrice a demandé le
+   lendemain de les regrouper. Sans ce chemin, la correction n'aurait
+   concerné que les téléphones qui n'avaient pas encore reçu la mise à jour
+   — donc l'appli aurait affiché deux formes différentes selon le moment où
+   chacun l'a ouverte, ce que personne ne peut ni voir ni expliquer.
+
+   LA SEULE CHOSE QUI COMPTE ICI : ON NE REMPLACE QUE CE QU'ON A POSÉ
+   SOI-MÊME, INTACT. La feuille rangée sur le téléphone doit correspondre
+   EXACTEMENT à ce que la version précédente y avait écrit (`avant`). Au
+   premier caractère saisi depuis, on ne touche plus à rien — un technicien
+   qui a corrigé sa semaine a raison contre nous, toujours.
+
+   Ce tableau se VIDE quand la correction a fait le tour des téléphones. Ne
+   pas y ajouter une entrée sans y mettre la feuille « avant » : sans elle,
+   il n'y a aucun moyen de distinguer notre pose d'une saisie.
+   ===================================================================== */
+const SEED_FEUILLES_CORRIGEES = [
+  {tech:"Benjamin DIRAT", annee:2026, semaine:34, avant:{"chantierLines":[{"id":null,"nom":"Avarie arudy","lieu":"","client":"","jours":{}},{"id":null,"nom":"Le hourat","lieu":"","client":"","jours":{"0":{"j":11},"1":{"j":11},"2":{"j":7},"3":{"j":7},"4":{"j":7}}},{"id":null,"nom":"Fin de semaine","lieu":"","client":"","jours":{}},{"id":null,"nom":"Poste de Portet","lieu":"","client":"","jours":{}}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{"0":1,"1":1},"vehiculeMode":null,"km":"","immat":"","commentaires":""}}
+];
+
 async function installerFeuillesPassees(tech){
   const aPoser = SEED_FEUILLES.filter(s => s.tech === tech);
   if(!aPoser.length) return;
@@ -2001,34 +2084,26 @@ async function installerFeuillesPassees(tech){
   let change = false;
   for(const s of aPoser){
     const cle = 'fh_' + tech + '_' + s.annee + '_' + s.semaine;
-    if(registre[cle]) continue;               // déjà traitée une fois : jamais deux
+    if(registre[cle] >= SEED_FEUILLES_VERSION) continue;   // déjà à jour : on ne repose pas
     const existant = await kvGet(cle);
-    if(feuilleVierge(existant)){
-      /* Copie PROFONDE : sans elle, la première saisie du technicien
-         modifierait SEED_FEUILLES en mémoire. */
-      const feuille = JSON.parse(JSON.stringify(s.feuille));
-      /* UNE FEUILLE DÉJÀ PARTIE NE GAGNE PLUS DE LIGNES.
-         `ensureFeuilleForWeek` ajoute d'office les chantiers planifiés de la
-         semaine, et `TECH_RANGES` connaît encore les affectations d'août :
-         sans ce garde-fou, la S34 d'Anthony affichait SA ligne « Portet »
-         remplie ET une ligne « Poste de Portet (P.SIM) » vide juste à côté —
-         défaut trouvé par le test, pas à l'œil. Deux lignes pour le même
-         chantier, sur une feuille déjà envoyée, c'est une invitation à saisir
-         deux fois. La feuille envoyée est la référence : on neutralise les
-         ajouts automatiques de cette semaine-là, par le mécanisme prévu pour
-         ça (celui du bouton « Retirer ce chantier »). */
-      const lundi = mondayOfISOWeek(s.semaine, s.annee);
-      const dimanche = new Date(lundi); dimanche.setUTCDate(dimanche.getUTCDate() + 6);
-      const dejaLa = feuille.chantierLines.filter(l => l.id).map(l => l.id);
-      getWeekChantiers(tech, lundi, dimanche).forEach(wc => {
-        if(dejaLa.indexOf(wc.id) === -1 && feuille.removedAutoIds.indexOf(wc.id) === -1){
-          feuille.removedAutoIds.push(wc.id);
-        }
-      });
-      const ok = await kvSet(cle, feuille);
+    let aEcrire = null;
+    if(registre[cle]){
+      /* Déjà posée par une version précédente. On n'y revient que si cette
+         feuille a été corrigée depuis, et qu'elle est restée telle qu'on
+         l'avait écrite. */
+      const corr = SEED_FEUILLES_CORRIGEES.find(c =>
+        c.tech === tech && c.annee === s.annee && c.semaine === s.semaine);
+      if(corr && empreinteSaisie(existant) === empreinteSaisie(corr.avant)){
+        aEcrire = feuillePrete(tech, s);
+      }
+    } else if(feuilleVierge(existant)){
+      aEcrire = feuillePrete(tech, s);
+    }
+    if(aEcrire){
+      const ok = await kvSet(cle, aEcrire);
       if(ok === false) continue;              // écriture refusée : on retentera au prochain démarrage
     }
-    registre[cle] = SEED_FEUILLES_VERSION;    // posée, ou laissée de côté : dans les deux cas, c'est réglé
+    registre[cle] = SEED_FEUILLES_VERSION;    // posée, corrigée, ou laissée de côté : c'est réglé
     change = true;
   }
   if(change) await kvSet(CLE_SEED_FEUILLES, registre);

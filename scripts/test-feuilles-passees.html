@@ -178,6 +178,81 @@
     ok('5. CONTRE-EXEMPLE : sans le registre, elle reviendrait bien', nbEcritures > 0
        && magasin3.get('fh_' + tech + '_2026_34').chantierLines.length === 1, nbEcritures + ' ecriture(s)');
 
+    /* ---- 5 bis. UNE FEUILLE CORRIGEE APRES SA POSE ATTEINT QUAND MEME LE
+       TELEPHONE, ET SEULEMENT SI PERSONNE N'Y A TOUCHE.
+       La version du 09/09 au soir posait la S34 de Benjamin DIRAT en QUATRE
+       lignes ; Patrice a demande le lendemain de les regrouper. Sans ce
+       chemin, la correction n'atteignait que les telephones qui n'avaient pas
+       encore recu la mise a jour. Mais elle ne doit JAMAIS passer par-dessus
+       une saisie : c'est le contre-exemple qui compte ici. */
+    const cleD = 'fh_Benjamin DIRAT_2026_34';
+    const corrD = SEED_FEUILLES_CORRIGEES.find(c => c.tech === 'Benjamin DIRAT' && c.semaine === 34);
+    ok('5bis. la feuille corrigee est bien declaree', !!corrD);
+    const neuveD = SEED_FEUILLES.find(s => s.tech === 'Benjamin DIRAT' && s.semaine === 34);
+    ok('5bis. la version en service est regroupee sur UNE ligne',
+       neuveD.feuille.chantierLines.length === 1,
+       neuveD.feuille.chantierLines.map(l => l.nom).join(' | '));
+    ok('5bis. les quatre libelles y sont tous, et les heures ne bougent pas',
+       ['Avarie arudy','Le hourat','Fin de semaine','Poste de Portet']
+         .every(m => neuveD.feuille.chantierLines[0].nom.indexOf(m) !== -1)
+       && neuveD.feuille.chantierLines[0].jours[0].j === 11
+       && neuveD.feuille.chantierLines[0].jours[4].j === 7);
+    // le telephone porte l'ANCIENNE pose (4 lignes), registre en version 1
+    const magasinC = new Map(); nbEcritures = 0;
+    kvGet = async (k) => (magasinC.has(k) ? JSON.parse(JSON.stringify(magasinC.get(k))) : null);
+    kvSet = async (k, v) => { nbEcritures++; magasinC.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    const posePrecedente = () => {
+      const f = JSON.parse(JSON.stringify(corrD.avant));
+      f.removedAutoIds = []; f.envoyeLe = '2026-08-25T17:44:00';
+      magasinC.set(cleD, f);
+      magasinC.set(CLE_SEED_FEUILLES, {[cleD]: 1});
+    };
+    posePrecedente();
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. la feuille posee par la version d\'avant est corrigee',
+       magasinC.get(cleD).chantierLines.length === 1,
+       JSON.stringify(magasinC.get(cleD).chantierLines.map(l => l.nom)));
+    ok('5bis. le registre passe en version ' + SEED_FEUILLES_VERSION,
+       magasinC.get(CLE_SEED_FEUILLES)[cleD] === SEED_FEUILLES_VERSION);
+    nbEcritures = 0;
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. un rechargement de plus ne reecrit rien', nbEcritures === 0, nbEcritures + ' ecriture(s)');
+    // CONTRE-EXEMPLE : le technicien a change UNE heure -> on ne touche a rien
+    posePrecedente();
+    const sienneD = magasinC.get(cleD);
+    sienneD.chantierLines[1].jours[2].j = 9;
+    magasinC.set(cleD, sienneD);
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. CONTRE-EXEMPLE : une heure modifiee depuis la pose bloque la correction',
+       magasinC.get(cleD).chantierLines.length === 4
+       && magasinC.get(cleD).chantierLines[1].jours[2].j === 9,
+       magasinC.get(cleD).chantierLines.length + ' ligne(s)');
+    // CONTRE-EXEMPLE : un simple commentaire ajoute suffit a bloquer
+    posePrecedente();
+    const avecCom = magasinC.get(cleD); avecCom.commentaires = 'RAS'; magasinC.set(cleD, avecCom);
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. CONTRE-EXEMPLE : un commentaire ajoute bloque aussi',
+       magasinC.get(cleD).chantierLines.length === 4 && magasinC.get(cleD).commentaires === 'RAS');
+    // l'empreinte ignore ce que l'appli recalcule elle-meme
+    posePrecedente();
+    const avecAuto = magasinC.get(cleD);
+    avecAuto.removedAutoIds = ['c_9g5cqsuj']; avecAuto.envoyeLe = '2026-09-01T08:00:00';
+    magasinC.set(cleD, avecAuto);
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. removedAutoIds et envoyeLe ne comptent pas comme une saisie',
+       magasinC.get(cleD).chantierLines.length === 1);
+    // une feuille NON corrigee posee en version 1 n'est pas reecrite pour autant
+    const magasinV = new Map(); nbEcritures = 0;
+    kvGet = async (k) => (magasinV.has(k) ? JSON.parse(JSON.stringify(magasinV.get(k))) : null);
+    kvSet = async (k, v) => { nbEcritures++; magasinV.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    const cleA = 'fh_Anthony DENIS_2026_34';
+    magasinV.set(cleA, {chantierLines: [], removedAutoIds: [], absences: [], pd: {}, gd: {},
+                        nacelle: {}, vehiculeMode: null, km: '', immat: '', commentaires: ''});
+    magasinV.set(CLE_SEED_FEUILLES, {[cleA]: 1});
+    await installerFeuillesPassees('Anthony DENIS');
+    ok('5bis. une semaine effacee et posee en v1 ne revient PAS avec la v2',
+       magasinV.get(cleA).chantierLines.length === 0);
+
     // ---- 6. CE QUI EST POSE RESSORT A L'IDENTIQUE DANS LA FEUILLE OFFICIELLE ----
     /* On repasse chaque feuille posee dans `buildExportPayload` - le code qui
        fabrique le PDF et le classeur - et on compare heure par heure. C'est ce

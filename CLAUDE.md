@@ -6102,6 +6102,28 @@ mot retiré, aucune heure déplacée.** C'est la seule feuille des 39 dont la fo
 source, et il faut que ça reste l'exception : les autres sont reprises telles quelles, y compris
 quand le technicien a écrit son chantier en minuscules ou sans nom du tout.
 
+**ET CETTE CORRECTION A OUVERT LE REVERS DE LA RÈGLE 2, qui valait d'être traité.** La version en
+quatre lignes avait été **poussée la veille au soir** : les téléphones qui avaient déjà ouvert
+l'appli portaient donc la feuille posée, et le registre `seed_feuilles_posees` interdit de reposer.
+La correction n'aurait atteint que ceux qui n'avaient pas encore reçu la mise à jour — **deux formes
+différentes selon le moment où chacun a ouvert l'appli**, ce que personne ne peut ni voir ni
+expliquer.
+- `SEED_FEUILLES_CORRIGEES` porte, pour chaque feuille corrigée après sa pose, la version
+  **« avant »** — c'est-à-dire exactement ce que la version précédente avait écrit.
+- La pose n'est refaite que si la feuille du téléphone **correspond encore à cet « avant »**. Au
+  premier caractère saisi depuis, on ne touche plus à rien : un technicien qui a corrigé sa semaine
+  a raison contre nous, toujours.
+- `empreinteSaisie()` ne compare **que ce qu'il peut taper** : `removedAutoIds` (recalculé à chaque
+  pose) et `envoyeLe` en sont exclus, sinon deux champs qui bougent sans qu'il ait rien fait
+  feraient conclure « il y a touché » et la correction ne passerait jamais. Les clés sont triées et
+  les nombres normalisés — comparer deux `JSON.stringify` dépendrait de l'ordre d'écriture des
+  clés, et deux saisies identiques paraîtraient différentes une fois sur deux.
+- `SEED_FEUILLES_VERSION` passe à **2**, et le registre compare `>=` : une feuille **non** corrigée
+  posée en v1 n'est donc PAS réécrite au passage en v2 (contrôle avec son contre-exemple).
+- **Vider `SEED_FEUILLES_CORRIGEES` quand la correction a fait le tour des téléphones**, et ne
+  jamais y ajouter une entrée sans son « avant » : sans lui, rien ne distingue notre pose d'une
+  saisie, et le mécanisme deviendrait exactement l'écrasement que la règle 1 interdit.
+
 **Ce qui vit dans le code** (`appli-techniciens/index.html`) : `SEED_FEUILLES` (le tableau des 39
 feuilles, au format exact du magasin local), `feuilleVierge()` et `installerFeuillesPassees()`,
 appelée depuis `selectTech` **avant que l'écran de l'appli n'apparaisse** — sinon
@@ -6133,11 +6155,11 @@ première frappe la réécrirait par-dessus.
    sur une semaine en cours de saisie, ce serait un reproche à quelqu'un qui n'a pas fini.
 
 **Le test : `scripts/test-feuilles-passees.html`** (Chrome headless, concaténé après `index.html`,
-même harnais que les autres). 30 contrôles, chacun avec son contre-exemple. Les trois qui comptent :
+même harnais que les autres). 40 contrôles, chacun avec son contre-exemple. Les quatre qui comptent :
 la semaine déjà saisie survit à la pose ; la semaine effacée ne revient pas (compteur d'écritures à
 zéro au rechargement — et non nul quand on retire le registre) ; **les 39 feuilles repassent dans
 `buildExportPayload` et ressortent à l'identique**, ce qui prouve que le format posé est bien celui
-que l'appli sait relire et réémettre, pas seulement un objet qui s'affiche.
+que l'appli sait relire et réémettre, pas seulement un objet qui s'affiche ; et une feuille corrigée après sa pose atteint le téléphone SAUF si le technicien y a touché — une heure changée ou un simple commentaire ajouté suffisent à bloquer le remplacement.
 
 **Deux choses vues en passant, à traiter côté bureau :**
 - **Morad EL ABBASSI a renvoyé sa S36 le 08/09** (elle est dans `dépôts appli` avec un `(1)`, pas
