@@ -7391,3 +7391,116 @@ ne dit pas seulement « mesurer plutôt que supposer », il dit **qu'un chiffre 
 si on sait ce qu'il mesure**. Un champ d'API qui porte le bon nom n'est pas pour autant la réponse
 à la question posée — ici « est-ce qu'un technicien peut ouvrir ce dossier ? ». Le seul contrôle
 qui vaut est celui qui rejoue la situation réelle, avec un témoin dont on connaît la réponse.
+
+---
+
+## L'onglet « Avancement » du dossier d'une affaire (11/09/2026)
+
+**Demande de Patrice** : *« toujours dans l'onglet Affaire, dans la fenêtre "ouvrir dossier
+affaire", j'aimerais rajouter à côté de "carnet de bord" un onglet avancement (comme celui tiré du
+retour des techniciens) avec par exemple le brief tech et l'avancement fait. »*
+
+C'est le point 4 de sa liste du 11/09/2026 ; le point 3 (plusieurs jours en préplanification) a été
+livré le matin même, les points 1 et 2 sont traités ailleurs dans ce fichier.
+
+### CE QUI MANQUAIT N'ÉTAIT PAS L'AFFICHAGE, C'ÉTAIT LA MATIÈRE
+
+Le suivi ne connaissait de l'avancement que **le pourcentage** (`AVANCEMENT_CHANTIERS`) et **les
+boîtes posées** (`POSES_APPLI`). Le détail — quelle tâche, quel pylône, par qui, quand, et ce que
+le technicien a écrit — ne vivait que dans deux endroits que le bureau n'ouvre pas : les JSON bruts
+déposés par le relais, et le PDF « Avancement 26-0XX.pdf » rangé dans le dossier App Tech.
+
+`scripts/avancement-suivi.ps1` publie donc, **en plus du PDF**, la constante **`AVANCEMENT_DETAIL`**
+dans `suivi_chantiers_205.html` : par chantier, la liste des documents du dossier App Tech, le
+détail tâche par tâche, et les commentaires. Elle vit **à côté** de `SEED_DATA` — **pas de
+`SEED_VERSION` à bumper**, aucun état local des collègues effacé — et elle est **refaite de zéro à
+chaque passage**. Ne jamais y écrire à la main. 24 chantiers, ~90 Ko.
+
+> **LE PDF ET L'ONGLET SORTENT DU MÊME CALCUL, ET C'EST LE POINT À NE PAS DÉFAIRE.**
+> La consolidation « qui a fait quoi » (union, premier déclarant pour un pylône, dernier état pour
+> un bouton) est sortie dans **`ConsoliderEnvois`**, appelée par `EcrireAvancement` (le PDF) **et**
+> par `DetailPourSuivi` (la constante). Le technicien ouvre le PDF, le bureau ouvre l'onglet : deux
+> calculs parallèles finiraient par afficher deux avancements différents pour le même chantier, et
+> **rien ne dirait lequel croire**. Même raison que `joursPresenceReels` ou `styleBulleChantier`.
+> Côté page, `doPanneauAvancement` ne lit QUE `AVANCEMENT_DETAIL` — un contrôle du banc relit le
+> source de la fonction et refuse qu'elle cite `POSES_APPLI` ou `AVANCEMENT_CHANTIERS`.
+
+### LE SCRIPT PARCOURT LES DOSSIERS « App Tech », PLUS LES DOSSIERS « Suivi »
+
+Le PDF ne concerne que les chantiers où un technicien a déclaré quelque chose : **9 dossiers sur
+24**. Mais l'onglet doit montrer le brief et les documents d'un chantier où **personne n'a encore
+rien coché** — c'est justement celui qu'on ouvre la veille d'une intervention. Le dossier `Suivi`
+n'est plus qu'un sous-dossier qu'on lit s'il existe.
+
+**Le détail se construit AVANT toute sortie anticipée.** Le `continue` qui saute un chantier sans
+envoi est resté (on ne réécrit pas un PDF pour rien), mais il vient **après** la construction du
+bloc. L'ordre est le correctif, pas un détail de mise en page.
+
+**Le numéro de sous-lot ne compte que s'il TERMINE le nom du dossier**, comme dans
+`dropbox-chantiers.ps1` : « LOT 1 RODA 26-036-1 » désigne le lot 1, « Chaineau-Cordy-Lamotte
+26-036-1-2 » désigne le parent. Sans cette règle les deux lots partagent une entrée et l'un écrase
+l'autre. Le numéro écrit dans l'envoi reste prioritaire (règle du 02/09 : Fleyriat).
+
+### LA FORME DE LA DONNÉE, ET LE PIÈGE QU'ELLE ÉVITE
+
+```
+"26-055": { maj, lien, docs:[{n, le, ko, role}], taches:[…], mots:[{par, le, t}],
+            envois, faits, vendus }
+```
+
+> **DANS `pyl`, UN PYLÔNE QUI RESTE À FAIRE N'A AUCUN CHAMP `par`** — c'est l'absence du champ qui
+> le dit, jamais une valeur vide. Un `par: ""` se lirait comme un déclarant sans nom, et la page
+> l'afficherait comme fait. Le banc porte le contre-exemple.
+
+`role` vaut `brief` ou `avancement` : ce sont les deux documents qu'on cherche vraiment dans la
+liste. `unite` est recopié des tâches vendues — un chantier souterrain coche des **liaisons**, pas
+des pylônes (Cross-Sausset), et le total n'emploie ce mot que si **toutes** les tâches comptées
+s'accordent.
+
+**La liste des documents est relevée une seconde fois après l'écriture du PDF** : relevée avant,
+elle daterait « Avancement 26-0XX.pdf » de la veille — c'est-à-dire annoncerait comme périmé le
+document qu'on vient de refaire.
+
+### QUATRE REFUS DANS LA PAGE, CHACUN POUR UNE RAISON DÉJÀ PAYÉE AILLEURS
+
+1. **Sans dossier App Tech, on ne dit PAS « 0 % ».** Un zéro se lit comme un constat sur le
+   chantier (« rien n'a été fait ») alors qu'il veut dire « on ne sait rien ». Le panneau nomme les
+   deux causes possibles — dossier pas encore monté, ou dossier qui ne porte pas le numéro — et
+   rappelle que dans les deux cas le technicien n'a ni documents, ni dépôt photos, ni bouton Suivi.
+2. **Un chantier terminé sans aucune déclaration n'annonce jamais de reste à faire.** Afficher
+   « 0 / 5 » sur des travaux qui SONT faits serait faux. Même règle que le PDF depuis le 31/08. Ses
+   documents, eux, restent affichés : c'est la seule chose qu'on sache.
+3. **Le bouton n'affiche aucun chiffre quand le chantier ne vend aucun repère numéroté.** Les
+   quatre autres filtres comptent des événements ; celui-ci compte « faits / vendus ». Un « 0 »
+   dans ce créneau se lirait comme les autres, c'est-à-dire faux.
+4. **Le pied dit ce que la page ne sait pas, MÊME quand elle est bien remplie** — « un travail fait
+   sans appui sur Suivi n'y apparaît pas ». C'est justement quand elle est fournie qu'on la croit
+   complète, exactement comme le pied de la chronologie.
+
+**L'onglet ne filtre pas la chronologie, il la remplace** — c'est le seul des six boutons dans ce
+cas. Le panneau de droite (carnet de bord et cases de saisie) ne bouge pas : on doit pouvoir écrire
+une ligne de carnet en lisant ce que le terrain a déclaré.
+
+### Vérifié — `partage/bloc-test-avancement.html`, 41 contrôles, 0 échec
+
+Chaque contrôle a son contre-exemple : les 11 pylônes faits sont marqués **et** les 12 autres ne le
+sont pas ; `doChronologie` cite bien `HISTORIQUE_FICHES` (le motif sait donc trouver une constante
+réellement lue) ; un chantier terminé n'affiche aucun compteur **et** 26-055 affiche bien les
+siens ; le PGO ne porte aucun rôle **et** le brief le sien. Le chantier sans dossier App Tech est
+**choisi dans la donnée**, pas écrit en dur : le jour où Patrice monte ce dossier, le contrôle
+suit au lieu d'échouer.
+
+**Contre-examen** : le banc rejoué sur la version d'avant s'arrête sur
+`doPanneauAvancement is not defined`. Il sait dire non.
+
+Rejoués sans régression : `bloc-test-reserve-grille` 47, `bloc-test-jours-prepla` 43,
+`bloc-test-dropbox` 40, `bloc-test-rayures-ecarts` 24, `bloc-test-validation-suivi` 16,
+`bloc-test-couleurs` 10. Les deux blocs `<script>` compilent, 0 `Ã`.
+**`SEED_DATA` n'est pas touché : pas de `SEED_VERSION` à bumper.**
+
+**Et à l'écran**, ce qu'aucun contrôle ne montre : le dossier de 26-055 sur l'onglet Avancement,
+avec ses cinq documents, ses sept tâches et les quatre commentaires des techniciens.
+
+> **DEUX BANCS RESTENT ROUGES, ET CE N'EST PAS DE CE LOT** (vérifié en les rejouant sur le commit
+> précédent, mêmes chiffres) : `bloc-test-affaires` (4) et `bloc-test-saisie-affaires` (1)
+> encodent l'état d'avant le passage au classeur de Teams du 11/09 au matin. À solder.
