@@ -1854,8 +1854,14 @@ que la V40 datait du 10/08). Le bouton « 📁 Documents » ouvre le dossier App
 est tenu à jour — il n'a pas ce défaut. Donc :
 - Ne JAMAIS recréer d'entrée `documentsTerrain` pour un chantier qui a un `documentsAppTech`.
 - Avant de vider le `documentsTerrain` d'un chantier, vérifier deux choses : que les documents
-  concernés sont bien présents dans son dossier App Tech, et que le lien App Tech est réellement
-  `audience: "public"` (`get_shared_link_metadata`) — sinon on retire le seul accès qui marche.
+  concernés sont bien présents dans son dossier App Tech, et que le lien App Tech s'ouvre
+  réellement — sinon on retire le seul accès qui marche.
+  **ET `audience` NE SUFFIT PAS À LE DIRE** (mesuré le 11/09/2026, cf. la section « Le champ
+  `audience` ne fait pas foi » en fin de fichier) : `get_shared_link_metadata` a répondu
+  `no_one` sur trois liens que Patrice venait d'ouvrir, et le témoin connu-ouvert se comporte
+  exactement comme eux quand on les appelle sans être connecté. **Ne jamais déclarer un lien
+  privé sur ce seul champ** — dire « le champ dit restreint, mais il s'est déjà trompé » et
+  faire ouvrir le lien depuis un téléphone.
 - Un chantier sans `documentsAppTech` garde ses boutons tant qu'il n'est pas migré : les vider
   reviendrait à priver les techniciens de tout document.
 - État au 25/08/26 : vidés pour Portet (26-051) et Givors (26-060). **26-062 Audit Bollène — Ste
@@ -7339,3 +7345,49 @@ Et deux corrections de fiche que la lecture du PdP a imposées :
   la réhabilitation de la ligne par INABENSA : relu ligne par ligne, **aucune** mention de fibre
   optique, de touret ni de TELSAM. L'alerte passe en rouge — les mesures de tourets peuvent se
   faire, les travaux THYM non.
+
+### LE CHAMP `audience` NE FAIT PAS FOI — troisième fausse alerte sur le même sujet (11/09/2026)
+
+Patrice ouvre les trois liens App Tech de Dambron 26-031, Lisieux 26-039 et Arnage 26-052, et me
+le dit. Je mesure avant de répondre, comme la règle l'exige, et `get_shared_link_metadata` répond
+**`audience: "no_one"`** sur les trois. Je le lui annonce comme un fait, avec la manip à refaire.
+
+**LE TEST QUI A TRANCHÉ, ET IL NE DÉPEND PAS DE CE CHAMP** : appeler les URL **sans être
+connecté** (aucun cookie Dropbox), c'est-à-dire dans la situation exacte d'un technicien. **Avec
+pour témoin 26-066, que Patrice avait ouvert le matin même et qui, lui, répond `public`.**
+
+| lien | `audience` | appel non connecté |
+|---|---|---|
+| 26-066 Lannemezan — **témoin connu ouvert** | `public` | 200, page de mot de passe, aucun refus |
+| 26-031 Dambron | `no_one` | 200, page de mot de passe, aucun refus |
+| 26-039 Lisieux | `no_one` | 200, page de mot de passe, aucun refus |
+| 26-052 Arnage | `no_one` | 200, page de mot de passe, aucun refus |
+
+Les quatre sont **indiscernables**. Et `list_shared_links` confirme qu'il n'existe **qu'un seul
+lien par dossier** : ce n'est pas un second lien public qui se cacherait derrière.
+
+> **`audience` PEUT DONC RESTER À `no_one` SUR UN LIEN QUI FONCTIONNE**, au moins sur un dossier
+> de l'espace d'équipe. **Ne jamais déclarer un lien privé sur ce seul champ.** La formule honnête
+> est « le champ dit restreint, mais il s'est déjà trompé — la seule preuve est que quelqu'un
+> l'ouvre depuis un téléphone ».
+
+**ET IL FAUT DIRE AUSSI CE QUE MON PROPRE TEST NE PROUVE PAS.** Une page de mot de passe s'affiche
+peut-être même pour un lien restreint, le refus ne venant qu'après la saisie — je ne vais pas
+taper le mot de passe pour le savoir. Ce test **ne distingue donc pas les deux cas** : il établit
+seulement que le témoin connu-ouvert et les trois autres se comportent pareil, donc que mon
+signalement n'avait **aucune base**. Ce n'est pas une preuve que les liens sont ouverts, c'est une
+preuve que je ne pouvais pas dire le contraire.
+
+**C'EST LA TROISIÈME FOIS SUR EXACTEMENT CE POINT** — 20/08, 09/09, 11/09 — et les trois causes
+sont différentes, ce qui explique que la règle n'ait pas tenu :
+- le 20/08, le lien était réellement privé et personne ne l'avait regardé : d'où la règle « vérifier
+  après chaque `create_shared_link` » ;
+- le 09/09, je reprenais l'état d'une session précédente sans mesurer : d'où « mesurer avant de
+  parler » ;
+- le 11/09, **j'ai mesuré, et c'est la mesure qui était fausse**.
+
+La leçon est donc d'un cran au-dessus des deux premières : *[[feedback_verifier_a_l_ecran_pas_dans_le_repere]]*
+ne dit pas seulement « mesurer plutôt que supposer », il dit **qu'un chiffre n'est une preuve que
+si on sait ce qu'il mesure**. Un champ d'API qui porte le bon nom n'est pas pour autant la réponse
+à la question posée — ici « est-ce qu'un technicien peut ouvrir ce dossier ? ». Le seul contrôle
+qui vaut est celui qui rejoue la situation réelle, avec un témoin dont on connaît la réponse.
