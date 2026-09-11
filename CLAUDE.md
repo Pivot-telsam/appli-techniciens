@@ -7139,3 +7139,131 @@ un fichier qui porte **exactement** le nom de celui de Teams, et c'est le périm
 > **PIÈGE POWERSHELL REPAYÉ EN MESURANT L'ÉCART** : les noms de variables sont **insensibles à la
 > casse**. `$n = $N[$num]` a écrasé l'index `$N` au premier tour de boucle, et la comparaison
 > échouait au second. Déjà documenté ici pour `$h`/`$H` le 08/09/2026 — c'est la deuxième fois.
+
+---
+
+## UNE LIGNE DE PLANNING SANS NUMÉRO REND LE CHANTIER INVISIBLE PARTOUT (11/09/2026)
+
+**Ce qui a déclenché la session.** Patrice : *« mets à jour le suivi et donc notre planning… et
+n'oublie pas de créer aussi App Tech quand il y a des tourets et y inclure le suivi. J'ai vu par
+exemple que pour les tourets de Bollène, le technicien n'a pas pu faire le suivi. »*
+
+### LE CAS BOLLÈNE, VÉRIFIÉ : LA CHAÎNE ÉTAIT COMPLÈTE, ET C'EST CE QUI COMPTE
+
+Remonté commit par commit, parce qu'une cause supposée aurait fait corriger le mauvais endroit :
+le dossier App Tech de **26-071** a été câblé le **04/09 à 14h30**, ses `tachesVendues` le même
+jour à 14h21, et le planning publié ce jour-là plaçait bien **Morad EL ABBASSI le lundi 07/09**.
+Le lien de partage est `audience: public`. Le bouton Suivi **était donc là**, et le dossier
+`Suivi` de Dropbox est resté vide : aucun envoi n'est jamais parti.
+
+> **JE NE SAIS PAS POURQUOI IL N'A PAS ENVOYÉ, ET JE NE L'INVENTE PAS.** Les trois hypothèses
+> qui restent (version en cache, mot de passe, bouton non trouvé) se tranchent en lui demandant,
+> pas en lisant le code. Ce qui est établi : **ce n'est pas un défaut d'outillage sur 26-071**.
+> *À noter : sa feuille d'heures de la S36 déclare Fleyriat du lundi au vendredi, alors que le
+> planning le place sur Bollène le lundi. À lui demander en même temps.*
+
+### MAIS LE DÉFAUT QU'IL DÉCRIT EXISTE, ET IL EST STRUCTUREL
+
+Une ligne du planning Teams **qui ne porte pas le numéro du chantier** n'est rattachée à aucune
+fiche. Trois conséquences, et les deux dernières sont les plus graves parce qu'elles sont
+silencieuses :
+
+1. le technicien **ne voit rien** ce jour-là dans son appli — donc ni documents, ni dépôt photos,
+   ni bouton Suivi. C'est la seule conséquence déjà documentée (03/09) ;
+2. **`veille-documents.ps1` conclut « aucun technicien planifié »** et range le retard d'App Tech
+   en « pour information » ;
+3. **`controle-chantiers.ps1` ne voit pas le chantier** et ne le compte pas parmi les prioritaires.
+
+**Mesuré le 11/09/2026 : 9 lignes du planning, 60 jours-personne, sur la fenêtre publiée.** Ce
+n'est pas un cas limite, c'est un tiers des affectations à venir.
+
+**CE QUE LE TROU CACHAIT VRAIMENT, ET C'EST LE PRIX RÉEL :**
+
+| chantier | ce que le planning dit | ce que le suivi croyait |
+|---|---|---|
+| **26-039 Lisieux - Vallée 1** | 3 techniciens du 21 au 25/09 | PGO ind.5 **et** PdP ind.3 **expirés le 04/09/26** — aucune couverture, aucun dossier App Tech |
+| **26-031 Dambron - Voves** | 2 techniciens du 21 au 25/09 | « personne n'est placé au planning à ce jour » (alerte de la fiche), aucun dossier App Tech |
+| **26-009 Aure - Lannemezan** | Vincent PERRIN du 21 au 25/09 | « aucun technicien planifié » dans la veille, donc le PDP restait hors d'App Tech sur un arbitrage **dont la condition était remplie** |
+
+> **LE CAS 26-009 EST LE PLUS INSTRUCTIF.** Patrice avait posé le 04/09 : *« le PDP n'entre dans
+> App Tech que lorsque l'intervention est datée — à reprendre dès qu'une date est fixée »*. La
+> date a été fixée, et **rien ne pouvait s'en apercevoir** : le mécanisme censé lever le report
+> lisait la même source aveugle que celle qui l'avait justifié. Un arbitrage conditionnel n'a de
+> valeur que si quelque chose sait constater que sa condition est remplie.
+
+### CE QUI A ÉTÉ FAIT, ET CE QUI RESTE À PATRICE
+
+**Arbitrages posés dans `TECH_RANGES` des deux dépôts** pour les 5 lignes qu'on peut rattacher
+sans le moindre doute (26-031, 26-039, 26-009, 26-003 Cantegrit, 26-055 Fleyriat) : 60
+jours-personne, et l'avertissement du script tombe de **9 lignes à 4**. `fusion-techranges.ps1`
+refuse un arbitrage qui mettrait quelqu'un sur deux chantiers le même jour — c'est le défaut
+Chaineau du 01/09, et il ne doit pas revenir par cette porte.
+
+**CES ARBITRAGES SONT UN PANSEMENT, PAS LE REMÈDE** (règle du 04/09 : *« un numéro écrit dans la
+ligne du planning vaut mieux que n'importe quel arbitrage de ma part »*). Ils sont à **retirer**
+dès que Patrice écrit le numéro dans Teams.
+
+**Les 4 lignes restantes ne peuvent PAS être tranchées seul**, et il faut le lui demander plutôt
+que de rapprocher par ressemblance de libellé — c'est ce qui enverrait un jour vers le mauvais
+chantier :
+- `AUDIT LA FOURGUETTE - PORTET le 16/09 à confirmer` (Didier PERRIN + Benjamin SOUPA, mer 16/09) ;
+- `MTFO AURE - BEYRÈDE et AURE-SAINT LARY` (Vincent PERRIN, 28/09→02/10) — **c'est le chantier
+  « Aure LS 63 kV », devis TELSAM CC 25103, qui n'a NI fiche NI numéro** ; l'alerte de 26-009 le
+  disait déjà le 04/09 ;
+- `AUDIT FO : Cubnezais-Tuilière ; Donzenac-Lesparat et Donzenac-Tuilière` (05-06/10) — 26-061
+  couvre Cubnezais mais pas Donzenac ;
+- `AUDIT FO GESSE - NENTILLA` (13/10) — aucune fiche connue.
+
+**Deux dossiers App Tech montés** (26-031 et 26-039) : brief généré depuis le bon devis, MO et NDS
+TELSAM, PDP et PGO à l'indice en vigueur, sous-dossier Photos terrain, demande de dépôt Dropbox
+câblée dans `depotTerrain`, `tachesVendues` relevées dans le devis, entrées `BOITES_TACHES`.
+**Leurs liens de partage sont PRIVÉS** (`audience: no_one`), comme celui de **26-066** monté plus
+tôt le même jour : les trois sont à passer en public par Patrice, et **le bouton Documents ne doit
+pas être annoncé comme fonctionnel avant**.
+
+### DEUX OUTILS ÉCRITS ICI, ET LES PIÈGES QU'ILS ONT COÛTÉS
+
+**`scratchpad/brief.ps1` — le brief techniciens sans ReportLab.** Word COM, insertion d'un seul
+bloc puis mise en forme par index de paragraphe, contrôle paragraphe par paragraphe avant
+`SaveAs2`, témoin `.docx` enregistré à côté du PDF (méthode du 08/09, reprise telle quelle).
+
+> **LE PIÈGE D'ENCODAGE A ÉTÉ REPAYÉ, SUR CE SCRIPT MÊME.** Les puces `•`, tirets `–` et
+> triangles `⚠` écrits **en littéral** dans un `.ps1` sans BOM sont lus en ANSI : les 24 puces du
+> brief de Dambron sont parties en `â€¢`. Trouvé en relisant les **points de code** du témoin, pas
+> à l'œil (la console affiche `?` dans les deux cas). Ils se construisent maintenant par
+> `[char]0x2022`, et un garde-fou refuse d'écrire si un texte porte la signature d'un double
+> encodage.
+> **ET CE GARDE-FOU ÉTAIT FAUX AU PREMIER JET** : il cherchait le second caractère dans
+> `0x80-0xA2`, alors que CP1252 remonte `0x80` en `U+20AC`. Il **ne pouvait pas se déclencher** —
+> vérifié en lui présentant un texte cassé exprès, ce qui est le seul moyen de savoir qu'un
+> contrôle existe vraiment. Motif retenu : `[ÂÃâ][^ -]`, et les deux
+> sens sont éprouvés à chaque passage (le piège est refusé, les vrais passent).
+
+**`scratchpad/patch-seed.ps1` — modifier une fiche sans toucher au reste.** Réserialiser tout
+`SEED_DATA` change l'échappement sur des milliers de caractères (mesuré : +635 octets sur l'appli,
++3355 sur le suivi, **pour zéro changement de sens**) et noie la modification réelle dans un diff
+illisible. L'outil découpe l'objet de la fiche visée par appariement d'accolades, ne réécrit que
+lui, et recolle. Un nom de champ préfixé `+` **ajoute** au tableau existant au lieu de le remplacer
+(pour l'historique : recopier les anciennes entrées dans le patch, c'est s'exposer à en perdre une).
+Deux contrôles : toute fiche demandée doit avoir été trouvée, et le nombre de fiches ne change pas.
+
+> **PIÈGE POWERSHELL, ET C'EST UN TROISIÈME DE LA MÊME FAMILLE.** Le paramètre est déclaré
+> `[string]$Patch`, et PowerShell est **insensible à la casse** : écrire `$patch = … |
+> ConvertFrom-Json` reconvertit l'objet **en texte**, et `PSObject.Properties` ne rend plus que
+> `Length`. Le script annonçait « aucune fiche trouvée » sur un patch parfaitement valide. Après
+> `$h`/`$H` (08/09) et `$n`/`$N` (11/09 au matin) : **ne jamais réutiliser le nom d'un paramètre
+> typé pour autre chose.**
+
+**Et le fichier HTML ne se reconstruit pas ligne à ligne** : ces deux fichiers ont des fins de
+ligne **mélangées** (CRLF dans le corps, LF sur les dernières lignes). Un `ReadAllLines` + `join`
+réécrirait les 2000 lignes. On remplace la seule ligne visée par regex, comme `planning-rte.ps1`.
+
+### Ce qui reste ouvert
+
+- **26-118 Chausse - Revigny** : le PGO V1 reçu le 11/09 est un **PDF scanné d'une page**,
+  illisible sans OCR. La question du 08/09 — TELSAM est-il vraiment sur ce chantier ? — reste
+  entière, et aucune fiche n'est créée.
+- **26-130 Cubnezais station HVDC** : NDS modifiée, toujours aucune fiche, aucun technicien
+  planifié. Rien d'urgent.
+- **Exclusion ajoutée pour 26-066** (NDS `.docx` et `.pdf` identiques, même nom, même date) : c'est
+  l'application à l'identique de la règle Fleyriat posée par Patrice le 09/09, **à lui confirmer**.
