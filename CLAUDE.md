@@ -133,8 +133,15 @@ Structure de la feuille "Feuil1" :
   MARCOUSSIS fin chantier », « livraison Tourets Arnage Ecommoiy »). Les inclure dans la table des
   couleurs colle **tout le monde** sur le mauvais chantier — un premier essai plaçait ainsi les cinq
   encadrants sur Joncquière. Le test qui tranche est `Interior.ColorIndex = -4142` (`xlNone`).
-  Valeurs relevées sur ce classeur : `-4142` = pas de fond, `3` = rouge (CP / CP paternité),
-  `7` = gris du week-end, tout le reste = un chantier.
+  Valeurs relevées sur ce classeur : `-4142` = pas de fond, `7` = gris du week-end, tout le reste
+  = un chantier.
+- **LE ROUGE (`3`) N'EST PAS RÉSERVÉ AUX CONGÉS.** Cette ligne disait « `3` = rouge (CP / CP
+  paternité) » jusqu'au 11/09/2026, et c'était faux : une **ligne-projet** peut être rouge, et
+  alors les cases rouges des techniciens désignent ce chantier, pas un repos. Mesuré ce jour-là :
+  46 cases mal lues sur l'année, dont sept techniciens envoyés « en congé » toute une semaine de
+  mars alors qu'ils étaient sur Colayrac-Gupie. **C'est le TEXTE de la case qui dit l'absence**
+  (« CP », « RTT », « AM »…), jamais la seule couleur — détail dans la section « Le rouge n'est pas
+  le congé », en fin de fichier.
 - **RÈGLE FONDAMENTALE POSÉE PAR PATRICE LE 01/09/2026 : UNE COULEUR NE VAUT QUE DANS SA SEMAINE.**
   « Les couleurs ne valent que pour la semaine en cours, c'est-à-dire dans la même colonne où elles
   sont. » Le jaune de la S35 et le jaune de la S36 désignent couramment **deux chantiers
@@ -7267,3 +7274,68 @@ réécrirait les 2000 lignes. On remplace la seule ligne visée par regex, comme
   planifié. Rien d'urgent.
 - **Exclusion ajoutée pour 26-066** (NDS `.docx` et `.pdf` identiques, même nom, même date) : c'est
   l'application à l'identique de la règle Fleyriat posée par Patrice le 09/09, **à lui confirmer**.
+
+### LE ROUGE N'EST PAS LE CONGÉ — sept hommes déclarés en repos alors qu'ils étaient sur un chantier
+
+**Trouvé par Patrice le 11/09/2026, à l'œil, sur la grille** : *« pascal est sur des tourets lundi
+et mardi sur arnage eccommoy. pourquoi l'as-tu mis en cp ? »*
+
+**LA CAUSE, mesurée dans le classeur Teams avant de toucher au code.** Semaine 38, colonnes 258-262 :
+
+| ligne | `ColorIndex` | texte |
+|---|---|---|
+| L31, ligne-projet « THYM ARNAGE - ECOMOY : Mesure 3 tourets » | **3** | le libellé |
+| L10 Pascal BONAVENTURE, 14 et 15/09 | **3** | *(vide)* |
+| L6 Christian CAZENAVE, toute la semaine | 3 | **« CP »** |
+
+`planning-rte.ps1` testait `if ($idx -eq $IDX_CONGE)` **AVANT** de chercher une ligne-projet de la
+même couleur. Toute case rouge devenait donc un congé — y compris quand le rouge était la couleur
+d'un chantier cette semaine-là.
+
+> **CE FICHIER ÉCRIVAIT LA RÈGLE FAUSSE DEPUIS LE 01/09/2026** : « `3` = rouge (CP / CP
+> paternité) ». Elle venait d'une observation juste (le rouge sert souvent au congé) transformée en
+> loi. La règle qui tient est celle qui vaut pour toutes les autres couleurs : **une couleur ne
+> désigne un chantier que s'il existe une ligne-projet de cette couleur cette semaine-là** — le
+> rouge n'a aucune raison d'y échapper.
+
+**CE QUE ÇA CACHAIT, ET C'EST BIEN PIRE QUE LE CAS SIGNALÉ.** Relecture de l'année entière,
+46 cases changent :
+
+- **Pascal BONAVENTURE, 14 et 15/09** → mesures de 3 tourets sur Arnage - Ecommoy. Un chantier
+  **sans dossier App Tech**, à trois jours de l'intervention ;
+- **la semaine 14 (30/03 → 02/04)** : Didier PERRIN, François PERRIN, Vincent PERRIN, Benjamin
+  DIRAT, Benjamin SOUPA, Sid Ahmed BENZAMERA et Anthony DENIS — **sept techniciens, quatre jours**
+  — étaient sur « COLAYRAC - GUPIE : OPPC Pyl 103 », ligne-projet rouge elle aussi. Tous déclarés
+  en congé. La ligne porte même la note « s 13 ou 14 », et ils sont tous en « AGENCE » le vendredi :
+  une équipe entière en congé du lundi au jeudi puis à l'agence le vendredi n'a aucun sens.
+
+**LA RÈGLE MAINTENANT, dans cet ordre :**
+1. la case **dit** « CP », « RTT », « AM »… (`$MOTIF_ABSENCE`) ⇒ absence, quelle que soit la
+   couleur. C'est ce qui distingue Christian de Pascal sans rien deviner ;
+2. sinon, une ligne-projet rouge existe cette semaine ⇒ **c'est un chantier**, rattaché comme
+   n'importe quelle autre couleur ;
+3. sinon ⇒ absence sans texte, on garde « CP ».
+
+**Effet mesuré** : 46 cases corrigées, dont 2 dans la fenêtre publiée aux techniciens. Aucune case
+ne part dans l'autre sens sans texte explicatif.
+
+> **CE QUE CE DÉFAUT DIT DE MA MÉTHODE, et c'est le vrai enseignement.** Les trois mécanismes
+> construits pour attraper un chantier oublié — le hook pre-commit, le contrôle du matin, le rappel
+> à chaque message — **lisent tous la même sortie de `planning-rte.ps1`**. Quand la lecture se
+> trompe, ils se taisent tous les trois, d'un même mouvement, et ils se taisent en ayant l'air
+> d'aller bien. Aucun empilement de contrôles ne rattrape une source fausse : **seul l'œil de
+> Patrice sur la grille l'a vu** (cf. [[feedback_verifier_a_l_ecran_pas_dans_le_repere]]). Et il
+> l'a vu parce que la grille écrit le nom du chantier dans la case — c'est exactement ce pour quoi
+> elle a été faite.
+
+**26-052 Arnage - Ecommoy monté dans la foulée** : dossier App Tech (brief depuis le devis
+25136V3, MO et NDS TELSAM, PdP indice 3), Photos terrain, demande de dépôt, 6 tâches vendues,
+entrée `BOITES_TACHES` à **deux** tâches (5 boîtiers complets aux pylônes, 2 demi-boîtiers aux
+portiques — supports différents, donc deux tâches, comme à Bradascou), temps prévisionnel 212 h.
+Et deux corrections de fiche que la lecture du PdP a imposées :
+- **le PdP indice 3 (18/06/26) EST reçu** et nomme TELSAM (entreprise EE3, François VIDAL
+  signataire, 05/03 → 31/12/26). La fiche le disait « non reçu » depuis toujours ;
+- **le PGO, lui, ne nous couvre PAS.** Le seul disponible (LA Arnage Ecommoy indice 1) est celui de
+  la réhabilitation de la ligne par INABENSA : relu ligne par ligne, **aucune** mention de fibre
+  optique, de touret ni de TELSAM. L'alerte passe en rouge — les mesures de tourets peuvent se
+  faire, les travaux THYM non.
