@@ -6899,3 +6899,243 @@ S34 d'Anthony DENIS relue à l'œil avant envoi. `APP_VERSION` `2026-09-10-5`, e
 **garde le rappel du renumérotage St-Guillerme** : elle ne s'affiche qu'une fois par version, donc
 la remplacer aurait effacé l'annonce de 26-080 pour tous ceux qui n'avaient pas encore ouvert
 l'appli.
+
+---
+
+## La sauvegarde du suivi en ligne (11/09/2026)
+
+**Demande de Patrice, et sa correction — elle vaut d'être relue.** Il a d'abord demandé « un
+répertoire backup où enregistrer à chaque veille, une fois par jour, des exports du planning et du
+suivi ». J'ai livré des copies du **planning Teams** et des **classeurs Excel du Bureau**. Sa
+réponse : *« Je ne sais pas si on s'est bien compris. Ce que je veux sauvegarder, c'est ce qu'il y
+a sur notre suivi EN LIGNE. Pas ce que j'ai sur mon PC ou ce qu'il y a sur Teams. Une fois que le
+suivi sera utilisé, il n'y aura plus le Teams ni le fichier Excel de suivi. »*
+
+> **LA LEÇON : « sauvegarder le suivi » ne désigne pas les fichiers d'où le suivi tire ses données,
+> mais ce que le suivi contient en propre.** J'ai sauvegardé les SOURCES, qui ont déjà chacune leur
+> filet — Teams garde son historique, un classeur Excel se réenregistre — et laissé sans filet la
+> seule donnée qui n'en a aucun : ce que les sept personnes saisissent dans la base commune. Le
+> besoin était écrit depuis le 02/09/2026 dans ce fichier (« à prévoir, non bloquant : une
+> sauvegarde quotidienne de la base »), et je ne l'ai pas reconnu quand il est arrivé.
+
+### `/api/export` — tout en une lecture
+
+`functions/api/export.js`. GET seulement, derrière la porte, **aucune écriture d'aucune sorte** —
+elle ne pose même pas les tables ou colonnes manquantes que les autres API rattrapent au premier
+appel : une sauvegarde ne doit jamais pouvoir modifier ce qu'elle sauvegarde.
+
+**LES TABLES SONT DÉCOUVERTES DANS `sqlite_master`, JAMAIS ÉCRITES EN DUR.** C'est la propriété qui
+compte : le schéma a gagné cinq tables et une quinzaine de colonnes en dix jours, la plupart posées
+par `ALTER TABLE` au premier appel d'une API. Une liste figée aurait cessé de tout sauvegarder au
+premier ajout, **en silence**, et on ne s'en apercevrait que le jour de la restauration. Chaque
+table part avec `SELECT *`, par paquets de 500.
+
+Une seule exclusion, `tentative` (le compteur d'échecs de mot de passe) : adresses IP, se
+reconstruit seul, aucune valeur une fois restauré. **Elle est NOMMÉE dans `ignorees`** — on n'écarte
+jamais en silence. Même chose pour un nom de table inattendu.
+
+Le plafond de 100 000 lignes par table **se voit** (`tronquee`, par table et en général) : une
+sauvegarde incomplète qui se croit complète est pire que pas de sauvegarde.
+
+**Pourquoi une adresse dédiée plutôt que les API existantes** : `/api/planning` se lit semaine par
+semaine (52 appels pour une année) et `/api/notes-affaire` par affaire. Une sauvegarde qui demande
+180 appels échouera un jour à moitié — et à moitié seulement, donc incomplète sans le dire.
+
+### `scripts/sauvegarde-quotidienne.ps1`
+
+Étape **« Sauvegarde du suivi en ligne »** de `matin.ps1`, donc aux deux passages (7h30 et 13h00).
+Il écrit dans `TELSAM-apps\backup\AAAA-MM-JJ\` — **dossier parent, donc dans aucun des deux
+dépôts**, ce qui est voulu : ce sont des données, pas du code.
+
+| fichier | à quoi il sert |
+|---|---|
+| `suivi-en-ligne.json` | tout, **tel quel**, non resérialisé. C'est ce qui sert à REMETTRE la base en état |
+| un `.csv` par table | la même chose, lisible dans Excel. C'est ce qui sert à RETROUVER une ligne |
+
+Les deux, parce qu'ils ne servent pas à la même chose. Les CSV sont écrits à la main (point-virgule
+et BOM : `Export-Csv` rend les nombres à la française et Excel FR colle tout en colonne A), et les
+noms de fichiers sont lisibles (`planning-affectations.csv`, `affaires-carnet-de-bord.csv`) — **une
+table absente de la table de correspondance garde son propre nom**, on n'en perd jamais une.
+
+**IL SE CONNECTE COMME UNE PERSONNE.** `POST /entrer` avec le mot de passe, puis le cookie de
+session. Aucune porte dérobée n'a été ajoutée, aucun jeton côté Cloudflare : ç'aurait été un second
+chemin d'entrée devant des données commerciales, et la règle est de garder l'exception aussi
+étroite que possible. Le mot de passe est lu dans `Mots_de_passe_Suivi_Partage_TELSAM.txt` sur le
+Bureau, **là où il est déjà** — une seconde copie d'un secret est une seconde chose à perdre. Le
+script ne l'affiche jamais et ne lit que la ligne de Patrice.
+
+**IL NE RETENTE JAMAIS UNE CONNEXION REFUSÉE.** Le suivi bloque une adresse IP après 10 échecs en
+10 minutes : une boucle de reprise enfermerait Patrice dehors, depuis sa propre machine.
+
+**QUAND, ET LE RATTRAPAGE.** Déjà une sauvegarde **complète** aujourd'hui ⇒ rien ; il est 12 h ou
+plus ⇒ on enregistre ; la dernière remonte à plus de 20 h ⇒ rattrapage ; sinon (passage du matin,
+hier est fait) ⇒ on laisse faire celui de 13 h.
+
+> **L'ÂGE SE COMPTE DEPUIS L'HEURE RÉELLE, PAS DEPUIS MINUIT.** Premier défaut trouvé par l'essai :
+> compté depuis minuit, une sauvegarde faite hier à 13 h paraissait vieille de 32 h au passage de
+> 7h30 — le rattrapage se déclenchait **tous les matins** et la règle des 13 h ne servait plus à
+> rien. L'horodatage exact est dans `sauvegarde.json`.
+
+### Trois façons pour ce mécanisme de mentir, toutes fermées
+
+1. **UNE JOURNÉE NE COMPTE QUE SI L'EXPORT EN LIGNE A RÉUSSI.** Le marqueur est la présence de
+   `suivi-en-ligne.json`. Sans cette règle, un passage où seules les copies de fichiers auraient
+   abouti ferait croire la journée faite, et le passage suivant ne retenterait jamais.
+2. **Un export raté fait sortir le script en erreur**, donc l'étape apparaît en ECHEC dans
+   `matin.json` et dans le récap. Et si la dernière sauvegarde complète date de plus de 3 jours, il
+   sort en erreur **même quand il n'avait rien à faire aujourd'hui**.
+3. **Le ménage du « faux témoin » ne retire QUE le dossier créé à l'instant.** Second défaut trouvé
+   par l'essai : un passage raté a effacé le dossier du jour **avec les copies qu'un passage
+   précédent y avait déposées**. Le drapeau est `$creeMaintenant`.
+
+**Ménage de longue durée** : 90 jours jour par jour, puis la première sauvegarde de chaque mois. Un
+dossier n'est effacé que s'il ne contient que des `.xlsx/.xlsm/.json/.txt/.csv` — il ne peut pas
+emporter autre chose par accident (vérifié en y glissant un `.docx` : conservé, et le motif dit
+pourquoi).
+
+### LE PLANNING TEAMS EST COPIÉ EN PLUS, LES CLASSEURS DU BUREAU NON (tranché le 11/09/2026)
+
+**Le planning reste copié**, dans les mots de Patrice : « pour l'instant et tant que le suivi ne
+sera pas fonctionnel, copie aussi le planning Teams (qui doit être le même que celui de l'onglet
+planning vu que tu te bases encore dessus pour les mises à jour) ». Son raisonnement est exact :
+le planning lu dans Teams **n'entre pas** dans la base (décision du 02/09/2026, écrite en tête de
+`schema.sql`), donc sauvegarder la seule base le laisserait sans filet. `-AvecPlanning:$false` le
+coupe, et **il faudra le couper le jour où le planning vivra dans la base**.
+
+**Les classeurs Excel du Bureau ne sont plus copiés** : « ils ne servent plus vu que tu vas lire
+dans Teams tout seul ». `$Classeurs` est laissé **à vide plutôt que supprimé** — le mécanisme
+resservira si un fichier local redevient une source.
+
+> **UNE RÉSERVE LUI A ÉTÉ DITE, ET ELLE RESTE VRAIE.** Sa phrase vaut pour le planning ; elle ne
+> vaut pas pour `SUIVI RTE TELECOM - mise a jour_3.xlsx`, qui **n'est pas lu dans Teams** mais sur
+> son Bureau, et qui est la source de `AFFAIRES_RTE` — donc de tout l'onglet Affaires (131 affaires,
+> montants, commandes). Tant que `affaires-rte.ps1` le lit là, ce fichier n'a **aucune** sauvegarde.
+> Signalé ; c'est sa décision, elle est appliquée. **À reposer le jour où un incident sur ce
+> classeur coûterait cher, ou quand les affaires passeront dans la base.**
+
+Pour mémoire, ce que la base contenait réellement le 11/09/2026 : **1 affaire saisie, 4
+préplanifications, 1 semaine validée, 0 ligne de carnet, 0 affectation**. C'est normal, et c'est
+pourquoi la copie du planning compte encore aujourd'hui.
+
+### Vérifié
+
+`partage/test-api-export.html` — **30 contrôles, 0 échec**, chacun avec son contre-exemple : la
+porte (sans identité, la base n'est **même pas interrogée**), aucun ordre d'écriture, `tentative`
+exclue **et** `affectation` bien présente, les tables internes ni exportées ni signalées, la
+pagination (1200 lignes en 3 paquets / 12 lignes en 1), le plafond qui se voit, `schema_version`
+repris et **`null` plutôt qu'inventé** quand `meta` est illisible, et une panne de base qui rend
+500 au lieu d'un export vide.
+
+**Et le contre-examen** : le code saboté — la découverte des tables remplacée par une liste écrite
+en dur, exactement le défaut que ce banc existe pour attraper — donne **5 échecs**, dont « une
+table inconnue du code est sauvegardée ». Il sait dire non.
+
+> **UN BANC QUI SE TAIT EST PIRE QU'UN BANC ROUGE.** Au premier contre-examen, le banc est resté
+> sur « en cours » : une exception dans le `(async function(){…})()` devient une promesse rejetée
+> **avalée en silence**, et on croit à un plantage du navigateur. Le corps est maintenant dans un
+> `try/catch` qui transforme l'exception en ECHEC nommé et **rend quand même le verdict**. À
+> reprendre dans les autres harnais : plusieurs ont la même faiblesse.
+
+Le script, lui, a été éprouvé sur ses branches : passage du matin qui ne fait rien, rattrapage à
+2 jours, plus rien depuis 5 jours (alerte + code 1), ménage, et l'appel exact que `matin.ps1`
+fabrique (`-NonInteractive`, fenêtre cachée).
+
+> **PIÈGE POWERSHELL REPAYÉ EN ÉCRIVANT CETTE SECTION MÊME.** Je l'ai d'abord ajoutée avec un bloc
+> de texte `@"…"@` : dans cette forme, **l'accent grave est un caractère d'échappement et `$`
+> interpole**. Tous les accents graves du markdown ont disparu et `$creeMaintenant` s'est évaporé,
+> le tout dans les DEUX dépôts. Rattrapé par le comptage d'encodage qui suit chaque écriture, puis
+> `git checkout --` sur les deux fichiers. **Pour du texte littéral, `@'…'@`** — ou l'outil Write,
+> ce qui a été fait ici.
+
+---
+
+## L'ONGLET AFFAIRES LISAIT LE MAUVAIS FICHIER (corrigé le 11/09/2026)
+
+**Patrice : « tu dois suivre le suivi qui est dans Teams et pas celui de mon bureau ! C'est
+important ! C'est celui de Teams qui est mis à jour collectivement par mes collègues. Modifie
+cette règle sinon tout le suivi est faux. »**
+
+Il avait raison. `affaires-rte.ps1` lisait `Bureau\SUIVI RTE TELECOM - mise a jour_3.xlsx`, une
+copie **figée au 07/09**, pendant que l'équipe tenait à jour
+`sites/RTE/Shared Documents/RTE/SUIVI RTE & TELECOM.xlsx` — **modifié la veille à 16h45**.
+
+> **CE N'EST PAS UN CHOIX QUI A MAL VIEILLI, C'EST UNE QUESTION QUE JE N'AI JAMAIS POSÉE.** Le
+> 07/09, Patrice a dit « je garde mise à jour 3 » : il tranchait entre **deux fichiers de son
+> Bureau**, et j'ai lu ça comme « ce fichier fait foi » sans jamais demander d'où venait le
+> commercial. Le planning, lui, était déjà lu dans Teams depuis le 01/09 — la même question se
+> posait mot pour mot pour le suivi, et je ne l'ai pas vue. **Devant un fichier local qui alimente
+> l'outil, demander où l'équipe le tient à jour.**
+
+### Ce que l'écart coûtait vraiment — mesuré, pas supposé
+
+**8 affaires sur 131** différaient, dont deux facturations que le suivi ignorait complètement :
+Chaineau lot 1 (26-036-1) **15 375 € facturés, reste 26 335 → 10 960 €**, et Fibrage Fleyriat
+(26-055) **23 340 € facturés, reste 48 815 → 25 475 €**. Plus deux montants corrigés
+(26-132 : 35 853 → 31 693 €, 26-140 : 124 754 → 130 654 €), deux commandes et deux statuts.
+
+### LES DEUX FICHIERS N'ONT PAS LA MÊME STRUCTURE — le piège qui aurait tout faussé
+
+Le classeur de Teams n'a **pas** de colonne « N° Chantier » : Patrice l'a insérée en F dans SA
+copie, ce qui décale d'un rang **tout ce qui suit** (Teams : F = N° Devis ; Bureau : F = N° Chantier,
+G = N° Devis). Basculer la source sans rien d'autre aurait donc pris le numéro de devis pour un
+numéro de chantier et les dates pour des montants — **un onglet entièrement faux, sans la moindre
+erreur affichée**.
+
+**1. LES COLONNES SE REPÈRENT PAR LEUR EN-TÊTE (ligne 5), PLUS JAMAIS PAR LEUR LETTRE.** C'est la
+règle déjà posée pour l'onglet Recap des feuilles d'heures, et elle vaut ici pour la même raison.
+`$ENTETES` donne le nom logique attendu, normalisé (accents et ponctuation retirés) ; **un en-tête
+manquant ARRÊTE le script** au lieu de le laisser deviner. Ne jamais réintroduire de lettre en dur.
+
+**2. LES NUMÉROS DE CHANTIER SONT RAPPROCHÉS PAR LE NUMÉRO DE DEVIS, PAS PAR LA LIGNE.** Les deux
+fichiers ne sont ni dans le même ordre ni en même nombre (la ligne 6 est un chantier de 2019 dans
+l'un, de 2021 dans l'autre). Quatre niveaux, du plus sûr au moins sûr, et **aucun ne tranche entre
+plusieurs candidats** :
+
+| niveau | règle | résultat le 11/09/2026 |
+|---|---|---|
+| 1 | numéro de devis exact, une seule ligne | 599 |
+| 2 | devis exact mais porté par plusieurs lignes → départagé par le **libellé** | 21 |
+| 3 | devis absent → **sans son suffixe de version** (`V3` ↔ `V2`) | 2 |
+| 4 | libellé exact, s'il ne désigne qu'une ligne | 0 |
+| — | rien ne tranche → **nommé à l'écran**, jamais deviné | 3 |
+
+> **LES NIVEAUX 2 ET 3 NE SONT PAS DU CONFORT : SANS EUX, TROIS CHANTIERS ACTIFS PERDAIENT LEUR
+> LIGNE COMMERCIALE.** Premier essai, niveau 1 seul : 26 numéros non replacés, dont **Cantegrit
+> 26-003** (Teams porte `TELSAMCC26036V2`, la copie du Bureau `V3` — même devis, version plus
+> récente : c'est le montant de **112 502,79 €** qui disparaissait), **Bradascou 26-054** et
+> **Fibrage Fleyriat 26-055** (les doublons `TELSAMCC25106`/`25107` déjà documentés ici, qui
+> désignent chacun DEUX chantiers réels et que seul le libellé sépare). Avec les quatre niveaux :
+> **622 replacés sur 625**, 131 affaires, **0 affaire vivante sans numéro**.
+
+Les 3 restants sont anciens et sans conséquence : deux lignes « POSTE DE PESSAC » de 2023 portant
+le même devis et le même libellé, et `25-143` POSTE DE GAUDIERE qui n'a aucun numéro de devis.
+
+### Le classeur de Teams est lu comme le planning
+
+Excel l'ouvre **en lecture seule** et en écrit une **copie figée** (`SaveCopyAs`) dans le dossier
+temporaire ; c'est la copie qui est dézippée, et elle est **effacée aussitôt lue** (on ne laisse pas
+traîner une copie du commercial). Le fichier de l'équipe n'est ni modifié, ni enregistré, ni fermé.
+`AFFAIRES_RTE` publie `surTeams: true` et `dateSource: "lu le …"` — **pas une date d'enregistrement
+inventée** : sur un fichier SharePoint elle n'est pas lisible (vérifié le 01/09/2026 sur le
+planning), et lire le fichier partagé donne par construction son état du moment.
+
+### CE QUI RESTE À TRANCHER PAR PATRICE
+
+**La colonne « N° Chantier » n'existe que dans sa copie du Bureau.** Tant qu'il en est ainsi, le
+script a besoin des deux fichiers, et **tout numéro qu'il ajoutera dans sa copie du Bureau
+continuera de compter** — mais ses collègues ne le verront pas. Deux issues :
+1. **ajouter la colonne au fichier de Teams** (la bonne : un seul fichier, tenu par tout le monde,
+   et `-Complement` devient inutile) ;
+2. garder le rapprochement, en sachant qu'une ligne neuve créée par un collègue n'aura de numéro
+   que quand Patrice l'aura numérotée de son côté.
+
+### La sauvegarde suit
+
+`sauvegarde-quotidienne.ps1` copie désormais **les deux fichiers de Teams** (planning et classeur
+des affaires) à côté de l'export de la base, et **plus rien du Bureau**. Le garde-fou « on ne copie
+qu'un classeur dont le `FullName` commence par http » compte double ici : Patrice a sur son Bureau
+un fichier qui porte **exactement** le nom de celui de Teams, et c'est le périmé.
+
+> **PIÈGE POWERSHELL REPAYÉ EN MESURANT L'ÉCART** : les noms de variables sont **insensibles à la
+> casse**. `$n = $N[$num]` a écrasé l'index `$N` au premier tour de boucle, et la comparaison
+> échouait au second. Déjà documenté ici pour `$h`/`$H` le 08/09/2026 — c'est la deuxième fois.
