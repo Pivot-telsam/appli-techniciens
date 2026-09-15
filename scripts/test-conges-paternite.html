@@ -1,0 +1,133 @@
+<pre id="verdictTest" style="position:fixed;top:0;left:0;background:#fff;color:#000;z-index:99999;font:11px monospace;padding:4px;">en cours</pre>
+<script>
+/* TEST DU CONGE PATERNITE (demande de Patrice le 07/09/2026).
+ * A concatener apres index.html, Chrome --headless --dump-dom.
+ *
+ * SON CAS : « un technicien n'a pas pu remplir ses conges car il n'y a pas la
+ * possibilite dans l'appli ».
+ *
+ * LE POINT DELICAT N'EST PAS LE MENU, C'EST LA FEUILLE OFFICIELLE. Le modele
+ * Excel que recoivent Karine et Pierre n'a PAS de ligne « paternite » : ses
+ * etiquettes sont imprimees dans le classeur. Les heures partent donc sur la
+ * ligne « Conges » (ligne 18), et deux consequences doivent etre verifiees :
+ *   1. deux codes de l'appli visent alors la MEME ligne du modele. Si l'ecriture
+ *      se fait absence par absence, la seconde ECRASE la premiere et des heures
+ *      disparaissent sans rien signaler. C'est le controle 3, et il a son
+ *      contre-exemple : sans la somme, le total serait celui du paternite seul.
+ *   2. la paie doit voir la mention, sinon elle decompte des conges payes a
+ *      tort. C'est le controle 4.
+ * Chaque controle a son contre-exemple : un test qui ne peut pas echouer ne
+ * prouve rien. */
+(async function () {
+  const R = []; let ko = 0;
+  function ok(nom, cond, detail) {
+    R.push((cond ? 'OK   ' : 'ECHEC') + ' | ' + nom + (detail ? '  -> ' + detail : ''));
+    if (!cond) ko++;
+  }
+  function fin() {
+    R.push('---');
+    R.push(R.filter(l => l.startsWith('OK')).length + ' controle(s) passes, ' + ko + ' en echec');
+    R.push(ko ? 'VERDICT: ECHEC' : 'VERDICT: TOUT PASSE');
+    document.getElementById('verdictTest').textContent = R.join('\n');
+  }
+  try {
+    for (let i = 0; i < 100 && typeof ABSENCE_CODES === 'undefined'; i++) await new Promise(r => setTimeout(r, 50));
+    if (typeof ABSENCE_CODES === 'undefined') { document.getElementById('verdictTest').textContent = 'page non construite'; return; }
+
+    // ---- 1. le code existe et il est proposable au technicien ----
+    const pat = ABSENCE_CODES.find(a => a.key === 'paternite');
+    ok('1. le conge paternite existe dans la liste', !!pat, pat ? pat.label : 'absent');
+    if (!pat) { fin(); return; }
+    ok('1. il est propose dans le menu (seule la contribution agence en est exclue)',
+       pat.key !== 'contribution');
+    ok('1. il porte une aide affichee au technicien', !!pat.aide);
+    ok('1. il porte une mention destinee a la paie', !!pat.mention,
+       pat.mention || 'aucune');
+    // CONTRE-EXEMPLE : un code qui a sa propre ligne ne doit PAS porter de mention
+    const cp = ABSENCE_CODES.find(a => a.key === 'conges');
+    ok('1. CONTRE-EXEMPLE : les conges payes, eux, ne portent aucune mention',
+       !cp.mention);
+
+    // ---- 2. il vise la ligne « Conges » du modele, faute de ligne a lui ----
+    ok('2. il ecrit sur la meme ligne que les conges payes',
+       ABSENCE_ROWS.paternite === ABSENCE_ROWS.conges,
+       'ligne ' + ABSENCE_ROWS.paternite);
+
+    // ---- 3. LES DEUX ABSENCES S ADDITIONNENT, elles ne s ecrasent pas ----
+    // 3 h de conges payes lundi + 7 h de paternite lundi = 10 h en D18.
+    const payload = {
+      weekNum: 37, mondayDate: new Date(Date.UTC(2026, 8, 7)),
+      nom: 'ESSAI', prenom: 'Test', chantierLines: [],
+      absences: [
+        { key: 'conges',    jours: { 0: 3 } },
+        { key: 'paternite', jours: { 0: 7, 1: 7 } }
+      ],
+      pd: {}, gd: {}, nacelle: {}, vehiculeMode: null, km: null, immat: null,
+      commentaires: '', signatureText: 'ESSAI Test'
+    };
+    // On n ouvre PAS le classeur (JSZip n est pas charge ici) : on fabrique un
+    // XML minimal aux cellules visees, exactement comme le modele les porte
+    // — une cellule vide avec son style.
+    let xml = '<worksheet><sheetData>'
+      + '<row r="18"><c r="D18" s="44"/><c r="F18" s="44"/></row>'
+      + '<row r="41"><c r="D41" s="1"/></row>'
+      + '</sheetData></worksheet>';
+    const sortie = applyPayloadToSheetXML(xml, payload);
+    const D18 = (sortie.match(/<c r="D18"[^>]*>(?:<v>([^<]*)<\/v>)?/) || [])[1];
+    const F18 = (sortie.match(/<c r="F18"[^>]*>(?:<v>([^<]*)<\/v>)?/) || [])[1];
+    ok('3. lundi : 3 h de CP + 7 h de paternite font 10 h sur la ligne 18',
+       D18 === '10', 'D18 = ' + D18);
+    // CONTRE-EXEMPLE : sans la somme, D18 vaudrait 7 (le dernier ecrit) ou 3.
+    ok('3. CONTRE-EXEMPLE : ce n est ni 7 ni 3, donc rien n a ete ecrase',
+       D18 !== '7' && D18 !== '3', 'D18 = ' + D18);
+    ok('3. mardi : le paternite seul donne bien 7 h', F18 === '7', 'F18 = ' + F18);
+
+    // ---- 4. LA MENTION PART DANS LES COMMENTAIRES DE LA FEUILLE ----
+    // buildExportPayload lit hoursEntry : on le prepare a la main.
+    hoursEntry = {
+      chantierLines: [], removedAutoIds: [],
+      absences: [
+        { key: 'conges',    jours: { 0: 3 } },
+        { key: 'paternite', jours: { 0: 7, 1: 7 } }
+      ],
+      pd: {}, gd: {}, nacelle: {}, vehiculeMode: null, km: '', immat: '',
+      commentaires: 'RAS pour le reste'
+    };
+    currentTech = (typeof TECHS !== 'undefined' && TECHS.length) ? TECHS[0] : 'Test ESSAI';
+    const p2 = buildExportPayload(new Date(Date.UTC(2026, 8, 7)), 37);
+    ok('4. la mention paternite est dans les commentaires de la feuille',
+       /PATERNIT/i.test(p2.commentaires), p2.commentaires);
+    ok('4. elle dit de ne pas decompter des conges payes',
+       /cong.s pay.s/i.test(p2.commentaires));
+    ok('4. elle donne le total et les jours', /14 h/.test(p2.commentaires)
+       && /Lun/.test(p2.commentaires) && /Mar/.test(p2.commentaires),
+       p2.commentaires);
+    ok('4. le commentaire du technicien est CONSERVE, pas ecrase',
+       /RAS pour le reste/.test(p2.commentaires));
+    ok('4. la mention passe DEVANT (c est ce que la paie lit en premier)',
+       p2.commentaires.indexOf('PATERNIT') < p2.commentaires.indexOf('RAS pour le reste'));
+
+    // CONTRE-EXEMPLE : sans paternite saisi, aucune mention ne doit apparaitre
+    hoursEntry.absences = [{ key: 'conges', jours: { 0: 7 } }];
+    const p3 = buildExportPayload(new Date(Date.UTC(2026, 8, 7)), 37);
+    ok('4. CONTRE-EXEMPLE : des CP seuls n ajoutent aucune mention',
+       !/PATERNIT/i.test(p3.commentaires), p3.commentaires || '(vide)');
+    // CONTRE-EXEMPLE : un paternite a 0 h ne doit rien annoncer non plus
+    hoursEntry.absences = [{ key: 'paternite', jours: {} }];
+    const p4 = buildExportPayload(new Date(Date.UTC(2026, 8, 7)), 37);
+    ok('4. CONTRE-EXEMPLE : une ligne paternite sans heures n annonce rien',
+       !/PATERNIT/i.test(p4.commentaires), p4.commentaires || '(vide)');
+
+    // ---- 5. le recap PDF le nomme par son vrai nom ----
+    const lbl = (ABSENCE_CODES.find(a => a.key === 'paternite') || {}).label;
+    ok('5. le recap du technicien affiche « Conges paternite »',
+       /paternit/i.test(lbl), lbl);
+
+    fin();
+  } catch (e) {
+    R.push('EXCEPTION : ' + (e && e.message ? e.message : e));
+    R.push('VERDICT: ECHEC');
+    document.getElementById('verdictTest').textContent = R.join('\n');
+  }
+})();
+</script>

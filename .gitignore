@@ -1,0 +1,23 @@
+# CE DEPOT EST PUBLIC. Le memo et le journal n'y sont PLUS versionnes.
+#
+# Constate le 15/09/2026 : `JOURNAL.md` (635 Ko, 8995 lignes) etait lisible sur
+# github.com sans aucun compte, et il raconte tout le commercial de TELSAM --
+# noms de clients, montants de devis, numeros et montants de factures, numeros
+# de commande RTE, ecarts commerciaux, methode de calcul des marges. Le suivi
+# est garde par trois serrures et un mot de passe par personne ; le document qui
+# raconte ce que le suivi contient etait, lui, en acces libre. La protection de
+# l'un annulait celle de l'autre.
+#
+# LA CAUSE N'ETAIT PAS UNE ERREUR DE MANIPULATION, mais une regle appliquee sans
+# qu'on se demande ou elle menait : « les deux fichiers sont identiques dans les
+# deux depots », portee par un hook, les a fait suivre ici sans que leur CONTENU
+# soit jamais questionne.
+#
+# LES DEUX FICHIERS RESTENT SUR LE DISQUE, a cote de ce depot : c'est ce qui
+# permet a `scripts/check-claude-md-sync.sh` de continuer a comparer les deux
+# copies. Ils ne sont simplement plus envoyes sur GitHub. Leur exemplaire de
+# reference vit dans le depot PRIVE `suivi-chantiers`.
+#
+# NE PAS RETIRER CES DEUX LIGNES. Un `git add -f` les remettrait en ligne.
+CLAUDE.md
+JOURNAL.md

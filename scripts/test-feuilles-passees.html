@@ -1,0 +1,348 @@
+<pre id="verdictTest" style="position:fixed;top:0;left:0;background:#fff;color:#000;z-index:99999;font:11px monospace;padding:4px;">en cours</pre>
+<script>
+/* TEST DE LA REPOSE DES SEMAINES PASSEES (demande de Patrice le 09/09/2026).
+ * A concatener apres index.html, Chrome --headless --dump-dom.
+ *
+ * SA DEMANDE : « ceux qui sont deja remplis depuis la S34, remplis-les toi
+ * aussi et remets-les dans l'appli ».
+ *
+ * CE QUI EST DANGEREUX ICI N'EST PAS DE POSER, C'EST D'ECRASER. La saisie vit
+ * dans le telephone du technicien et nulle part ailleurs : une pose qui passe
+ * par-dessus une semaine deja remplie DETRUIT une donnee que personne ne peut
+ * restaurer. Trois proprietes valent donc plus que le reste, et chacune a son
+ * contre-exemple - un test qui ne peut pas echouer ne prouve rien :
+ *   - controle 4 : une semaine deja saisie n'est PAS remplacee ;
+ *   - controle 5 : une semaine effacee par le technicien ne REVIENT PAS ;
+ *   - controle 6 : ce qui est pose ressort a l'identique dans la feuille
+ *     officielle - c'est la seule preuve que l'appli sait relire ce format.
+ */
+(async function () {
+  const R = []; let ko = 0;
+  function ok(nom, cond, detail) {
+    R.push((cond ? 'OK   ' : 'ECHEC') + ' | ' + nom + (detail ? '  -> ' + detail : ''));
+    if (!cond) ko++;
+  }
+  function fin() {
+    R.push('---');
+    R.push(R.filter(l => l.startsWith('OK')).length + ' controle(s) passes, ' + ko + ' en echec');
+    R.push(ko ? 'VERDICT: ECHEC' : 'VERDICT: TOUT PASSE');
+    document.getElementById('verdictTest').textContent = R.join('\n');
+  }
+  try {
+    for (let i = 0; i < 100 && typeof SEED_FEUILLES === 'undefined'; i++) await new Promise(r => setTimeout(r, 50));
+    if (typeof SEED_FEUILLES === 'undefined') { document.getElementById('verdictTest').textContent = 'page non construite'; return; }
+
+    /* MAGASIN EN MEMOIRE. IndexedDB n'est pas fiable sur une origine
+       `file://` : on remplace les deux seuls acces au magasin, et on compte
+       les ecritures - c'est le compteur qui prouve l'absence de repose. */
+    const magasin = new Map();
+    let nbEcritures = 0;
+    kvGet = async (k) => (magasin.has(k) ? JSON.parse(JSON.stringify(magasin.get(k))) : null);
+    kvSet = async (k, v) => { nbEcritures++; magasin.set(k, JSON.parse(JSON.stringify(v))); return true; };
+
+    // ---- 1. le jeu de feuilles couvre tout le monde, une fois chacun ----
+    /* CES TROIS CONTROLES ONT ETE DEGELES LE 15/09/2026, ET LE GEL AVAIT UN COUT.
+       Ils disaient « 39 feuilles », « S34 a S36 » et « aucune S37+ » : des
+       chiffres du 09/09 ecrits en dur. La S37 ajoutee au tableau, le banc est
+       passe au rouge sur trois lignes alors que RIEN n'etait casse - et un banc
+       rouge en permanence n'est plus lu, il emporte avec lui les controles justes
+       qui l'entourent. Ils mesurent maintenant une PROPRIETE : le tableau couvre
+       tout le monde pour toutes les semaines qu'il contient, et il ne contient
+       que du passe. Voir CLAUDE.md §16, « ne pas figer un etat du monde ». */
+    const semaines = [...new Set(SEED_FEUILLES.map(s => s.semaine))].sort((a, b) => a - b);
+    ok('1. ' + (TECHS.length * semaines.length) + ' feuilles (' + TECHS.length + ' techniciens x '
+         + semaines.length + ' semaines : S' + semaines.join(', S') + ')',
+       SEED_FEUILLES.length === TECHS.length * semaines.length,
+       SEED_FEUILLES.length + ' feuilles');
+    const inconnus = SEED_FEUILLES.filter(s => TECHS.indexOf(s.tech) === -1).map(s => s.tech);
+    ok('1. tous les noms figurent dans TECHS', inconnus.length === 0, inconnus.join(', ') || 'aucun intrus');
+    const vus = {};
+    SEED_FEUILLES.forEach(s => { const c = s.tech + '|' + s.annee + '|' + s.semaine; vus[c] = (vus[c] || 0) + 1; });
+    ok('1. aucun doublon technicien/semaine', Object.keys(vus).every(c => vus[c] === 1));
+    const trous = [];
+    TECHS.forEach(t => semaines.forEach(w => {
+      if (!SEED_FEUILLES.some(s => s.tech === t && s.semaine === w)) trous.push(t + ' S' + w);
+    }));
+    ok('1. chaque technicien a toutes les semaines du tableau', trous.length === 0,
+       trous.join(', ') || 'aucun trou');
+    /* Le tableau ne decrit que du passe deja transmis au bureau : une semaine en
+       cours se remplit dans l'appli, pas ici. On le mesure contre la semaine du
+       JOUR, pas contre un numero fige - sinon ce controle redevient faux au
+       prochain lundi. */
+    const auj = new Date();
+    const jeu = new Date(Date.UTC(auj.getFullYear(), auj.getMonth(), auj.getDate()));
+    jeu.setUTCDate(jeu.getUTCDate() + 3 - ((jeu.getUTCDay() + 6) % 7));
+    const semCourante = Math.ceil(((jeu - Date.UTC(jeu.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
+    const anCourant = jeu.getUTCFullYear();
+    const pasPassees = SEED_FEUILLES
+      .filter(s => s.annee > anCourant || (s.annee === anCourant && s.semaine >= semCourante))
+      .map(s => s.tech + ' S' + s.semaine);
+    ok('1. aucune semaine en cours ni a venir (nous sommes en S' + semCourante + ')',
+       pasPassees.length === 0, pasPassees.join(', ') || 'toutes les semaines sont revolues');
+
+    // ---- 2. les references pointent quelque part, et rien ne s'evapore ----
+    const idsMorts = [];
+    SEED_FEUILLES.forEach(s => s.feuille.chantierLines.forEach(l => {
+      if (l.id && !chantierById(l.id)) idsMorts.push(s.tech + ' S' + s.semaine + ' : ' + l.id);
+    }));
+    ok('2. chaque ligne liee pointe une fiche existante', idsMorts.length === 0, idsMorts.join(' ; ') || 'aucun id mort');
+    const clesInconnues = [];
+    SEED_FEUILLES.forEach(s => (s.feuille.absences || []).forEach(a => {
+      if (!ABSENCE_CODES.some(c => c.key === a.key)) clesInconnues.push(s.tech + ' S' + s.semaine + ' : ' + a.key);
+    }));
+    ok('2. chaque absence porte un code connu de l\'appli', clesInconnues.length === 0,
+       clesInconnues.join(' ; ') || 'aucun code inconnu');
+    /* `ensureFeuilleForWeek` RETIRE les absences « contribution » a chaque
+       lecture (residu de l'ancien systeme). Une feuille posee qui en
+       contiendrait perdrait ces heures en silence. */
+    ok('2. aucune absence « contribution » (elle serait effacee a la lecture)',
+       SEED_FEUILLES.every(s => (s.feuille.absences || []).every(a => a.key !== 'contribution')));
+
+    // ---- 3. la pose ecrit sous les cles que l'appli va relire ----
+    const tech = 'Anthony DENIS';
+    await installerFeuillesPassees(tech);
+    const sesSemaines = SEED_FEUILLES.filter(s => s.tech === tech).map(s => s.semaine);
+    ok('3. ses ' + sesSemaines.length + ' semaines sont posees',
+       sesSemaines.every(w => magasin.has('fh_' + tech + '_2026_' + w)),
+       Array.from(magasin.keys()).filter(k => k.indexOf('fh_') === 0).join(', '));
+    ok('3. rien n\'est pose pour les autres techniciens',
+       !Array.from(magasin.keys()).some(k => k.indexOf('fh_') === 0 && k.indexOf(tech) === -1));
+    /* LA CLE EST CELLE D'ensureFeuilleForWeek, ET ON LE VERIFIE PAR LE VRAI
+       CHEMIN : on lui donne la semaine 34 et on regarde ce qu'elle charge. */
+    currentTech = tech;
+    const w34 = { year: 2026, weekNum: 34, mon: new Date(Date.UTC(2026, 7, 17)), sun: new Date(Date.UTC(2026, 7, 23)) };
+    await ensureFeuilleForWeek(tech, w34);
+    ok('3. l\'appli retrouve la feuille par son chemin normal',
+       hoursEntry && hoursEntry.chantierLines.length === 1 && hoursEntry.chantierLines[0].nom === 'Portet',
+       hoursEntry ? JSON.stringify(hoursEntry.chantierLines.map(l => l.nom)) : 'rien');
+    ok('3. les heures relues sont celles de la feuille (7 h du lundi au vendredi)',
+       [0, 1, 2, 3, 4].every(d => hoursEntry.chantierLines[0].jours[d] && hoursEntry.chantierLines[0].jours[d].j === 7));
+    ok('3. la feuille se sait deja envoyee', !!hoursEntry.envoyeLe, hoursEntry.envoyeLe || 'aucune date');
+
+    /* AUCUNE LIGNE EN DOUBLE, SUR LES 39. `ensureFeuilleForWeek` ajoute
+       d'office les chantiers planifies de la semaine, et `TECH_RANGES`
+       connait encore aout : la S34 d'Anthony sortait avec SA ligne
+       « Portet » remplie ET une ligne « Poste de Portet (P.SIM) » vide.
+       Deux lignes pour le meme chantier sur une feuille deja envoyee, c'est
+       une invitation a saisir deux fois. On repasse donc chaque feuille par
+       le vrai chemin de lecture. */
+    const magasinD = new Map();
+    kvGet = async (k) => (magasinD.has(k) ? JSON.parse(JSON.stringify(magasinD.get(k))) : null);
+    kvSet = async (k, v) => { magasinD.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    let enDouble = 0, detailDouble = '';
+    for (const t of TECHS) await installerFeuillesPassees(t);
+    for (const s of SEED_FEUILLES) {
+      currentTech = s.tech;
+      const lundi = mondayOfISOWeek(s.semaine, s.annee);
+      const dimanche = new Date(lundi); dimanche.setUTCDate(dimanche.getUTCDate() + 6);
+      await ensureFeuilleForWeek(s.tech, { year: s.annee, weekNum: s.semaine, mon: lundi, sun: dimanche });
+      const attendu = s.feuille.chantierLines.map(l => l.nom).join(' | ');
+      const obtenu = hoursEntry.chantierLines.map(l => l.nom).join(' | ');
+      if (attendu !== obtenu) {
+        enDouble++;
+        if (!detailDouble) detailDouble = s.tech + ' S' + s.semaine + ' : [' + attendu + '] devient [' + obtenu + ']';
+      }
+    }
+    ok('3. aucune ligne ajoutee ni perdue a la relecture, sur toutes les feuilles',
+       enDouble === 0, enDouble ? detailDouble : SEED_FEUILLES.length + ' feuilles relues a l\'identique');
+    /* CONTRE-EXEMPLE : sans les `removedAutoIds` poses, la ligne automatique
+       revient bien - la preuve que ce controle peut echouer. */
+    const sansGarde = JSON.parse(JSON.stringify(
+      SEED_FEUILLES.find(s => s.tech === 'Anthony DENIS' && s.semaine === 34).feuille));
+    sansGarde.removedAutoIds = [];
+    magasinD.set('fh_Anthony DENIS_2026_34', sansGarde);
+    currentTech = 'Anthony DENIS';
+    await ensureFeuilleForWeek('Anthony DENIS', w34);
+    ok('3. CONTRE-EXEMPLE : sans le garde-fou, la ligne automatique revient bien',
+       hoursEntry.chantierLines.length === 2,
+       JSON.stringify(hoursEntry.chantierLines.map(l => l.nom)));
+
+    // ---- 4. ON N'ECRASE JAMAIS UNE SAISIE ----
+    const magasin2 = new Map(); nbEcritures = 0;
+    const magasinCourant = () => magasin2;
+    kvGet = async (k) => (magasin2.has(k) ? JSON.parse(JSON.stringify(magasin2.get(k))) : null);
+    kvSet = async (k, v) => { nbEcritures++; magasin2.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    // une S35 deja saisie a la main sur le telephone, avec des heures differentes
+    const sienne = { chantierLines: [{ id: null, nom: 'MA SAISIE', lieu: '', client: '', jours: { 0: { j: 3 } } }],
+                     removedAutoIds: [], absences: [], pd: {}, gd: {}, nacelle: {},
+                     vehiculeMode: null, km: '', immat: '', commentaires: '' };
+    magasin2.set('fh_' + tech + '_2026_35', JSON.parse(JSON.stringify(sienne)));
+    await installerFeuillesPassees(tech);
+    const apres35 = magasin2.get('fh_' + tech + '_2026_35');
+    ok('4. la semaine deja saisie est intacte', apres35.chantierLines[0].nom === 'MA SAISIE'
+       && apres35.chantierLines[0].jours[0].j === 3, JSON.stringify(apres35.chantierLines.map(l => l.nom)));
+    // CONTRE-EXEMPLE : les deux autres semaines, vides, ont bien ete posees
+    ok('4. CONTRE-EXEMPLE : les semaines vides, elles, sont bien remplies',
+       magasin2.get('fh_' + tech + '_2026_34').chantierLines.length === 1
+       && magasin2.get('fh_' + tech + '_2026_36').chantierLines.length === 1);
+    // CONTRE-EXEMPLE : une semaine ou il n'a note QUE ses kilometres est une saisie
+    ok('4. CONTRE-EXEMPLE : une semaine avec seulement des km compte comme saisie',
+       !feuilleVierge({ chantierLines: [], absences: [], pd: {}, gd: {}, nacelle: {}, km: '31699' }));
+    ok('4. CONTRE-EXEMPLE : une semaine avec seulement une nacelle aussi',
+       !feuilleVierge({ chantierLines: [], absences: [], pd: {}, gd: {}, nacelle: { 2: 1 } }));
+    ok('4. CONTRE-EXEMPLE : une semaine avec seulement un commentaire aussi',
+       !feuilleVierge({ chantierLines: [], absences: [], pd: {}, gd: {}, nacelle: {}, commentaires: 'RAS' }));
+    ok('4. une semaine reellement vide est bien vue comme vierge',
+       feuilleVierge({ chantierLines: [{ id: 'x', nom: 'auto', jours: {} }], absences: [], pd: {}, gd: {}, nacelle: {} }));
+
+    // ---- 5. UNE SEMAINE EFFACEE NE REVIENT PAS ----
+    const magasin3 = new Map(); nbEcritures = 0;
+    kvGet = async (k) => (magasin3.has(k) ? JSON.parse(JSON.stringify(magasin3.get(k))) : null);
+    kvSet = async (k, v) => { nbEcritures++; magasin3.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    await installerFeuillesPassees(tech);          // premiere pose
+    const ecrituresPose = nbEcritures;
+    const sesFeuilles = SEED_FEUILLES.filter(s => s.tech === tech).length;
+    ok('5. la premiere pose ecrit (' + sesFeuilles + ' feuilles + le registre)',
+       ecrituresPose === sesFeuilles + 1, ecrituresPose + ' ecriture(s)');
+    // le technicien efface sa S34, comme le fait « Effacer et recommencer cette semaine »
+    magasin3.set('fh_' + tech + '_2026_34', { chantierLines: [], removedAutoIds: [], absences: [], pd: {}, gd: {},
+                                              nacelle: {}, vehiculeMode: null, km: '', immat: '', commentaires: '' });
+    nbEcritures = 0;
+    await installerFeuillesPassees(tech);          // rechargement de l'appli
+    ok('5. un rechargement ne repose rien', nbEcritures === 0, nbEcritures + ' ecriture(s)');
+    ok('5. la semaine effacee reste effacee',
+       magasin3.get('fh_' + tech + '_2026_34').chantierLines.length === 0);
+    // CONTRE-EXEMPLE : sans le registre, elle reviendrait
+    magasin3.delete(CLE_SEED_FEUILLES);
+    nbEcritures = 0;
+    await installerFeuillesPassees(tech);
+    ok('5. CONTRE-EXEMPLE : sans le registre, elle reviendrait bien', nbEcritures > 0
+       && magasin3.get('fh_' + tech + '_2026_34').chantierLines.length === 1, nbEcritures + ' ecriture(s)');
+
+    /* ---- 5 bis. UNE FEUILLE CORRIGEE APRES SA POSE ATTEINT QUAND MEME LE
+       TELEPHONE, ET SEULEMENT SI PERSONNE N'Y A TOUCHE.
+       La version du 09/09 au soir posait la S34 de Benjamin DIRAT en QUATRE
+       lignes ; Patrice a demande le lendemain de les regrouper. Sans ce
+       chemin, la correction n'atteignait que les telephones qui n'avaient pas
+       encore recu la mise a jour. Mais elle ne doit JAMAIS passer par-dessus
+       une saisie : c'est le contre-exemple qui compte ici. */
+    const cleD = 'fh_Benjamin DIRAT_2026_34';
+    const corrD = SEED_FEUILLES_CORRIGEES.find(c => c.tech === 'Benjamin DIRAT' && c.semaine === 34);
+    ok('5bis. la feuille corrigee est bien declaree', !!corrD);
+    const neuveD = SEED_FEUILLES.find(s => s.tech === 'Benjamin DIRAT' && s.semaine === 34);
+    ok('5bis. la version en service est regroupee sur UNE ligne',
+       neuveD.feuille.chantierLines.length === 1,
+       neuveD.feuille.chantierLines.map(l => l.nom).join(' | '));
+    ok('5bis. les quatre libelles y sont tous, et les heures ne bougent pas',
+       ['Avarie arudy','Le hourat','Fin de semaine','Poste de Portet']
+         .every(m => neuveD.feuille.chantierLines[0].nom.indexOf(m) !== -1)
+       && neuveD.feuille.chantierLines[0].jours[0].j === 11
+       && neuveD.feuille.chantierLines[0].jours[4].j === 7);
+    // le telephone porte l'ANCIENNE pose (4 lignes), registre en version 1
+    const magasinC = new Map(); nbEcritures = 0;
+    kvGet = async (k) => (magasinC.has(k) ? JSON.parse(JSON.stringify(magasinC.get(k))) : null);
+    kvSet = async (k, v) => { nbEcritures++; magasinC.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    const posePrecedente = () => {
+      const f = JSON.parse(JSON.stringify(corrD.avant));
+      f.removedAutoIds = []; f.envoyeLe = '2026-08-25T17:44:00';
+      magasinC.set(cleD, f);
+      magasinC.set(CLE_SEED_FEUILLES, {[cleD]: 1});
+    };
+    posePrecedente();
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. la feuille posee par la version d\'avant est corrigee',
+       magasinC.get(cleD).chantierLines.length === 1,
+       JSON.stringify(magasinC.get(cleD).chantierLines.map(l => l.nom)));
+    ok('5bis. le registre passe en version ' + SEED_FEUILLES_VERSION,
+       magasinC.get(CLE_SEED_FEUILLES)[cleD] === SEED_FEUILLES_VERSION);
+    nbEcritures = 0;
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. un rechargement de plus ne reecrit rien', nbEcritures === 0, nbEcritures + ' ecriture(s)');
+    // CONTRE-EXEMPLE : le technicien a change UNE heure -> on ne touche a rien
+    posePrecedente();
+    const sienneD = magasinC.get(cleD);
+    sienneD.chantierLines[1].jours[2].j = 9;
+    magasinC.set(cleD, sienneD);
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. CONTRE-EXEMPLE : une heure modifiee depuis la pose bloque la correction',
+       magasinC.get(cleD).chantierLines.length === 4
+       && magasinC.get(cleD).chantierLines[1].jours[2].j === 9,
+       magasinC.get(cleD).chantierLines.length + ' ligne(s)');
+    // CONTRE-EXEMPLE : un simple commentaire ajoute suffit a bloquer
+    posePrecedente();
+    const avecCom = magasinC.get(cleD); avecCom.commentaires = 'RAS'; magasinC.set(cleD, avecCom);
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. CONTRE-EXEMPLE : un commentaire ajoute bloque aussi',
+       magasinC.get(cleD).chantierLines.length === 4 && magasinC.get(cleD).commentaires === 'RAS');
+    // l'empreinte ignore ce que l'appli recalcule elle-meme
+    posePrecedente();
+    const avecAuto = magasinC.get(cleD);
+    avecAuto.removedAutoIds = ['c_9g5cqsuj']; avecAuto.envoyeLe = '2026-09-01T08:00:00';
+    magasinC.set(cleD, avecAuto);
+    await installerFeuillesPassees('Benjamin DIRAT');
+    ok('5bis. removedAutoIds et envoyeLe ne comptent pas comme une saisie',
+       magasinC.get(cleD).chantierLines.length === 1);
+    // une feuille NON corrigee posee en version 1 n'est pas reecrite pour autant
+    const magasinV = new Map(); nbEcritures = 0;
+    kvGet = async (k) => (magasinV.has(k) ? JSON.parse(JSON.stringify(magasinV.get(k))) : null);
+    kvSet = async (k, v) => { nbEcritures++; magasinV.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    const cleA = 'fh_Anthony DENIS_2026_34';
+    magasinV.set(cleA, {chantierLines: [], removedAutoIds: [], absences: [], pd: {}, gd: {},
+                        nacelle: {}, vehiculeMode: null, km: '', immat: '', commentaires: ''});
+    magasinV.set(CLE_SEED_FEUILLES, {[cleA]: 1});
+    await installerFeuillesPassees('Anthony DENIS');
+    ok('5bis. une semaine effacee et posee en v1 ne revient PAS avec la v2',
+       magasinV.get(cleA).chantierLines.length === 0);
+
+    // ---- 6. CE QUI EST POSE RESSORT A L'IDENTIQUE DANS LA FEUILLE OFFICIELLE ----
+    /* On repasse chaque feuille posee dans `buildExportPayload` - le code qui
+       fabrique le PDF et le classeur - et on compare heure par heure. C'est ce
+       qui prouve que le format pose est bien celui que l'appli sait relire, et
+       pas seulement un objet qui s'affiche. */
+    let ecartsRoundTrip = 0, detailEcart = '';
+    const totalJour = (f) => {
+      const t = [0, 0, 0, 0, 0, 0, 0];
+      (f.chantierLines || []).forEach(l => Object.keys(l.jours || {}).forEach(d => {
+        t[d] += (parseFloat(l.jours[d].j) || 0) + (parseFloat(l.jours[d].n) || 0);
+      }));
+      (f.absences || []).forEach(a => Object.keys(a.jours || {}).forEach(d => { t[d] += parseFloat(a.jours[d]) || 0; }));
+      return t.join(',');
+    };
+    for (const s of SEED_FEUILLES) {
+      currentTech = s.tech;
+      hoursEntry = JSON.parse(JSON.stringify(s.feuille));
+      const p = buildExportPayload(new Date(Date.UTC(2026, 7, 17)), s.semaine);
+      const attendu = totalJour(s.feuille);
+      const obtenu = totalJour(p);
+      const memeVehicule = (p.vehiculeMode || null) === (s.feuille.vehiculeMode || null);
+      const memeKm = String(p.km || '') === String(s.feuille.km || '');
+      const memeImmat = String(p.immat || '') === String(s.feuille.immat || '');
+      if (attendu !== obtenu || !memeVehicule || !memeKm || !memeImmat) {
+        ecartsRoundTrip++;
+        if (!detailEcart) detailEcart = s.tech + ' S' + s.semaine + ' : ' + attendu + ' vs ' + obtenu;
+      }
+    }
+    ok('6. les feuilles ressortent a l\'identique dans la feuille officielle',
+       ecartsRoundTrip === 0, ecartsRoundTrip ? detailEcart : ('0 ecart sur ' + SEED_FEUILLES.length));
+    // CONTRE-EXEMPLE : une heure changee dans la feuille posee DOIT etre vue
+    currentTech = 'Anthony DENIS';
+    hoursEntry = JSON.parse(JSON.stringify(SEED_FEUILLES.find(s => s.tech === 'Anthony DENIS' && s.semaine === 35).feuille));
+    const refTotaux = totalJour(hoursEntry);
+    hoursEntry.chantierLines[0].jours[0].j = 6;
+    ok('6. CONTRE-EXEMPLE : une heure modifiee change bien le total',
+       totalJour(buildExportPayload(new Date(Date.UTC(2026, 7, 24)), 35)) !== refTotaux);
+    // le numero d'index du chantier suit, c'est lui qui identifie l'affaire au recap RH
+    hoursEntry = JSON.parse(JSON.stringify(SEED_FEUILLES.find(s => s.tech === 'Anthony DENIS' && s.semaine === 35).feuille));
+    ok('6. le n° d\'affaire est retrouve par la fiche (26-051)',
+       buildExportPayload(new Date(Date.UTC(2026, 7, 24)), 35).chantierLines[0].numero === '26-051');
+
+    // ---- 7. l'ecran dit que la feuille est deja partie ----
+    currentTech = 'Anthony DENIS';
+    hoursEntry = JSON.parse(JSON.stringify(SEED_FEUILLES.find(s => s.tech === 'Anthony DENIS' && s.semaine === 35).feuille));
+    renderHoursUI();
+    const html1 = document.getElementById('hoursPanel').innerHTML;
+    ok('7. la date d\'envoi est ecrite sous le bouton', html1.indexOf('Déjà envoyée le 28/08/2026') !== -1);
+    // CONTRE-EXEMPLE : une semaine jamais envoyee n'affiche AUCUN reproche
+    delete hoursEntry.envoyeLe;
+    renderHoursUI();
+    const html2 = document.getElementById('hoursPanel').innerHTML;
+    ok('7. CONTRE-EXEMPLE : sans date d\'envoi, la phrase disparait',
+       html2.indexOf('Déjà envoyée') === -1 && html2.indexOf('jamais envoyée') === -1);
+
+    fin();
+  } catch (e) {
+    R.push('EXCEPTION : ' + (e && e.message ? e.message : e));
+    ko++; fin();
+  }
+})();
+</script>

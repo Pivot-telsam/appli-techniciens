@@ -1,0 +1,389 @@
+<pre id="verdictTest" style="position:fixed;top:0;left:0;background:#fff;color:#000;z-index:99999;font:11px monospace;padding:4px;">en cours</pre>
+<script>
+/* TEST DU PLANNING RECU DE TEAMS ET DES CASES QUI RESTENT COCHEES.
+ * A concatener apres index.html, Chrome --headless --dump-dom.
+ *
+ * DEUX DEFAUTS SIGNALES PAR PATRICE LE 03/09/2026 :
+ *   1. « ils n'ont pas le planning » - le bandeau annoncait des semaines que
+ *      l'appli n'avait pas ;
+ *   2. « le pylone coche ne reste pas coche » - une autre equipe croyait que
+ *      rien n'avait ete fait.
+ * Chaque controle a son contre-exemple : sans eux, un test qui passe ne
+ * prouverait que l'absence de plantage. */
+(async function () {
+  const R = []; let ko = 0;
+  try {
+  function ok(nom, cond, detail) {
+    R.push((cond ? 'OK   ' : 'ECHEC') + ' | ' + nom + (detail ? '  -> ' + detail : ''));
+    if (!cond) ko++;
+  }
+  function fin() {
+    R.push('---');
+    R.push(R.filter(l => l.startsWith('OK')).length + ' controle(s) passes, ' + ko + ' en echec');
+    R.push(ko ? 'VERDICT: ECHEC' : 'VERDICT: TOUT PASSE');
+    document.getElementById('verdictTest').textContent = R.join('\n');
+  }
+  for (let i = 0; i < 100 && typeof datesPour === 'undefined'; i++) await new Promise(r => setTimeout(r, 50));
+  if (typeof datesPour === 'undefined') { document.getElementById('verdictTest').textContent = 'page non construite'; return; }
+  // IndexedDB ne tourne pas sous --virtual-time-budget : on remplit 
+  // depuis SEED_DATA, ce qui est l'etat d'un premier chargement.
+  chantiers = {}; for (const f of SEED_DATA) chantiers[f.id] = f;
+
+  // =======================================================================
+  // 1. LE PLANNING EST BIEN ARRIVE
+  // =======================================================================
+  ok('1. le bloc planning est actif', planningTechActif(),
+     PLANNING_TECH.du + ' -> ' + PLANNING_TECH.au + ', maj ' + PLANNING_TECH.maj);
+  let couples = 0;
+  for (const cid in PLANNING_TECH.tech) {
+    for (const t in PLANNING_TECH.tech[cid]) couples += PLANNING_TECH.tech[cid][t].length;
+  }
+  R.push('     ' + couples + ' jour(s)-personne publies, sur ' + Object.keys(PLANNING_TECH.tech).length + ' chantier(s)');
+  /* PAS DE SEUIL CHIFFRE ICI, ET C'EST VOULU.
+   * Ce controle exigeait « plus de 100 jours-personne ». Le 10/09/2026 il en
+   * a trouve 98 et il est passe au rouge alors que RIEN n'etait casse : c'est
+   * la charge du planning qui varie d'une semaine sur l'autre, et l'appli n'y
+   * peut rien. Exactement la meme faute que le controle de la semaine +2,
+   * corrige la veille pour la meme raison : un seuil fige sur une donnee du
+   * bureau finit par crier au loup, et un banc bruyant est abandonne — il
+   * emporte alors les 35 autres controles avec lui.
+   * Ce que le CODE garantit, et qui est verifie ici : le bloc n'est pas vide,
+   * et aucune entree publiee n'est creuse — un chantier sans personne ou une
+   * personne sans jour veut dire une publication a moitie ratee, et CA, c'est
+   * un vrai defaut. Le chiffre reste IMPRIME juste au-dessus, pour l'oeil. */
+  ok('1. le planning publie n\'est pas vide', couples > 0, String(couples));
+  const creuses = [];
+  for (const cid in PLANNING_TECH.tech) {
+    const parTech = PLANNING_TECH.tech[cid];
+    if (!Object.keys(parTech).length) creuses.push(cid);
+    for (const t in parTech) if (!parTech[t].length) creuses.push(cid + ' / ' + t);
+  }
+  ok('1. aucune entree creuse dans le bloc publie', creuses.length === 0,
+     creuses.slice(0, 5).join(' ; ') || 'aucune');
+
+  // Combien de personnes voient quelque chose, semaine par semaine ?
+  function personnesDeLaSemaine(offset) {
+    const { mon, sun } = weekRange(offset);
+    const vus = new Set();
+    for (const cid of idsChantiersPlanifies()) {
+      for (const tech of TECHS) {
+        if (isoDatesInRange(datesPour(cid, tech), mon, sun).length) vus.add(tech);
+      }
+    }
+    return vus;
+  }
+  const parSem = [];
+  for (let o = 0; o <= 3; o++) parSem.push(personnesDeLaSemaine(o).size);
+  R.push('     personnes servies : semaine en cours ' + parSem[0] + ', +1 ' + parSem[1]
+         + ', +2 ' + parSem[2] + ', +3 ' + parSem[3]);
+  ok('1. la semaine en cours sert toujours du monde', parSem[0] >= 8, String(parSem[0]));
+  // LE DEFAUT SIGNALE : c'est la semaine PROCHAINE qui etait vide (1 personne).
+  ok('1. la semaine prochaine ne sert plus 1 seule personne', parSem[1] >= 6, String(parSem[1]));
+  /* CE CONTROLE A ETE RETOUCHE LE 09/09/2026, ET IL FAUT SAVOIR POURQUOI.
+   * Il exigeait « au moins 6 personnes servies a +2 semaines », et il
+   * echouait — non pas a cause d'un defaut de l'appli, mais parce que le
+   * planning Teams n'est PAS REMPLI au-dela de la semaine 38 (mesure du
+   * 09/09 : 3 cellules nommees apres le 18/09, toutes d'encadrement).
+   *
+   * Un controle ne doit porter que sur ce que le CODE garantit. Celui-la
+   * demandait au bureau d'avoir pose son planning : l'appli n'y peut rien,
+   * donc il criait au loup a chaque passage — et un controle bruyant est
+   * abandonne en trois jours, ce qui detruit aussi les 30 autres.
+   *
+   * Ce qui reste garanti, et qui est verifie : l'appli sert TOUTES les
+   * semaines que son planning contient. Si une semaine a des dates dans
+   * PLANNING_TECH et n'affiche personne, c'est un vrai defaut. Le nombre
+   * brut, lui, reste IMPRIME a chaque passage, pour qu'on continue a voir
+   * l'etat du planning sans qu'il fasse echouer la suite. */
+  const semainesDuPlanning = new Set();
+  for (const cid in PLANNING_TECH.tech) {
+    for (const t in PLANNING_TECH.tech[cid]) {
+      for (const iso of PLANNING_TECH.tech[cid][t]) {
+        const i = isoWeekInfo(new Date(iso + 'T00:00:00Z'));
+        semainesDuPlanning.add(i.year + '-S' + i.week);
+      }
+    }
+  }
+  R.push('     semaines presentes dans le planning : ' + Array.from(semainesDuPlanning).sort().join(', '));
+  const semainesVides = [];
+  for (let o = -2; o <= 8; o++) {
+    const w = weekRange(o);
+    const cle = w.year + '-S' + w.weekNum;
+    if (semainesDuPlanning.has(cle) && personnesDeLaSemaine(o).size === 0) semainesVides.push(cle);
+  }
+  ok('1. aucune semaine du planning ne sort vide', semainesVides.length === 0,
+     semainesVides.join(', ') || 'aucune');
+
+  // Les cas repares a la main doivent etre la
+  function chantierDe(tech, iso) {
+    const noms = [];
+    for (const cid of idsChantiersPlanifies()) {
+      if (datesPour(cid, tech).indexOf(iso) !== -1) {
+        const c = chantierById(cid);
+        noms.push(c ? (c.numero || c.nom) : cid);
+      }
+    }
+    return noms;
+  }
+  /* CE QUI EST VERIFIE : TOUT CE QUE LE PLANNING PLACE EST MONTRABLE.
+   *
+   * Ces deux lignes exigeaient auparavant que Didier PERRIN soit sur Cantegrit
+   * le 14/09 et Bilal HAMOUCH sur Bissy le 07/09 — deux affectations vraies le
+   * jour ou le banc a ete ecrit, et rattachees par le repli sur `TECH_RANGES`
+   * parce que leurs lignes de planning ne portaient pas de numero.
+   * Le 10/09/2026 le premier est passe au rouge : le bureau avait reecrit le
+   * planning, Didier n'est plus sur Cantegrit ce jour-la. **Rien n'etait casse
+   * dans l'appli**, et le banc accusait pourtant. Un couple personne/jour/
+   * chantier est de la donnee du bureau : il n'a rien a faire dans un test.
+   *
+   * La PROPRIETE que ces deux lignes protegeaient, elle, ne depend pas du
+   * planning du jour : tout chantier que le planning place doit avoir une
+   * fiche dans l'appli, sinon le technicien ouvre sa semaine et ne voit
+   * RIEN ce jour-la. C'est ce qu'on mesure maintenant, sur tout le bloc
+   * publie. Le contre-exemple est deux lignes plus bas : un identifiant
+   * inconnu doit bien etre attrape. */
+  const sansFiche = [];
+  for (const cid in PLANNING_TECH.tech) {
+    if (!chantierById(cid)) sansFiche.push(cid);
+  }
+  ok('1. chaque chantier place par le planning a bien une fiche dans l\'appli',
+     sansFiche.length === 0, sansFiche.join(', ') || Object.keys(PLANNING_TECH.tech).length + ' chantier(s), tous rattaches');
+  ok('1. CONTRE-EXEMPLE : un identifiant inconnu serait bien signale',
+     !chantierById('c_chantier_qui_n_existe_pas'));
+
+  // UNE SEULE SOURCE PAR JOUR : personne sur deux chantiers le meme jour
+  const doubles = [];
+  for (let o = 0; o <= 6; o++) {
+    const { mon, sun } = weekRange(o);
+    for (let d = new Date(mon); d <= sun; d.setUTCDate(d.getUTCDate() + 1)) {
+      const iso = d.toISOString().slice(0, 10);
+      for (const tech of TECHS) {
+        const n = chantierDe(tech, iso);
+        if (n.length > 1) doubles.push(iso + ' ' + tech + ' : ' + n.join(' ET '));
+      }
+    }
+  }
+  ok('1. personne sur DEUX chantiers le meme jour', doubles.length === 0,
+     doubles.length ? doubles.slice(0, 3).join(' | ') : 'aucun');
+
+  /* Contre-exemple : si le bloc planning est neutralise, l'appli doit le
+   * SAVOIR et retomber sur les dates saisies a la main.
+   *
+   * RETOUCHE LE 09/09/2026 : ce controle exigeait « au moins 8 personnes »
+   * depuis ce repli. Il en trouve 3, et c'est normal — la recopie manuelle
+   * a ete ABANDONNEE le 01/09/2026 (« c'est le PLANNING qui dit vrai »), donc
+   * exiger 8 personnes de ce cote, c'est exiger le retour d'un mecanisme
+   * retire expres. On verifie ce qui reste vrai : la bascule se declenche.
+   *
+   * MAIS ON IMPRIME LA TAILLE DU FILET, parce qu'elle a un sens : c'est ce
+   * que verrait un technicien si le planning ne se chargeait pas. A 3
+   * personnes sur 13, ce n'est plus un filet. A dire a Patrice, pas a
+   * corriger ici. */
+  const vraiDu = PLANNING_TECH.du;
+  PLANNING_TECH.du = '';
+  const filet = personnesDeLaSemaine(0).size;
+  ok('1. bloc neutralise : l appli le detecte et bascule', !planningTechActif(),
+     'repli : ' + filet + ' personne(s) servie(s) par les dates saisies a la main');
+  PLANNING_TECH.du = vraiDu;
+  ok('1. et la bascule est bien reversible', planningTechActif());
+
+  // =======================================================================
+  // 2. LES CASES QUI RESTENT COCHEES
+  // =======================================================================
+  R.push('     avancement declare : ' + Object.keys(AVANCEMENT_DECLARE.chantiers || {}).length
+         + ' chantier(s), maj ' + AVANCEMENT_DECLARE.maj);
+  const numDecl = Object.keys(AVANCEMENT_DECLARE.chantiers || {});
+  ok('2. des declarations sont publiees', numDecl.length > 0, numDecl.join(', '));
+
+  const cTest = Object.values(chantiers).find(c => numDecl.indexOf(c.numero) !== -1
+    && c.tachesVendues && c.tachesVendues.taches && c.tachesVendues.taches.length);
+  ok('2. un chantier declare a bien des taches vendues', !!cTest, cTest ? cTest.numero : 'aucun');
+  if (!cTest) { fin(); return; }
+
+  currentTech = 'Anthony DENIS';
+  const memo = await memoireSuivi(cTest);
+  let nbCoches = 0;
+  for (const tid in memo) nbCoches += Object.keys(memo[tid].pylones).length;
+  ok('2. la memoire retrouve des cases a cocher', nbCoches > 0, nbCoches + ' case(s) sur ' + cTest.numero);
+
+  await ouvrirSuivi(cTest.id);
+  const ov = document.getElementById('suiviOverlay');
+  ok('2. la fenetre de suivi s ouvre', !!ov);
+  if (ov) {
+    const cochees = ov.querySelectorAll('.pyl-chip.on');
+    ok('2. des cases sont deja cochees a l ouverture', cochees.length > 0,
+       cochees.length + ' case(s) cochee(s)');
+    ok('2. celles des autres sont marquees a part', ov.querySelectorAll('.pyl-chip.on.autre').length > 0,
+       String(ov.querySelectorAll('.pyl-chip.on.autre').length));
+    const avecTitre = [].slice.call(cochees).filter(ch => ch.getAttribute('title'));
+    ok('2. et l infobulle dit par qui', avecTitre.length === cochees.length,
+       avecTitre.length ? avecTitre[0].getAttribute('title') : 'aucune');
+    ok('2. un rappel compte les cases deja declarees', !!ov.querySelector('.suivi-deja'),
+       ov.querySelector('.suivi-deja') ? ov.querySelector('.suivi-deja').textContent : '');
+    // contre-exemple : toutes les cases ne sont pas cochees
+    const total = ov.querySelectorAll('.pyl-chip').length;
+    ok('2. et TOUTES les cases ne sont pas cochees (sinon le test ne prouve rien)',
+       cochees.length < total, cochees.length + ' / ' + total);
+    fermerSuivi();
+  }
+
+  // Contre-exemple : un chantier SANS declaration n ouvre rien de coche
+  const cVierge = Object.values(chantiers).find(c => numDecl.indexOf(c.numero) === -1
+    && c.tachesVendues && c.tachesVendues.taches && c.tachesVendues.taches.some(t => t.pylones && t.pylones.length));
+  if (cVierge) {
+    await ouvrirSuivi(cVierge.id);
+    const ov2 = document.getElementById('suiviOverlay');
+    ok('2. un chantier sans declaration ouvre tout decoche',
+       !!ov2 && ov2.querySelectorAll('.pyl-chip.on').length === 0,
+       cVierge.numero + ' : ' + (ov2 ? ov2.querySelectorAll('.pyl-chip.on').length : '?') + ' cochee(s)');
+    fermerSuivi();
+  } else {
+    ok('2. un chantier vierge a ete trouve pour le contre-exemple', false, 'aucun');
+  }
+
+  // La memoire locale : union, jamais remplacement
+  const vraiKvGet = window.kvGet, vraiKvSet = window.kvSet;
+  let mem = {};
+  window.kvGet = async (k) => mem[k];
+  window.kvSet = async (k, v) => { mem[k] = v; };
+  const faux = { id: 'c_faux', numero: '99-999' };
+  await retenirSuivi(faux, { racc: ['1', '2'] });
+  await retenirSuivi(faux, { racc: ['2', '3'], doo: 'fait' });
+  const garde = mem['suivi_99-999'];
+  ok('2. la memoire locale fait l UNION des envois',
+     JSON.stringify(garde.faits.racc) === '["1","2","3"]', JSON.stringify(garde.faits));
+  ok('2. et garde le statut des taches sans pylone', garde.faits.doo === 'fait');
+  window.kvGet = vraiKvGet; window.kvSet = vraiKvSet;
+
+  // =======================================================================
+  // 3. AVEC QUI JE SUIS (demande des techniciens, 03/09/2026)
+  // =======================================================================
+  // On cherche un cas REEL : un chantier de la semaine prochaine ou plusieurs
+  // personnes sont placees. Fabriquer un faux cas ne prouverait rien de ce que
+  // les techniciens verront.
+  const sem = weekRange(1);
+  let cas = null;
+  for (const cid of idsChantiersPlanifies()) {
+    const presents = [];
+    for (const t of TECHS) if (isoDatesInRange(datesPour(cid, t), sem.mon, sem.sun).length) presents.push(t);
+    if (presents.length >= 2) { cas = { cid: cid, presents: presents }; break; }
+  }
+  ok('3. un chantier a plusieurs personnes la semaine prochaine', !!cas,
+     cas ? (chantierById(cas.cid) || {}).numero + ' : ' + cas.presents.join(', ') : 'aucun');
+  if (cas) {
+    const moi = cas.presents[0];
+    currentTech = moi;
+    const eq = equipeSurChantier(cas.cid, sem.mon, sem.sun, moi);
+    ok('3. l equipe est listee sans moi', eq.length === cas.presents.length - 1
+       && !eq.some(p => p.nom === moi), eq.map(p => p.nom).join(', '));
+    ok('3. chacun a ses jours', eq.every(p => p.jours.length > 0),
+       eq.map(p => p.nom + ' ' + p.jours.length + 'j').join(' | '));
+    ok('3. ils sont classes du plus tot arrive au plus tard',
+       eq.every((p, i) => i === 0 || eq[i - 1].jours[0] <= p.jours[0]));
+
+    const mesJours = isoDatesInRange(datesPour(cas.cid, moi), sem.mon, sem.sun);
+    const html = blocEquipe(cas.cid, sem.mon, sem.sun, mesJours);
+    ok('3. le bloc nomme les collegues', eq.every(p => html.indexOf(p.nom) !== -1));
+    ok('3. le bloc annonce le nombre', html.indexOf('(' + eq.length + ')') !== -1, html.slice(0, 90));
+    ok('3. il dit « memes jours » ou liste les jours',
+       /mêmes jours que toi/.test(html) || /lun|mar|mer|jeu|ven/i.test(html));
+
+    // La carte porte bien le bloc
+    const carte = renderCard(chantierById(cas.cid), mesJours, sem.mon, sem.sun);
+    ok('3. la carte du chantier contient le bloc', carte.indexOf('class="equipe"') !== -1);
+
+    // CONTRE-EXEMPLE : quelqu'un vraiment seul doit lire « tu es seul »
+    let seul = null;
+    for (const cid of idsChantiersPlanifies()) {
+      const presents = [];
+      for (const t of TECHS) if (isoDatesInRange(datesPour(cid, t), sem.mon, sem.sun).length) presents.push(t);
+      if (presents.length === 1) { seul = { cid: cid, qui: presents[0] }; break; }
+    }
+    if (seul) {
+      currentTech = seul.qui;
+      const h = blocEquipe(seul.cid, sem.mon, sem.sun,
+        isoDatesInRange(datesPour(seul.cid, seul.qui), sem.mon, sem.sun));
+      ok('3. celui qui est seul lit « tu es seul »', /Tu es seul/.test(h),
+         (chantierById(seul.cid) || {}).numero + ' ' + seul.qui + ' : ' + h.slice(0, 70));
+      ok('3. et aucun nom de collegue ne s y glisse',
+         !TECHS.some(t => t !== seul.qui && h.indexOf(t) !== -1));
+    } else {
+      R.push('     (personne seul sur un chantier la semaine prochaine : contre-exemple non joue)');
+    }
+
+    // Les jours affiches doivent etre ceux de la PERSONNE, pas les miens
+    const different = eq.find(p => p.jours.length !== mesJours.length);
+    if (different) {
+      currentTech = moi;
+      const h2 = blocEquipe(cas.cid, sem.mon, sem.sun, mesJours);
+      /* RETOUCHE LE 09/09/2026 : l'assertion d'origine demandait que la
+       * mention « memes jours que toi » apparaisse DEUX FOIS dans le bloc
+       * (indexOf different de lastIndexOf). Elle ne pouvait donc passer que
+       * si deux collegues au moins partageaient exactement mes jours — un
+       * hasard de la donnee du moment, sans rapport avec la propriete
+       * verifiee. On regarde maintenant LA LIGNE de ce collegue-la : elle
+       * doit porter SES jours, et surtout pas la mention. */
+      const ligne = h2.split('<div class="equipe-l">')
+                      .find(x => x.indexOf(different.nom) !== -1) || '';
+      ok('3. un collegue aux jours differents voit ses jours listes',
+         ligne !== '' && !/mêmes jours que toi/.test(ligne)
+           && JOURS.some(j => ligne.indexOf(j) !== -1),
+         different.nom + ' : ' + different.jours.length + 'j contre ' + mesJours.length
+           + 'j pour moi -> ' + ligne.replace(/<[^>]+>/g, ' ').trim().slice(0, 60));
+    } else {
+      R.push('     (aucun ecart de jours dans la donnee reelle : on fabrique le cas ci-dessous)');
+    }
+
+    /* LE CAS DES JOURS DIFFERENTS, JOUE MEME SI LA DONNEE REELLE NE L OFFRE PAS.
+     * C'est le plus important pour un logement : si un collegue present 2 jours
+     * s'affichait « memes jours que toi », le technicien reserverait la semaine
+     * a deux pour rien. On ne laisse donc pas cette branche non verifiee sous
+     * pretexte que le planning du moment ne la produit pas. */
+    const cidFaux = cas.cid;
+    const sauve = PLANNING_TECH.tech[cidFaux];
+    PLANNING_TECH.tech[cidFaux] = JSON.parse(JSON.stringify(sauve || {}));
+    const lundiMardi = [sem.mon, new Date(sem.mon.getTime() + 86400000)]
+      .map(d => d.toISOString().slice(0, 10));
+    PLANNING_TECH.tech[cidFaux]['Hugues VIRY'] = lundiMardi;
+    currentTech = moi;
+    const mesJours2 = isoDatesInRange(datesPour(cidFaux, moi), sem.mon, sem.sun);
+    const h3 = blocEquipe(cidFaux, sem.mon, sem.sun, mesJours2);
+    const bloc = h3.split('<div class="equipe-l">').find(x => x.indexOf('Hugues VIRY') !== -1) || '';
+    ok('3. un collegue present 2 jours voit SES jours listes',
+       /lun/i.test(bloc) && /mar/i.test(bloc) && !/mêmes jours/.test(bloc), bloc.slice(0, 120));
+    /* RETOUCHE LE 09/09/2026 : ce controle esperait qu'un collegue ait, par
+     * hasard, exactement mes jours. Quand la donnee ne l'offre pas, il
+     * echoue sans qu'aucun defaut n'existe. On FABRIQUE donc les deux cas
+     * dans la meme scene : Hugues sur deux jours (ses jours listes) et un
+     * autre exactement sur les miens (la mention). C'est la seule facon de
+     * verifier que l'appli sait DISTINGUER les deux — ce qui est tout
+     * l'enjeu pour un logement partage. */
+    PLANNING_TECH.tech[cidFaux]['Anthony DENIS'] = mesJours2.slice();
+    const h4 = blocEquipe(cidFaux, sem.mon, sem.sun, mesJours2);
+    const ligneMeme = h4.split('<div class="equipe-l">')
+                        .find(x => x.indexOf('Anthony DENIS') !== -1) || '';
+    const ligneAutre = h4.split('<div class="equipe-l">')
+                         .find(x => x.indexOf('Hugues VIRY') !== -1) || '';
+    ok('3. et celui qui a exactement mes jours garde la mention',
+       /mêmes jours que toi/.test(ligneMeme),
+       ligneMeme.replace(/<[^>]+>/g, ' ').trim().slice(0, 60));
+    ok('3. contre-exemple : dans la MEME scene, l autre a ses jours listes',
+       ligneAutre !== '' && !/mêmes jours que toi/.test(ligneAutre)
+         && /lun/i.test(ligneAutre) && /mar/i.test(ligneAutre),
+       ligneAutre.replace(/<[^>]+>/g, ' ').trim().slice(0, 60));
+    PLANNING_TECH.tech[cidFaux] = sauve;
+    ok('3. la donnee reelle est restauree apres le test',
+       JSON.stringify(PLANNING_TECH.tech[cidFaux]) === JSON.stringify(sauve));
+  }
+
+  fin();
+  } catch (e) {
+    // Un test qui meurt en silence ne vaut rien : on affiche l'erreur ET la pile.
+    const lignes = R.slice();
+    lignes.push('');
+    lignes.push('VERDICT: ERREUR ' + (e && e.message ? e.message : e));
+    if (e && e.stack) lignes.push(String(e.stack).split('\n').slice(0, 4).join(' | '));
+    document.getElementById('verdictTest').textContent = lignes.join('\n');
+  }
+})();
+</script>
