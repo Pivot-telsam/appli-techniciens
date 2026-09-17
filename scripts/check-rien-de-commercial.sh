@@ -23,12 +23,21 @@
 #   - les noms de colonnes du classeur commercial, signe qu'on a recopie une
 #     ligne de suivi d'affaire.
 #
-# CE QU'IL SIGNALE SANS REFUSER : les numeros de devis seuls (TELSAMCC…,
-# TELSAM/CC/…, DATACC…). Deux d'entre eux vivent dans le champ `tachesVendues`,
-# qui sert a afficher au technicien la liste de ce qu'il a a faire : les retirer
-# changerait son outil, et c'est un arbitrage de Patrice, pas une decision de
-# hook. Ils sont donc COMPTES et NOMMES a chaque commit, jamais caches.
-# Voir CLAUDE.md, section « Ouvert -- en attente d'un arbitrage de Patrice ».
+# LES NUMEROS DE DEVIS SONT PASSES DE « TOLERES » A « REFUSES » (17/09/2026).
+#
+# Ils etaient comptes et nommes sans etre refuses, au motif qu'ils vivaient dans
+# `tachesVendues` et qu'y toucher changerait l'outil du technicien. Patrice a
+# tranche l'inverse : « supprime aussi les references du devis, je ne sais pas
+# pourquoi nous les avons mis la, ils n'ont pas besoin de savoir d'ou ca vient ».
+# Les 26 ont ete retirees le meme jour -- aucune n'etait affichee nulle part,
+# c'etait de la donnee morte dans un fichier public.
+#
+# ET LE MOTIF A ETE ELARGI, PARCE QU'IL NE VOYAIT QU'UN DIXIEME DU PROBLEME :
+# il ne cherchait que la forme a barres obliques (TELSAM/CC/…). Les references
+# etaient ecrites avec des SOULIGNES dans 23 fiches sur 26, et passaient donc
+# sans un mot. Le controle annoncait « 3 numeros » la ou il y en avait 26 -- et
+# l'arbitrage rendu la-dessus portait sur un chiffre faux. Un controle qui ne
+# voit qu'une forme d'ecriture ment avec l'accent de la certitude.
 #
 # UN CONTROLE QUI NE PEUT PAS PASSER DETRUIT LA SUITE ENTIERE : les motifs
 # ci-dessous ont ete calibres sur le contenu reel du depot le 15/09/2026, et le
@@ -122,23 +131,27 @@ for FILE in $MIS_EN_SCENE; do
     FAUTIFS=$((FAUTIFS + 1))
   fi
 
-  # --- 3. Ce qui SIGNALE sans refuser --------------------------------------
-  DEVIS=$(grep -oE 'TELSAMCC[A-Z0-9]+|TELSAM/CC/(RTE/)?[0-9]+|DATACC[A-Z0-9]+' "$TMP" | sort -u)
+  # --- 3. Les numeros de devis, sous TOUTES leurs ecritures -----------------
+  # Barres obliques, soulignes, avec ou sans RTE, avec ou sans suffixe de
+  # version : c'est la meme reference, et n'en chercher qu'une forme revient a
+  # ne pas chercher (23 sur 26 passaient avant le 17/09/2026).
+  DEVIS=$(grep -oE '(TELSAM|DATA)[_/]?CC[_/]?(RTE[_/]?)?[0-9][A-Z0-9_.-]*' "$TMP" | sort -u)
   if [ -n "$DEVIS" ]; then
     NB=$(echo "$DEVIS" | grep -c .)
     DEVIS_VUS=$((DEVIS_VUS + NB))
-    echo "  (commercial) $FILE porte $NB numero(s) de devis : $(echo "$DEVIS" | tr '\n' ' ')"
+    echo ""
+    echo "ERREUR pre-commit : $FILE porte $NB reference(s) de devis, et CE DEPOT EST PUBLIC."
+    echo "$DEVIS" | sed 's/^/    /'
+    echo ""
+    echo "  Le technicien n'a pas besoin de savoir d'ou vient sa liste de taches"
+    echo "  (arbitrage de Patrice, 17/09/2026). Retire la reference : ce qu'il doit"
+    echo "  faire sur le terrain survit toujours a ce retrait."
+    echo ""
+    FAUTIFS=$((FAUTIFS + 1))
   fi
 
   rm -f "$TMP"
 done
-
-if [ "$DEVIS_VUS" -gt 0 ]; then
-  echo "  (commercial) Les numeros de devis ci-dessus sont TOLERES et comptes, pas caches :"
-  echo "               ils vivent dans 'tachesVendues', qui affiche au technicien ce"
-  echo "               qu'il a a faire. Les retirer changerait son outil -- arbitrage"
-  echo "               de Patrice, cf. CLAUDE.md section 'Ouvert'."
-fi
 
 if [ "$FAUTIFS" -gt 0 ]; then
   exit 1
