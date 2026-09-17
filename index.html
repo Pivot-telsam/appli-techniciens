@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-17-1';
+var APP_VERSION = '2026-09-17-2';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-17-1';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Dambron - Voves : la date est revenue. RTE donne à TELSAM du 21 septembre au 16 octobre pour les tests et raccordements FO, du pylône 4 au pylône 129. Le nouveau PdP (indice 14) et le nouveau PGO sont dans Documents.";
+var APP_NOUVEAUTE = "Une correction interne sur l'affichage des semaines de janvier prochain — rien ne change pour toi cette fois.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -998,11 +998,29 @@ function isoWeekInfo(date){
   const week=1+Math.round((d-firstThursday)/(7*86400000));
   return {week, year:d.getUTCFullYear()};
 }
+/* LE LUNDI D'UNE SEMAINE ISO — REFAIT LE 17/09/2026, IL ÉTAIT FAUX.
+ *
+ * Même correction que dans `suivi-chantiers` le même jour, et pour la même
+ * raison : l'ancien calcul partait du 1er janvier et remontait au lundi. Il ne
+ * tombe juste que les années où le 1er janvier va du lundi au jeudi — celles où
+ * la semaine 1 le contient. 2026 en fait partie, d'où le silence.
+ *
+ * **TOUTE L'ANNÉE 2027 ÉTAIT DÉCALÉE D'UNE SEMAINE** : S1 rendait le 28/12/2026
+ * au lieu du 04/01/2027, S23 le 31/05 au lieu du 07/06. Même défaut sur 2021 et
+ * 2022. Ici, `weekRange` s'en sert pour composer la semaine affichée au
+ * technicien : dès janvier 2027, il aurait lu les chantiers de la semaine d'à
+ * côté, sous le bon numéro et sans que rien ne le signale.
+ *
+ * LE SEUL ANCRAGE QUI VAILLE POUR TOUTES LES ANNÉES EST LE 4 JANVIER : par
+ * définition ISO, il appartient toujours à la semaine 1.
+ *
+ * LES DEUX APPLIS PORTENT CETTE FONCTION, ET ELLES DOIVENT RESTER D'ACCORD —
+ * une semaine juste dans le suivi et fausse chez le technicien est exactement
+ * le mode de panne que le mémo décrit. */
 function mondayOfISOWeek(week,year){
-  const simple=new Date(Date.UTC(year,0,1+(week-1)*7));
-  const dow=simple.getUTCDay()||7;
-  simple.setUTCDate(simple.getUTCDate()-dow+1);
-  return simple;
+  const q=new Date(Date.UTC(year,0,4));
+  const jour=(q.getUTCDay()+6)%7;                  // lundi = 0
+  return new Date(q.getTime()-jour*86400000+(week-1)*7*86400000);
 }
 function fmtDate(d){
   return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0');
