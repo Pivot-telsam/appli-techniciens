@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-18-2';
+var APP_VERSION = '2026-09-18-3';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,12 +70,12 @@ var APP_VERSION = '2026-09-18-2';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Audits FO COE/P Toulouse phase 2 : la fiche est en ligne, avec le brief, le dépôt photos et les tâches à déclarer.";
+var APP_NOUVEAUTE = "Rien de neuf pour toi : tes envois de feuille d'heures, de photos et de suivi passent par une nouvelle adresse, c'est tout.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
    Si vide, la feuille d'heures retombe sur l'ancien envoi (partage/mail). */
-var RELAY_URL = 'https://relais-telsam.patrice-pivot.workers.dev';
+var RELAY_URL = 'https://relais-telsam.suivichantier.workers.dev';
 (function(){
   try{
     var vue = localStorage.getItem('telsam_version_vue');
