@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-21-5';
+var APP_VERSION = '2026-09-21-6';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-21-5';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Sur Aure - Loudenvielle (26-024) tu as maintenant le bouton Suivi : trois lignes à cocher pour la MTFO, LS 1 et LS 2 d'Aure - Lannemezan, les deux départs 63 kV d'Aure, et les rapports.";
+var APP_NOUVEAUTE = "Sur Aure - Loudenvielle (26-024) tu as le bouton Suivi : trois lignes à cocher pour la MTFO, les LS d'Aure - Lannemezan et les deux départs 63 kV. Rien d'autre de neuf pour toi.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -3593,7 +3593,94 @@ async function deriveAccess(pw){
   return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
+/* ---------- SERVIE DEPUIS LE SUIVI : LA PORTE EST DÉJÀ PASSÉE (21/09/2026) ----
+   Étape 2 de la bascule décidée avec Pierre Brillou : cette page finira servie
+   par le suivi, derrière SON mot de passe, et cessera d'être publique.
+
+   Quand c'est le cas, redemander un mot de passe ici serait une deuxième porte
+   pour rien. On demande donc au suivi « qui suis-je ? » (`/api/moi`, posée avec
+   les trois niveaux d'accès) :
+     - un administrateur du bureau tombe sur la liste des noms — exactement
+       l'accès « atelier » qui existe déjà pour dépanner un technicien ;
+     - un technicien tombe directement sur ses chantiers.
+
+   C'EST LE MÊME FICHIER DES DEUX CÔTÉS, ET C'EST VOULU. Sur l'adresse publique
+   il n'y a pas de suivi devant, donc pas de `/api/moi` : on n'appelle rien du
+   tout (test sur l'hôte) et l'écran de mot de passe s'affiche comme avant. Deux
+   fichiers qui divergent, c'est la famille de bugs qu'on est justement en train
+   de supprimer — un contrôle refuse d'ailleurs qu'ils diffèrent d'un octet.
+
+   ÉCHEC OUVERT ICI, ET C'EST LE BON SENS : si le suivi ne répond pas, ne répond
+   pas à temps, ou répond « je ne te connais pas », on RETOMBE sur l'écran de mot
+   de passe. Le contraire enfermerait dehors un technicien parce qu'une requête
+   a traîné. La vraie serrure n'est pas ici de toute façon : c'est le suivi qui
+   refuse de servir cette page à qui n'a pas de session. */
+const DELAI_IDENTITE = 2500;   // au-delà, on n'attend plus et on montre la porte
+
+async function identiteDuSuivi(){
+  // L'adresse publique n'a pas de suivi devant elle : ne rien demander plutôt
+  // que de payer un aller-retour et un 404 à chaque ouverture, sur un téléphone.
+  if(/(^|\.)github\.io$/i.test(location.hostname)) return null;
+  try{
+    const stop = new AbortController();
+    const minuteur = setTimeout(()=>stop.abort(), DELAI_IDENTITE);
+    let r;
+    try{ r = await fetch('/api/moi', {credentials:'same-origin', cache:'no-store', signal:stop.signal}); }
+    finally{ clearTimeout(minuteur); }
+    if(!r || !r.ok) return null;
+    const d = await r.json();
+    return (d && d.role) ? d : null;
+  }catch(e){ return null; }
+}
+
+// Le suivi dit « Vincent Perrin », la liste d'ici dit « Vincent PERRIN ». On
+// compare sur les lettres seules, accents retirés : sinon la correspondance
+// tiendrait à une majuscule, et personne ne comprendrait pourquoi elle rate.
+function memeNom(a, b){
+  const clef = (s)=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+                    .toLowerCase().replace(/[^a-z0-9]+/g,'');
+  return clef(a) === clef(b);
+}
+
 async function initGate(){
+  const gate = document.getElementById('gateScreen');
+  if(!/(^|\.)github\.io$/i.test(location.hostname)){
+    // On masque la porte PENDANT qu'on demande : sinon elle apparaît une
+    // demi-seconde avant de disparaître, et on a l'air de demander un mot de
+    // passe qu'on n'attend pas.
+    gate.style.display = 'none';
+    const moi = await identiteDuSuivi();
+    if(moi && (moi.role === 'admin' || moi.role === 'super')){
+      // On NE retient RIEN sur cet appareil : c'est la session du suivi qui
+      // fait foi, et elle se ferme de son côté. Un `gate_ok` posé ici
+      // survivrait à sa déconnexion.
+      accessMode = 'admin';
+      document.getElementById('pickScreen').style.display='flex';
+      return;
+    }
+    if(moi && moi.role === 'tech'){
+      const sien = TECHS.find(t => memeNom(t, moi.nom));
+      if(sien){
+        accessMode = 'tech';
+        // Il n'a pas de mot de passe à retaper, donc rien à « changer » :
+        // le bouton le renverrait sur une porte qu'il ne franchit plus.
+        const bouton = document.getElementById('switchBtn');
+        if(bouton) bouton.style.display = 'none';
+        await selectTech(sien);
+        return;
+      }
+      // Reconnu par le suivi, mais son nom ne figure pas dans la liste d'ici.
+      // On le DIT, au lieu de lui présenter une porte que son mot de passe du
+      // suivi n'ouvrira pas.
+      gate.style.display = 'flex';
+      const err = document.getElementById('gateError');
+      err.textContent = 'Ton nom (' + (moi.nom || '?') + ") n'est pas encore dans cette appli. "
+                      + 'Préviens Patrice.';
+      err.style.display = 'block';
+      return;
+    }
+    gate.style.display = 'flex';    // pas de suivi devant, ou il ne nous connaît pas
+  }
   const who = await kvGet('gate_ok');
   // Session déjà ouverte sur ce téléphone : on ne redemande pas le mot de passe.
   if(who === '__ADMIN__'){
