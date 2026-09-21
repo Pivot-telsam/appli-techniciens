@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-21-6';
+var APP_VERSION = '2026-09-21-7';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-21-6';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Sur Aure - Loudenvielle (26-024) tu as le bouton Suivi : trois lignes à cocher pour la MTFO, les LS d'Aure - Lannemezan et les deux départs 63 kV. Rien d'autre de neuf pour toi.";
+var APP_NOUVEAUTE = "Toujours le bouton Suivi sur Aure - Loudenvielle (26-024). Le reste est une préparation côté bureau : ni ton appli ni ton mot de passe ne changent.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -3633,15 +3633,6 @@ async function identiteDuSuivi(){
   }catch(e){ return null; }
 }
 
-// Le suivi dit « Vincent Perrin », la liste d'ici dit « Vincent PERRIN ». On
-// compare sur les lettres seules, accents retirés : sinon la correspondance
-// tiendrait à une majuscule, et personne ne comprendrait pourquoi elle rate.
-function memeNom(a, b){
-  const clef = (s)=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
-                    .toLowerCase().replace(/[^a-z0-9]+/g,'');
-  return clef(a) === clef(b);
-}
-
 async function initGate(){
   const gate = document.getElementById('gateScreen');
   if(!/(^|\.)github\.io$/i.test(location.hostname)){
@@ -3659,13 +3650,20 @@ async function initGate(){
       return;
     }
     if(moi && moi.role === 'tech'){
-      const sien = TECHS.find(t => memeNom(t, moi.nom));
+      // Le suivi dit « Vincent Perrin », la liste d'ici dit « Vincent PERRIN ».
+      // On passe par `TECH_SLUGS`, qui sert déjà à reconnaître un nom dans une
+      // adresse : deux normalisations voisines finiraient par diverger, et la
+      // correspondance raterait un jour sur une majuscule sans que personne
+      // comprenne pourquoi.
+      const sien = TECH_SLUGS[slugify(moi.nom || '')];
       if(sien){
         accessMode = 'tech';
-        // Il n'a pas de mot de passe à retaper, donc rien à « changer » :
-        // le bouton le renverrait sur une porte qu'il ne franchit plus.
-        const bouton = document.getElementById('switchBtn');
-        if(bouton) bouton.style.display = 'none';
+        // Il n'a pas de mot de passe à retaper, donc rien à « changer » : le
+        // bouton le renverrait sur une porte qu'il ne franchit plus. On réutilise
+        // `lockedByUrl`, qui existe pour ce cas exact — et c'est `selectTech` qui
+        // le lit. Le poser ici et cacher le bouton nous-mêmes ne servirait à
+        // rien : `selectTech` le remontrerait juste après.
+        lockedByUrl = true;
         await selectTech(sien);
         return;
       }
