@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-23-3';
+var APP_VERSION = '2026-09-23-4';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-23-3';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Un nouveau chantier est arrivé dans l'appli : Axe Coudon - Escaillon (postes de Coudon et de l'Escaillon, près de Toulon), du lundi 28/09 au vendredi 02/10. Il apparaît dans ta semaine si tu y es planifié.";
+var APP_NOUVEAUTE = "Rien ne change pour toi aujourd'hui. Bientôt, un onglet « Matériel » : ce que tu as sur toi et dans ton véhicule, et le prêt de ton véhicule à un collègue pour une semaine.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -443,6 +443,28 @@ main{padding:16px; display:flex; flex-direction:column; gap:12px;}
 
 footer.legend{max-width:640px; margin:8px auto 0; padding:0 16px;
   font-size:11.5px; color:var(--t3); text-align:center; line-height:1.45;}
+
+/* ---------- matériel et véhicule (23/09/2026) ----------
+   Mêmes briques que la feuille d'heures (`.h-section`, `.h-km-input`,
+   `.h-send-btn`) ; ne sont posées ici que les lignes d'inventaire. */
+.mt-ligne{display:grid; grid-template-columns:1fr auto; gap:6px 10px; align-items:center;
+  padding:8px 0; border-top:1px solid var(--filet);}
+.mt-ligne:first-of-type{border-top:0;}
+.mt-nom{font-size:14px; color:var(--t1);}
+.mt-sous{display:block; font-size:11.5px; color:var(--t2); margin-top:2px;}
+.mt-sous.manque{color:var(--ambre);}
+.h-km-input.mt-qte{width:76px; text-align:center; font-size:15px;}
+.h-saved-tag.mt-jamais{color:var(--t3);}
+.mt-actions{grid-column:1/-1; display:flex; gap:8px; flex-wrap:wrap;}
+.mt-lien{background:none; border:1px solid var(--filet2); color:var(--t2); border-radius:9px;
+  padding:6px 10px; font-size:12px; cursor:pointer; min-height:34px;}
+.mt-form{grid-column:1/-1; display:flex; flex-direction:column; gap:8px; padding:10px;
+  background:var(--touche); border:1px solid var(--filet2); border-radius:11px;}
+.mt-form select{background:var(--carte); border:1px solid var(--filet2); color:var(--t1);
+  border-radius:11px; padding:10px; min-height:var(--cible); font-size:13.5px; width:100%;}
+.mt-msg{font-size:12.5px; border-radius:11px; padding:10px 12px;}
+.mt-msg.ok{background:var(--vert-fond); border:1px solid var(--vert-filet); color:var(--vert);}
+.mt-msg.bad{background:var(--rouge-fond); border:1px solid var(--rouge-filet); color:var(--rouge-t);}
 
 /* ---------- feuille d'heures ---------- */
 .h-section{background:var(--carte); border:1px solid var(--filet); border-radius:14px;
@@ -857,10 +879,14 @@ html.maj-vue #splashLogo{display:none;}
     <button class="tab-btn active" id="tabChantiers">Chantiers</button>
     <button class="tab-btn" id="tabHeures">Ma feuille d'heures</button>
     <button class="tab-btn" id="tabHabilitations">Habilitations</button>
+    <!-- Seulement quand l'appli est ouverte par le suivi (session) : sur
+         l'adresse publique, rien ne peut dire au serveur qui tu es. -->
+    <button class="tab-btn" id="tabMateriel" style="display:none;">Matériel</button>
   </div>
   <main id="cardList"></main>
   <main id="hoursPanel" style="display:none;"></main>
   <main id="habilitationsPanel" style="display:none;"></main>
+  <main id="materielPanel" style="display:none;"></main>
 </div>
 
 <footer class="legend" id="legend"></footer>
@@ -1851,14 +1877,17 @@ const HABILITATIONS_LINK = "https://www.dropbox.com/scl/fo/6hno0txksitsov24x79bi
 document.getElementById('tabChantiers').onclick=()=>{ currentTab='chantiers'; updateTabsUI(); };
 document.getElementById('tabHeures').onclick=()=>{ currentTab='heures'; updateTabsUI(); };
 document.getElementById('tabHabilitations').onclick=()=>{ currentTab='habilitations'; updateTabsUI(); };
+document.getElementById('tabMateriel').onclick=()=>{ currentTab='materiel'; updateTabsUI(); };
 
 function updateTabsUI(){
   document.getElementById('tabChantiers').classList.toggle('active', currentTab==='chantiers');
   document.getElementById('tabHeures').classList.toggle('active', currentTab==='heures');
   document.getElementById('tabHabilitations').classList.toggle('active', currentTab==='habilitations');
+  document.getElementById('tabMateriel').classList.toggle('active', currentTab==='materiel');
   document.getElementById('cardList').style.display = currentTab==='chantiers' ? 'flex':'none';
   document.getElementById('hoursPanel').style.display = currentTab==='heures' ? 'flex':'none';
   document.getElementById('habilitationsPanel').style.display = currentTab==='habilitations' ? 'flex':'none';
+  document.getElementById('materielPanel').style.display = currentTab==='materiel' ? 'flex':'none';
   /* PAS DE SEMAINE SUR L ECRAN DES HABILITATIONS (comme la maquette).
      Une habilitation n'appartient a aucune semaine : le selecteur n'y sert a
      rien, et surtout le bandeau ambre « planning previsionnel, ne reserve
@@ -1866,13 +1895,15 @@ function updateTabsUI(){
      Un avertissement pose la ou il n'a pas d'objet apprend a ne plus lire
      le bandeau — donc a ne plus le lire le jour ou il compte. Meme
      raisonnement que la regle du 03/09/2026 sur la semaine en cours. */
-  const horsSemaine = (currentTab === 'habilitations');
+  // Le matériel non plus n'appartient à aucune semaine affichée.
+  const horsSemaine = (currentTab === 'habilitations' || currentTab === 'materiel');
   ['week-nav','jauge','valid-bar'].forEach(cls => {
     const el = document.querySelector('.' + cls);
     if(el) el.style.display = horsSemaine ? 'none' : '';
   });
   if(currentTab==='heures') loadAndRenderHours();
   if(currentTab==='habilitations') renderHabilitations();
+  if(currentTab==='materiel') chargerMateriel();
 }
 
 /* ---------- HABILITATIONS ----------
@@ -1897,6 +1928,174 @@ function renderHabilitations(){
     + ico('info','ic-s') + '<span>Dropbox te demandera le mot de passe des documents à la première ouverture.</span></div>';
 }
 
+
+/* ---------- MATÉRIEL ET VÉHICULE (23/09/2026) ----------
+   Ton matériel, celui du véhicule que tu as cette semaine, et le prêt de ton
+   véhicule à un collègue pour une semaine. Tout vient du serveur à
+   l'ouverture de l'onglet (/api/mon-materiel, /api/mon-vehicule), et c'est
+   LUI qui décide de ce que tu peux voir et changer : l'appli n'en sait rien
+   d'avance, et rien de tout ça n'est écrit dans ce fichier, qui est public.
+   L'onglet n'existe que quand le suivi est devant l'appli (SESSION_SUIVI). */
+let mtApp = null, mtVh = null, mtAppMsg = '', mtAppErr = '', mtAppForm = null;
+function mtEsc(s){ return String(s === null || s === undefined ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function mtDateFr(d){ return d ? d.slice(8,10) + '/' + d.slice(5,7) + '/' + d.slice(0,4) : ''; }
+function mtSemLib(s){
+  const m = /^(\d{4})-S(\d{2})$/.exec(s || ''); if(!m) return s || '';
+  const j4 = Date.UTC(+m[1], 0, 4), dj = (new Date(j4).getUTCDay() + 6) % 7;
+  const l = new Date(j4 - dj * 86400000 + (+m[2] - 1) * 7 * 86400000), v = new Date(l.getTime() + 4 * 86400000);
+  const f = d => String(d.getUTCDate()).padStart(2,'0') + '/' + String(d.getUTCMonth() + 1).padStart(2,'0');
+  return 'semaine ' + (+m[2]) + ' (' + f(l) + ' au ' + f(v) + ')';
+}
+async function mtAppPost(url, corps){
+  try{
+    const r = await fetch(url, { method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(corps) });
+    const d = await r.json().catch(() => ({}));
+    return { ok: r.ok, d };
+  }catch(e){ return { ok:false, d:{ message:'Pas de connexion : rien n\'a été enregistré.' } }; }
+}
+async function chargerMateriel(){
+  const panel = document.getElementById('materielPanel');
+  if(!mtApp) panel.innerHTML = '<div class="h-send-sub">Chargement…</div>';
+  try{
+    const [a, b] = await Promise.all([
+      fetch('/api/mon-materiel', { credentials:'same-origin', cache:'no-store' }),
+      fetch('/api/mon-vehicule', { credentials:'same-origin', cache:'no-store' }),
+    ]);
+    if(!a.ok || !b.ok) throw new Error('refus');
+    mtApp = await a.json(); mtVh = await b.json(); mtAppErr = '';
+  }catch(e){ mtAppErr = mtApp ? 'Pas de connexion : ce que tu vois peut dater.' : 'Pas de connexion : ton matériel ne peut pas s\'afficher.'; }
+  renderMaterielApp();
+}
+function mtLignesApp(type, id, profil){
+  const d = mtApp, ref = {}, tenu = {}, art = {};
+  d.articles.forEach(a => art[a.id] = a);
+  if(profil) d.references.filter(r => r.profil === profil).forEach(r => ref[r.article] = r.quantite);
+  d.detenus.filter(x => x.support_type === type && x.support_id === id).forEach(x => tenu[x.article] = x);
+  const ids = Array.from(new Set(Object.keys(ref).concat(Object.keys(tenu)))).filter(k => art[k]);
+  return ids.map(k => ({ article:k, nom:art[k].nom, ref:ref[k] || 0, qte: tenu[k] ? tenu[k].quantite : 0,
+    note: tenu[k] ? tenu[k].note || '' : '', dernier: tenu[k] ? tenu[k].dernier_controle : null,
+    prochain: tenu[k] ? tenu[k].prochain : null, echeance: tenu[k] ? tenu[k].echeance : 'inconnu' }))
+    .sort((x, y) => x.nom.localeCompare(y.nom));
+}
+function mtBlocHtml(titre, type, id, profil){
+  const L = mtLignesApp(type, id, profil);
+  const dernier = L.map(l => l.dernier).filter(Boolean).sort().pop();
+  let h = '<div class="h-section" data-mt-support="' + mtEsc(type + '|' + id) + '">'
+    + '<div class="h-section-title">' + mtEsc(titre) + '<span class="h-saved-tag' + (dernier ? '' : ' mt-jamais') + '">' + (dernier ? 'contrôlé le ' + mtDateFr(dernier) : 'jamais contrôlé') + '</span></div>';
+  if(!L.length) h += '<div class="h-hint">Rien d\'enregistré ici pour l\'instant.</div>';
+  L.forEach(l => {
+    const manque = l.ref - l.qte;
+    h += '<div class="mt-ligne" data-art="' + mtEsc(l.article) + '"><div><span class="mt-nom">' + mtEsc(l.nom) + '</span>'
+      + '<span class="mt-sous' + (manque > 0 ? ' manque' : '') + '">' + (l.ref ? 'prévu : ' + l.ref + (manque > 0 ? ' — il en manque ' + manque : '') : 'hors dotation')
+      + (l.echeance === 'depasse' ? ' · contrôle dépassé' : '') + (l.note ? ' · ' + mtEsc(l.note) : '') + '</span></div>'
+      + '<input type="number" min="0" inputmode="numeric" class="h-km-input mt-qte" value="' + l.qte + '" aria-label="Quantité de ' + mtEsc(l.nom) + '">';
+    if(l.qte > 0) h += '<div class="mt-actions"><button type="button" class="mt-lien" data-mt="donner">Donner / déposer</button></div>';
+    if(mtAppForm && mtAppForm.support === type + '|' + id && mtAppForm.article === l.article){
+      const vers = '<optgroup label="Collègues">' + mtApp.collegues.map(c => '<option value="personne|' + mtEsc(c.sujet) + '">' + mtEsc(c.nom) + '</option>').join('') + '</optgroup>'
+        + '<optgroup label="Dépôts">' + mtApp.depots.map(x => '<option value="depot|' + mtEsc(x.id) + '">' + mtEsc(x.nom) + '</option>').join('') + '</optgroup>'
+        + (mtApp.vehicules.filter(v => !(type === 'vehicule' && v.id === id)).length ? '<optgroup label="Mon véhicule">' + mtApp.vehicules.filter(v => !(type === 'vehicule' && v.id === id)).map(v => '<option value="vehicule|' + mtEsc(v.id) + '">' + mtEsc(v.immat) + '</option>').join('') + '</optgroup>' : '')
+        + (type === 'vehicule' ? '<optgroup label="Moi"><option value="personne|' + mtEsc(mtApp.moi.sujet) + '">' + mtEsc(mtApp.moi.nom) + '</option></optgroup>' : '');
+      h += '<div class="mt-form"><select id="mtVers">' + vers + '</select>'
+        + '<input type="number" min="1" max="' + l.qte + '" value="1" class="h-km-input" id="mtCombien" aria-label="Combien">'
+        + '<button type="button" class="h-send-btn" data-mt="donner-ok">Donner</button>'
+        + '<button type="button" class="h-send-btn secondary-link" data-mt="fermer">Annuler</button></div>';
+    }
+    h += '</div>';   // ferme la ligne : sans lui, les lignes s'emboîtent et les quantités partent sur le mauvais article
+  });
+  if(mtAppForm && mtAppForm.support === type + '|' + id && mtAppForm.article === '+'){
+    h += '<div class="mt-form"><input type="text" class="h-km-input" id="mtNouveau" placeholder="Article">'
+      + '<input type="number" min="1" value="1" class="h-km-input" id="mtNouveauQ" aria-label="Combien">'
+      + '<button type="button" class="h-send-btn" data-mt="ajouter-ok">Ajouter</button>'
+      + '<button type="button" class="h-send-btn secondary-link" data-mt="fermer">Annuler</button></div>';
+  } else {
+    h += '<button type="button" class="mt-lien" data-mt="ajouter" style="align-self:flex-start;">+ Du matériel qui n\'est pas dans la liste</button>';
+  }
+  h += '<button type="button" class="h-send-btn" data-mt="confirmer">Confirmer ces quantités</button></div>';
+  return h;
+}
+function renderMaterielApp(){
+  const panel = document.getElementById('materielPanel');
+  let h = '';
+  if(mtAppErr) h += '<div class="mt-msg bad">' + mtEsc(mtAppErr) + '</div>';
+  if(mtAppMsg) h += '<div class="mt-msg ok">' + mtEsc(mtAppMsg) + '</div>';
+  if(!mtApp){ panel.innerHTML = h; return; }
+  h += mtBlocHtml('Sur moi — ' + mtApp.moi.nom, 'personne', mtApp.moi.sujet, mtApp.moi.dotation ? 'personne' : null);
+  mtApp.vehicules.forEach(v => { h += mtBlocHtml('Dans le véhicule ' + v.immat + (v.modele ? ' — ' + v.modele : ''), 'vehicule', v.id, v.profil_materiel || null); });
+  // Mon véhicule : le prêter une semaine. Il revient tout seul la semaine d'après.
+  if(mtVh && (mtVh.vehicules.length || mtVh.prets.length)){
+    h += '<div class="h-section"><div class="h-section-title">Prêter mon véhicule</div>';
+    mtVh.prets.forEach(p => {
+      h += '<div class="mt-ligne"><div><span class="mt-nom">' + mtEsc(p.immat) + ' — ' + mtEsc(mtSemLib(p.semaine)) + '</span>'
+        + '<span class="mt-sous">' + (p.jePrete ? 'prêté à ' + mtEsc(p.a) : 'prêté par ' + mtEsc(p.de)) + '</span></div>'
+        + (p.jePrete && p.semaine > mtVh.semaine ? '<button type="button" class="mt-lien" data-mt="pret-annuler" data-id="' + p.id + '">Annuler</button>' : '<span></span>') + '</div>';
+    });
+    mtVh.vehicules.forEach(v => {
+      h += '<div class="mt-form" data-mt-vh="' + mtEsc(v.id) + '"><span class="mt-nom">' + mtEsc(v.immat) + (v.modele ? ' — ' + mtEsc(v.modele) : '') + '</span>'
+        + '<select data-f="sem">' + mtVh.semaines.map(s => '<option value="' + s + '">' + mtEsc(mtSemLib(s)) + '</option>').join('') + '</select>'
+        + '<select data-f="a">' + mtVh.collegues.map(c => '<option value="' + mtEsc(c.sujet) + '">' + mtEsc(c.nom) + '</option>').join('') + '</select>'
+        + '<button type="button" class="h-send-btn" data-mt="preter">Prêter pour cette semaine-là</button></div>';
+    });
+    h += '</div>';
+  }
+  panel.innerHTML = h;
+  panel.querySelectorAll('[data-mt]').forEach(b => b.addEventListener('click', () => mtAppAction(b)));
+}
+async function mtAppAction(b){
+  const act = b.dataset.mt, bloc = b.closest('[data-mt-support]'), ligne = b.closest('[data-art]');
+  const sup = bloc ? bloc.dataset.mtSupport : null, i = sup ? sup.indexOf('|') : -1;
+  const type = sup ? sup.slice(0, i) : null, id = sup ? sup.slice(i + 1) : null;
+  const fin = async (res, msg) => {
+    if(res.ok){ mtAppMsg = msg; mtAppErr = ''; mtAppForm = null; await chargerMateriel(); }
+    else { mtAppMsg = ''; mtAppErr = (res.d && res.d.message) || 'Refusé.'; renderMaterielApp(); }
+  };
+  mtAppMsg = '';
+  if(act === 'fermer'){ mtAppForm = null; renderMaterielApp(); return; }
+  if(act === 'donner'){ mtAppForm = { support: sup, article: ligne.dataset.art }; renderMaterielApp(); return; }
+  if(act === 'ajouter'){ mtAppForm = { support: sup, article: '+' }; renderMaterielApp(); return; }
+  if(act === 'confirmer'){
+    const lignes = Array.from(bloc.querySelectorAll('[data-art]')).map(l => ({ article: l.dataset.art, quantite: Number(l.querySelector('.mt-qte').value) }));
+    await fin(await mtAppPost('/api/mon-materiel', { action:'confirmer', support_type:type, support_id:id, lignes }), 'Quantités confirmées aujourd\'hui. Merci.');
+    return;
+  }
+  if(act === 'donner-ok'){
+    const v = document.getElementById('mtVers').value, j = v.indexOf('|');
+    await fin(await mtAppPost('/api/mon-materiel', { action:'transferer', article: mtAppForm.article, quantite: Number(document.getElementById('mtCombien').value),
+      de_type:type, de_id:id, vers_type: v.slice(0, j), vers_id: v.slice(j + 1) }), 'C\'est noté.');
+    return;
+  }
+  if(act === 'ajouter-ok'){
+    await fin(await mtAppPost('/api/mon-materiel', { action:'ajouter', support_type:type, support_id:id,
+      nom: document.getElementById('mtNouveau').value, quantite: Number(document.getElementById('mtNouveauQ').value) }), 'Ajouté.');
+    return;
+  }
+  if(act === 'preter'){
+    const f = b.closest('[data-mt-vh]');
+    await fin(await mtAppPost('/api/mon-vehicule', { action:'preter', vehicule: f.dataset.mtVh,
+      semaine: f.querySelector('[data-f="sem"]').value, a_sujet: f.querySelector('[data-f="a"]').value }), 'Prêt enregistré. Le véhicule te revient la semaine d\'après.');
+    return;
+  }
+  if(act === 'pret-annuler'){ await fin(await mtAppPost('/api/mon-vehicule', { action:'annuler', id: Number(b.dataset.id) }), 'Prêt annulé.'); }
+}
+
+/* LE KILOMÉTRAGE DE LA FEUILLE PART AUSSI À LA FICHE DU VÉHICULE (23/09/2026).
+   Seulement avec le suivi devant l'appli, seulement pour SA propre feuille
+   (un administrateur qui envoie la feuille d'un autre ne signe pas ses km),
+   et jamais pour une location. Le serveur range le relevé sur le véhicule que
+   tu as cette semaine-là ; s'il y a un écart, c'est le bureau qui le voit.
+   Un échec ici ne gêne pas l'envoi de la feuille : il est déjà parti. */
+async function envoyerKmAuSuivi(){
+  try{
+    if(!SESSION_SUIVI || !hoursEntry || !hoursKeyCurrent) return;
+    if(slugify(SESSION_SUIVI.nom || '') !== slugify(currentTech || '')) return;
+    if(hoursEntry.vehiculeMode === 'LOCATION') return;
+    const km = Number(String(hoursEntry.km || '').replace(/\s/g, ''));
+    if(!Number.isInteger(km) || km <= 0) return;
+    const m = /_(\d{4})_(\d{1,2})$/.exec(hoursKeyCurrent);
+    if(!m) return;
+    await fetch('/api/mon-vehicule', { method:'POST', credentials:'same-origin', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ action:'km', semaine: m[1] + '-S' + m[2].padStart(2, '0'), km, immat: hoursEntry.immat || '' }) });
+  }catch(e){ /* la feuille est partie ; le relevé se rattrapera par la feuille suivante */ }
+}
 
 function getWeekChantiers(tech, mon, sun){
   const result=[];
@@ -3247,6 +3446,7 @@ async function emailFeuille(){
          par un envoi qui aboutit. */
       if(ok){
         await marquerEnvoiFeuille(true);
+        envoyerKmAuSuivi();
         alert("Ta feuille d'heures a bien été envoyée. Merci !");
       }else{
         await marquerEnvoiFeuille(false);
@@ -3622,6 +3822,7 @@ async function deriveAccess(pw){
    refuse de servir cette page à qui n'a pas de session. */
 const DELAI_IDENTITE = 2500;   // au-delà, on n'attend plus et on montre la porte
 
+let SESSION_SUIVI = null;   // { mail, nom, role, poste } quand le suivi est devant nous
 async function identiteDuSuivi(){
   // L'adresse publique n'a pas de suivi devant elle : ne rien demander plutôt
   // que de payer un aller-retour et un 404 à chaque ouverture, sur un téléphone.
@@ -3646,6 +3847,10 @@ async function initGate(){
     // passe qu'on n'attend pas.
     gate.style.display = 'none';
     const moi = await identiteDuSuivi();
+    /* Une session du suivi : l'onglet Matériel peut parler au serveur, qui
+       sait qui tu es. Sans elle (adresse publique, réponse trop lente), il
+       reste caché — il ne saurait ni te lire ni t'écrire. */
+    if(moi){ SESSION_SUIVI = moi; document.getElementById('tabMateriel').style.display = ''; }
     if(moi && (moi.role === 'admin' || moi.role === 'super')){
       // On NE retient RIEN sur cet appareil : c'est la session du suivi qui
       // fait foi, et elle se ferme de son côté. Un `gate_ok` posé ici
