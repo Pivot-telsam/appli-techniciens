@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-23-4';
+var APP_VERSION = '2026-09-23-5';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-23-4';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Rien ne change pour toi aujourd'hui. Bientôt, un onglet « Matériel » : ce que tu as sur toi et dans ton véhicule, et le prêt de ton véhicule à un collègue pour une semaine.";
+var APP_NOUVEAUTE = "Rien ne change pour toi aujourd'hui. Bientôt, si tu es chef de chantier : ta feuille d'heures te dira sur quel chantier le suivi de la semaine n'est pas encore parti.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -2903,7 +2903,86 @@ function renderHoursUI(){
      dit que la saisie en cours n'est pas gardée, la seconde comment faire
      mieux la semaine prochaine. L'urgent d'abord. */
   panel.innerHTML = htmlAlerteStockage() + htmlRappelEpingle()
-    + chantiersSection + absencesSection + deplSection + vehSection + comSection + sendSection;
+    + chantiersSection + absencesSection + deplSection + vehSection + comSection
+    + '<div id="rappelSuivi"></div>' + sendSection;
+  majRappelSuivi();
+}
+
+/* ---------- LE RAPPEL DU CHEF DE CHANTIER (23/09/2026) ----------
+   Demande de Patrice : quand un chef de chantier saisit SA feuille d'heures
+   et qu'il n'a pas fait son suivi de chantier de la semaine, le lui rappeler.
+   Qui est chef se coche dans le suivi, écran Accès (« Responsable d'équipe
+   potentiel ») ; l'appli le sait par `/api/moi`.
+
+   SEULEMENT PAR LA NOUVELLE ADRESSE, ET C'EST SON CHOIX (23/09/2026) :
+   l'adresse publique ne peut rien lire du suivi, donc sur elle
+   `SESSION_SUIVI` reste vide et rien ne s'affiche. Une liste recopiée ici
+   aurait été une seconde vérité.
+
+   L'APPLI DIT LE FAIT, PAS LA CONSIGNE : « aucun suivi envoyé cette semaine
+   sur … », avec le bouton qui ouvre ce suivi. Le rappel n'empêche jamais
+   d'envoyer la feuille.
+
+   UN SUIVI DU CHANTIER COMPTE, QUEL QUE SOIT CELUI QUI L'A ENVOYÉ : c'est le
+   suivi du chantier qu'on attend. Les siens se lisent dans le téléphone tout
+   de suite ; ceux des autres, dans AVANCEMENT_DECLARE, le lendemain matin.
+   Seuls comptent les chantiers qui ONT un bouton « Suivi » (tâches vendues),
+   et où il est placé dans la semaine de la feuille. */
+let rappelSuivi = { cle: '', manquants: [] };
+
+function jourIsoDeLe(s){
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})/.exec(String(s || ''));
+  if(!m) return '';
+  let a = +m[3]; if(a < 100) a += 2000;
+  return a + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+}
+function suiviPartageDepuis(numero, lundi){
+  const ch = ((AVANCEMENT_DECLARE && AVANCEMENT_DECLARE.chantiers) || {})[numero] || {};
+  for(const tid in ch){
+    const d = ch[tid] || {};
+    if(d.statut && jourIsoDeLe(d.le) >= lundi) return true;
+    for(const p of (d.pylones || [])) if(jourIsoDeLe(p.le) >= lundi) return true;
+  }
+  return false;
+}
+function cleRappelSuivi(weekInfo){ return currentTech + '|' + weekInfo.year + '-S' + weekInfo.weekNum; }
+
+async function chantiersSansSuivi(tech, weekInfo){
+  if(accessMode !== 'tech' || !SESSION_SUIVI || !SESSION_SUIVI.chefPotentiel) return [];
+  const lundi = weekInfo.mon.toISOString().slice(0, 10);
+  const dimanche = weekInfo.sun.toISOString().slice(0, 10);
+  const out = [];
+  for(const cid of idsChantiersPlanifies()){
+    if(!datesPour(cid, tech).some(d => d >= lundi && d <= dimanche)) continue;
+    const c = chantierById(cid);
+    if(!c || !c.tachesVendues || !(c.tachesVendues.taches || []).length) continue;
+    if(suiviPartageDepuis(c.numero || '', lundi)) continue;
+    let mien = null;
+    try{ mien = await avecDelai(kvGet('suivi_' + (c.numero || c.id)), 1500); }catch(e){ mien = null; }
+    const le = mien ? (mien.leIso ? String(mien.leIso).slice(0, 10) : jourIsoDeLe(mien.le)) : '';
+    if(le && le >= lundi) continue;
+    out.push(c);
+  }
+  return out;
+}
+
+async function majRappelSuivi(){
+  const weekInfo = weekRange(currentOffset);
+  const cle = cleRappelSuivi(weekInfo);
+  let liste = [];
+  try{ liste = await chantiersSansSuivi(currentTech, weekInfo); }catch(e){ liste = []; }
+  rappelSuivi = { cle: cle, manquants: liste };
+  const zone = document.getElementById('rappelSuivi');
+  if(!zone) return;
+  zone.innerHTML = liste.length
+    ? '<div class="h-section"><div class="banner orange">'
+      + '<strong>Aucun suivi de chantier envoyé cette semaine (S' + weekInfo.weekNum + ')</strong>'
+      + liste.map(c => escapeHtml((c.numero ? c.numero + ' ' : '') + c.nom)).join('<br>')
+      + '<div class="banner-actions" style="flex-wrap:wrap;">'
+      + liste.map(c => '<button type="button" class="sec-btn" onclick="ouvrirSuivi(\'' + c.id + '\')">'
+          + 'Suivi ' + escapeHtml(c.numero || c.nom) + '</button>').join('')
+      + '</div></div></div>'
+    : '';
 }
 
 /* ---- export Excel (manipulation XML directe : préserve 100% la mise en forme d'origine) ---- */
@@ -3411,6 +3490,15 @@ async function emailFeuille(){
       + "Envoyer quand même une feuille vide ?");
     if(!ok) return;
   }
+  /* Le rappel du chef de chantier, lu ICI sans rien attendre : il a été
+     calculé à l'affichage de la feuille (voir `majRappelSuivi`). */
+  const wkR = weekRange(currentOffset);
+  if(rappelSuivi.cle === cleRappelSuivi(wkR) && rappelSuivi.manquants.length){
+    const ok = confirm('Aucun suivi de chantier envoyé cette semaine (S' + wkR.weekNum + ') sur :\n'
+      + rappelSuivi.manquants.map(c => '  ' + (c.numero ? c.numero + ' ' : '') + c.nom).join('\n')
+      + '\n\nEnvoyer ta feuille quand même ?');
+    if(!ok) return;
+  }
   const btn = document.getElementById('emailBtn');
   /* Le HTML et non le texte : cf. le même point dans downloadExcelFeuille. */
   const originalLabel = btn ? btn.innerHTML : '';
@@ -3572,7 +3660,9 @@ async function retenirSuivi(c, faits){
       for(const p of v) if(liste.indexOf(p) === -1) liste.push(p);
       fusion[tid] = liste;
     }
-    await kvSet(cle, { faits: fusion, le: new Date().toLocaleDateString('fr-FR') });
+    // `leIso` (23/09/2026) : le rappel du chef de chantier compare des jours ;
+    // `le` reste, c'est lui que la fenêtre du suivi affiche.
+    await kvSet(cle, { faits: fusion, le: new Date().toLocaleDateString('fr-FR'), leIso: new Date().toISOString() });
   }catch(e){ /* sans mémoire locale, le partagé reprendra la main demain */ }
 }
 
@@ -3721,6 +3811,7 @@ async function envoyerSuivi(cid){
       await retenirSuivi(c, faits);
       alert('Ton suivi a bien été envoyé. Merci !');
       fermerSuivi();
+      majRappelSuivi();   // le rappel de la feuille d'heures s'éteint tout de suite
     }else{
       alert("L'envoi n'a pas abouti ("+errcode+").\n\n"
         + "Vérifie ta connexion internet et réessaie. Rien n'est perdu, ta saisie reste à l'écran.");

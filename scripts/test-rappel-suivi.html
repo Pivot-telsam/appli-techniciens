@@ -1,0 +1,121 @@
+<pre id="verdictTest" style="position:fixed;top:0;left:0;background:#fff;color:#000;z-index:99999;font:11px monospace;padding:4px;">en cours</pre>
+<script>
+/* TEST DU RAPPEL DU CHEF DE CHANTIER (23/09/2026) DANS L'APPLI TECHNICIEN.
+ *
+ * A concatener apres index.html et a ouvrir avec Chrome --headless --dump-dom.
+ * IndexedDB ne repond pas sous --virtual-time-budget : `kvGet` passe par
+ * `avecDelai`, qui rend null au bout de 1,5 s — exactement le cas « rien dans
+ * le telephone ». La memoire locale est donc remplacee par une doublure.
+ *
+ * Le cas a eprouver n'existe pas forcement dans la donnee du jour : on le
+ * FABRIQUE (un chantier avec tachesVendues, un technicien place cette semaine),
+ * on mesure, puis on RESTAURE.
+ */
+(async function () {
+  const R = []; let ko = 0;
+  function ok(nom, cond, detail) {
+    R.push((cond ? 'OK   ' : 'ECHEC') + ' | ' + nom + (detail ? '  -> ' + detail : ''));
+    if (!cond) ko++;
+  }
+  function fin() {
+    R.push('---');
+    R.push(R.filter(l => l.startsWith('OK')).length + ' controle(s) passes, ' + ko + ' en echec');
+    R.push(ko ? 'VERDICT: ECHEC' : 'VERDICT: TOUT PASSE');
+    document.getElementById('verdictTest').textContent = R.join('\n');
+  }
+  for (let i = 0; i < 100 && typeof chantiersSansSuivi === 'undefined'; i++) await new Promise(r => setTimeout(r, 50));
+  if (typeof chantiersSansSuivi === 'undefined') { document.getElementById('verdictTest').textContent = 'la page ne s est pas construite'; return; }
+
+  const c = SEED_DATA.find(x => x.numero && x.tachesVendues && (x.tachesVendues.taches || []).length);
+  ok('il existe un chantier avec un bouton Suivi pour l essai', !!c);
+  if (!c) { fin(); return; }
+  const TECH = 'Vincent PERRIN';
+  const wk = weekRange(0);
+  const lundi = wk.mon.toISOString().slice(0, 10);
+
+  const memo = {
+    session: SESSION_SUIVI, mode: accessMode, tech: currentTech, off: currentOffset,
+    planning: PLANNING_TECH.tech[c.id], ranges: TECH_RANGES[c.id],
+    declare: AVANCEMENT_DECLARE.chantiers[c.numero], kvGet: kvGet, confirm: window.confirm, fetch: window.fetch,
+  };
+  let local = null;
+  try {
+    SESSION_SUIVI = { mail: 'tech:vincentperrin', nom: TECH, role: 'tech', poste: '', chefPotentiel: true };
+    accessMode = 'tech'; currentTech = TECH; currentOffset = 0;
+    PLANNING_TECH.tech[c.id] = Object.assign({}, memo.planning || {}, { [TECH]: [lundi] });
+    delete AVANCEMENT_DECLARE.chantiers[c.numero];
+    kvGet = async (cle) => (cle === 'suivi_' + c.numero ? local : null);
+
+    // 1. Chef, place cette semaine, aucun suivi : le chantier est nomme.
+    let l = await chantiersSansSuivi(TECH, wk);
+    ok('1. chef place sans suivi : le chantier est nomme', l.some(x => x.id === c.id), l.map(x => x.numero).join(','));
+
+    // 2. CONTRE-EXEMPLES : pas chef, ou pas de session du suivi (adresse publique), ou vu par le bureau.
+    SESSION_SUIVI = Object.assign({}, SESSION_SUIVI, { chefPotentiel: false });
+    ok('2. pas responsable d equipe : aucun rappel', (await chantiersSansSuivi(TECH, wk)).length === 0);
+    SESSION_SUIVI = null;
+    ok('2. adresse publique (pas de session) : aucun rappel', (await chantiersSansSuivi(TECH, wk)).length === 0);
+    SESSION_SUIVI = { mail: 'tech:vincentperrin', nom: TECH, role: 'tech', poste: '', chefPotentiel: true };
+    accessMode = 'admin';
+    ok('2. le bureau qui regarde une feuille : aucun rappel', (await chantiersSansSuivi(TECH, wk)).length === 0);
+    accessMode = 'tech';
+
+    // 3. Son propre suivi envoye cette semaine l'eteint ; celui de la semaine d'avant non.
+    local = { faits: {}, le: '01/01/2026', leIso: lundi + 'T09:00:00.000Z' };
+    ok('3. son suivi envoye cette semaine eteint le rappel', !(await chantiersSansSuivi(TECH, wk)).some(x => x.id === c.id));
+    const avant = new Date(wk.mon.getTime() - 3 * 86400000);
+    local = { faits: {}, le: avant.toLocaleDateString('fr-FR') };
+    ok('3. un suivi de la semaine d avant ne l eteint pas (ancienne forme de date)',
+       (await chantiersSansSuivi(TECH, wk)).some(x => x.id === c.id));
+    local = null;
+
+    // 4. Le suivi d'un collegue sur le meme chantier (AVANCEMENT_DECLARE) l'eteint aussi.
+    const p = lundi.split('-');
+    AVANCEMENT_DECLARE.chantiers[c.numero] = { t1: { statut: 'encours', par: 'Didier PERRIN', le: p[2] + '/' + p[1] + '/' + p[0].slice(2) } };
+    ok('4. le suivi d un collegue cette semaine eteint le rappel', !(await chantiersSansSuivi(TECH, wk)).some(x => x.id === c.id));
+    delete AVANCEMENT_DECLARE.chantiers[c.numero];
+
+    // 5. Un chantier ou il n'est pas place cette semaine n'est pas nomme.
+    PLANNING_TECH.tech[c.id] = Object.assign({}, memo.planning || {}, { [TECH]: ['2020-01-06'] });
+    const hors = await chantiersSansSuivi(TECH, wk);
+    ok('5. pas place cette semaine : pas de rappel sur ce chantier', !hors.some(x => x.id === c.id));
+    PLANNING_TECH.tech[c.id] = Object.assign({}, memo.planning || {}, { [TECH]: [lundi] });
+
+    // 6. L'ecran : le bandeau dit le fait, avec un bouton qui ouvre ce suivi.
+    const zone = document.createElement('div'); zone.id = 'rappelSuivi'; document.body.appendChild(zone);
+    await majRappelSuivi();
+    ok('6. le bandeau nomme le chantier', zone.textContent.indexOf(c.numero) >= 0, zone.textContent.slice(0, 120));
+    ok('6. et porte le bouton de son suivi', !!zone.querySelector('button[onclick*="ouvrirSuivi(\'' + c.id + '\')"]'));
+    ok('6. il dit le fait, pas une consigne', /Aucun suivi de chantier envoy/.test(zone.textContent) && !/tu dois|il faut/i.test(zone.textContent));
+
+    // 7. A l'envoi de la feuille : la question est posee, et « Annuler » n'envoie rien.
+    let question = ''; let envoye = false;
+    window.confirm = (m) => { question = String(m); return false; };
+    window.fetch = async () => { envoye = true; return { ok: true, json: async () => ({ ok: true }) }; };
+    const memoEntry = hoursEntry;
+    hoursEntry = hoursEntry || { chantierLines: [{ jours: { 0: { j: 8 } } }], absences: [] };
+    await emailFeuille();
+    ok('7. l envoi de la feuille pose la question en nommant le chantier', question.indexOf(c.numero) >= 0, question.slice(0, 120));
+    ok('7. et « Annuler » n envoie rien', envoye === false);
+    // CONTRE-EXEMPLE : sans chantier en attente, aucune question.
+    rappelSuivi = { cle: cleRappelSuivi(wk), manquants: [] }; question = '';
+    window.confirm = (m) => { question = String(m); return false; };
+    const memoGen = generateFeuillePDF, memoAlert = window.alert;
+    generateFeuillePDF = async () => { throw new Error('arret du banc'); };
+    window.alert = () => {};
+    try { await emailFeuille(); } catch (e) {}
+    generateFeuillePDF = memoGen; window.alert = memoAlert;
+    ok('7. sans suivi manquant, aucune question sur le suivi', !/suivi de chantier/.test(question), question.slice(0, 80));
+    hoursEntry = memoEntry;
+    zone.remove();
+  } catch (e) {
+    ok('le banc a leve', false, e && e.message ? e.message : String(e));
+  } finally {
+    SESSION_SUIVI = memo.session; accessMode = memo.mode; currentTech = memo.tech; currentOffset = memo.off;
+    if (memo.planning === undefined) delete PLANNING_TECH.tech[c.id]; else PLANNING_TECH.tech[c.id] = memo.planning;
+    if (memo.declare === undefined) delete AVANCEMENT_DECLARE.chantiers[c.numero]; else AVANCEMENT_DECLARE.chantiers[c.numero] = memo.declare;
+    kvGet = memo.kvGet; window.confirm = memo.confirm; window.fetch = memo.fetch;
+  }
+  fin();
+})();
+</script>
