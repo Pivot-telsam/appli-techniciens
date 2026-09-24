@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-24-3';
+var APP_VERSION = '2026-09-24-4';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-24-3';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Depuis la nouvelle adresse, quand le bureau change ton planning ou l'état d'un PDP ou d'un PGO, tu le vois dès que tu rouvres l'appli, sans attendre le lendemain.";
+var APP_NOUVEAUTE = "Depuis la nouvelle adresse, ton suivi de chantier arrive au bureau dès que tu l'envoies, sans attendre le lendemain matin.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -3948,6 +3948,7 @@ async function retirerCommentaire(cid, le, btn){
     if(btn){ btn.disabled = false; btn.textContent = 'Retirer'; }
     return;
   }
+  envoyerSuiviAuBureau(payload);
   try{
     const cle = 'suivi_' + (c.numero || c.id);
     const m = await avecDelai(kvGet(cle), 1500);
@@ -3969,6 +3970,20 @@ function cycleStatut(b){
   b.className = 'statut-chip etat'+e;
   b.textContent = e===0 ? 'Pas fait' : (e===1 ? 'En cours' : 'Fait');
 }
+/* LE SUIVI PART AUSSI DANS LA BASE DU SUIVI (24/09/2026), après Dropbox.
+   Seulement avec le suivi devant l'appli (nouvelle adresse) : l'onglet
+   Avancement du bureau le voit alors tout de suite, sans attendre le passage
+   du matin sur le PC. Le dépôt Dropbox reste l'archive et part en premier ;
+   un échec ici ne gêne rien, il est déjà parti. Même forme exacte que le
+   fichier déposé : le bureau applique les mêmes règles aux deux. */
+async function envoyerSuiviAuBureau(payload){
+  try{
+    if(!SESSION_SUIVI) return;
+    await fetch('/api/mon-suivi', { method:'POST', credentials:'same-origin',
+      headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ envoi: payload }) });
+  }catch(e){ /* le fichier est dans Dropbox : le passage du matin le reprendra */ }
+}
+
 async function envoyerSuivi(cid){
   const c = chantierById(cid);
   if(!c) return;
@@ -4035,6 +4050,7 @@ async function envoyerSuivi(cid){
       // au technicien que son travail est declare alors qu'il est reste dans son
       // telephone.
       await retenirSuivi(c, faits, retires, commentaire ? { le: payload.date, t: commentaire } : null);
+      envoyerSuiviAuBureau(payload);
       alert('Ton suivi a bien été envoyé. Merci !');
       fermerSuivi();
       majRappelSuivi();   // le rappel de la feuille d'heures s'éteint tout de suite
