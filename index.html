@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-23-5';
+var APP_VERSION = '2026-09-24-1';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-23-5';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Rien ne change pour toi aujourd'hui. Bientôt, si tu es chef de chantier : ta feuille d'heures te dira sur quel chantier le suivi de la semaine n'est pas encore parti.";
+var APP_NOUVEAUTE = "Tu peux maintenant défaire une erreur : décocher un pylône déjà envoyé dans le Suivi, retirer un commentaire que tu as envoyé, ou retirer un matériel ajouté par erreur.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -422,6 +422,11 @@ main{padding:16px; display:flex; flex-direction:column; gap:12px;}
    donne le nom. */
 .pyl-chip.on.autre{border-style:dashed;}
 .suivi-deja{color:var(--vert);}
+.suivi-mot{border:1px solid var(--filet2); border-radius:10px; padding:9px 11px; margin-bottom:8px; background:var(--touche);}
+.suivi-mot-t{font-size:13px; color:var(--t1); white-space:pre-line;}
+.suivi-mot-bas{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:6px; font-size:11.5px; color:var(--t2);}
+.suivi-retirer{border:1px solid var(--rouge-filet); color:var(--rouge-t); background:none;
+  border-radius:9px; padding:6px 12px; min-height:34px; font-size:12px; font-weight:600; cursor:pointer;}
 .statut-chip{cursor:pointer; border-radius:11px; padding:11px 18px; min-height:var(--cible);
   font-size:14px; font-weight:500; border:1px solid var(--filet2);
   background:var(--touche); color:var(--t2);}
@@ -1973,6 +1978,7 @@ function mtLignesApp(type, id, profil){
   d.detenus.filter(x => x.support_type === type && x.support_id === id).forEach(x => tenu[x.article] = x);
   const ids = Array.from(new Set(Object.keys(ref).concat(Object.keys(tenu)))).filter(k => art[k]);
   return ids.map(k => ({ article:k, nom:art[k].nom, ref:ref[k] || 0, qte: tenu[k] ? tenu[k].quantite : 0,
+    hors: !!art[k].hors_catalogue && !!tenu[k],
     note: tenu[k] ? tenu[k].note || '' : '', dernier: tenu[k] ? tenu[k].dernier_controle : null,
     prochain: tenu[k] ? tenu[k].prochain : null, echeance: tenu[k] ? tenu[k].echeance : 'inconnu' }))
     .sort((x, y) => x.nom.localeCompare(y.nom));
@@ -1989,7 +1995,9 @@ function mtBlocHtml(titre, type, id, profil){
       + '<span class="mt-sous' + (manque > 0 ? ' manque' : '') + '">' + (l.ref ? 'prévu : ' + l.ref + (manque > 0 ? ' — il en manque ' + manque : '') : 'hors dotation')
       + (l.echeance === 'depasse' ? ' · contrôle dépassé' : '') + (l.note ? ' · ' + mtEsc(l.note) : '') + '</span></div>'
       + '<input type="number" min="0" inputmode="numeric" class="h-km-input mt-qte" value="' + l.qte + '" aria-label="Quantité de ' + mtEsc(l.nom) + '">';
-    if(l.qte > 0) h += '<div class="mt-actions"><button type="button" class="mt-lien" data-mt="donner">Donner / déposer</button></div>';
+    /* « Retirer » (24/09/2026) : un article hors dotation ajouté par erreur. La dotation se corrige à 0. */
+    if(l.qte > 0 || l.hors) h += '<div class="mt-actions">' + (l.qte > 0 ? '<button type="button" class="mt-lien" data-mt="donner">Donner / déposer</button>' : '')
+      + (l.hors ? '<button type="button" class="mt-lien mt-retirer" data-mt="retirer">Retirer</button>' : '') + '</div>';
     if(mtAppForm && mtAppForm.support === type + '|' + id && mtAppForm.article === l.article){
       const vers = '<optgroup label="Collègues">' + mtApp.collegues.map(c => '<option value="personne|' + mtEsc(c.sujet) + '">' + mtEsc(c.nom) + '</option>').join('') + '</optgroup>'
         + '<optgroup label="Dépôts">' + mtApp.depots.map(x => '<option value="depot|' + mtEsc(x.id) + '">' + mtEsc(x.nom) + '</option>').join('') + '</optgroup>'
@@ -2052,6 +2060,12 @@ async function mtAppAction(b){
   if(act === 'fermer'){ mtAppForm = null; renderMaterielApp(); return; }
   if(act === 'donner'){ mtAppForm = { support: sup, article: ligne.dataset.art }; renderMaterielApp(); return; }
   if(act === 'ajouter'){ mtAppForm = { support: sup, article: '+' }; renderMaterielApp(); return; }
+  if(act === 'retirer'){
+    const nom = (ligne.querySelector('.mt-nom') || {}).textContent || 'cet article';
+    if(!confirm('Retirer « ' + nom + ' » de ta liste ?')) return;
+    await fin(await mtAppPost('/api/mon-materiel', { action:'retirer', support_type:type, support_id:id, article: ligne.dataset.art }), 'Retiré.');
+    return;
+  }
   if(act === 'confirmer'){
     const lignes = Array.from(bloc.querySelectorAll('[data-art]')).map(l => ({ article: l.dataset.art, quantite: Number(l.querySelector('.mt-qte').value) }));
     await fin(await mtAppPost('/api/mon-materiel', { action:'confirmer', support_type:type, support_id:id, lignes }), 'Quantités confirmées aujourd\'hui. Merci.');
@@ -3615,10 +3629,21 @@ async function memoireSuivi(c){
     if(!t.pylones[pylone]) t.pylones[pylone] = { par: par || '', le: le || '' };
   }
   const partage = ((AVANCEMENT_DECLARE.chantiers || {})[c.numero || ''] || {});
+  /* CE QUE LE TECHNICIEN A DÉCOCHÉ (24/09/2026). Le partagé ne se refait qu'au
+     passage du matin : jusque-là il contient encore le repère retiré, et la case
+     se recocherait toute seule. On le masque tant que le partagé est PLUS VIEUX
+     que le retrait — après, c'est lui qui fait foi (un collègue a pu recocher). */
+  let masque = {};
+  try{
+    const m0 = await avecDelai(kvGet('suivi_' + (c.numero || c.id)), 1500);
+    masque = (m0 && m0.retires) || {};
+  }catch(e){}
+  const majPartage = AVANCEMENT_DECLARE.maj || '';
+  const masquer = (tid, p) => { const q = (masque[tid] || {})[p]; return !!(q && q > majPartage); };
   for(const tid in partage){
     const d = partage[tid] || {};
-    for(const p of (d.pylones || [])) noter(tid, String(p.p), p.par, p.le);
-    if(d.statut) (parTache[tid] = parTache[tid] || { pylones:{}, statut:null }).statut =
+    for(const p of (d.pylones || [])) if(!masquer(tid, String(p.p))) noter(tid, String(p.p), p.par, p.le);
+    if(d.statut && !masquer(tid, '')) (parTache[tid] = parTache[tid] || { pylones:{}, statut:null }).statut =
       { etat: d.statut, par: d.par || '', le: d.le || '' };
   }
   // Mes propres envois, gardés dans le téléphone.
@@ -3632,6 +3657,7 @@ async function memoireSuivi(c){
   // Trouvé par le banc d'essai le 03/09/2026, qui s'est figé exactement là.
   try{
     const mien = await avecDelai(kvGet('suivi_' + (c.numero || c.id)), 1500);
+    if(mien && Array.isArray(mien.mots)) parTache._mots = mien.mots;
     if(mien && mien.faits){
       for(const tid in mien.faits){
         const v = mien.faits[tid];
@@ -3648,21 +3674,43 @@ async function memoireSuivi(c){
 
 // Fusionne un envoi réussi dans la mémoire locale. UNION, jamais remplacement :
 // un envoi du mardi ne doit pas effacer ce qui a été déclaré lundi.
-async function retenirSuivi(c, faits){
+/* `retires` (24/09/2026) : les repères DÉCOCHÉS, tâche -> [repères] ; un retrait
+   efface la coche ici et pose un masque daté sur le partagé (voir memoireSuivi).
+   `mot` : le commentaire parti, gardé pour pouvoir le retirer plus tard. */
+function horodatageLocal(){
+  const d = new Date(), z = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + z(d.getMonth()+1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+}
+async function retenirSuivi(c, faits, retires, mot){
   try{
     const cle = 'suivi_' + (c.numero || c.id);
     const avant = (await avecDelai(kvGet(cle), 1500)) || { faits: {} };
     const fusion = avant.faits || {};
+    const masque = avant.retires || {};
+    const quand = horodatageLocal();
+    for(const tid in (retires || {})){
+      const liste = Array.isArray(fusion[tid]) ? fusion[tid] : [];
+      fusion[tid] = liste.filter(p => retires[tid].indexOf(p) === -1);
+      masque[tid] = masque[tid] || {};
+      for(const p of retires[tid]) masque[tid][p] = quand;
+    }
     for(const tid in faits){
       const v = faits[tid];
-      if(typeof v === 'string'){ fusion[tid] = v; continue; }
+      if(v === 'pasfait'){ delete fusion[tid]; (masque[tid] = masque[tid] || {})[''] = quand; continue; }
+      if(typeof v === 'string'){ fusion[tid] = v; if(masque[tid]) delete masque[tid]['']; continue; }
       const liste = Array.isArray(fusion[tid]) ? fusion[tid] : [];
-      for(const p of v) if(liste.indexOf(p) === -1) liste.push(p);
+      for(const p of v){
+        if(liste.indexOf(p) === -1) liste.push(p);
+        if(masque[tid]) delete masque[tid][p];   // recoché : le masque tombe
+      }
       fusion[tid] = liste;
     }
+    const mots = Array.isArray(avant.mots) ? avant.mots : [];
+    if(mot && mot.t) mots.push(mot);
     // `leIso` (23/09/2026) : le rappel du chef de chantier compare des jours ;
     // `le` reste, c'est lui que la fenêtre du suivi affiche.
-    await kvSet(cle, { faits: fusion, le: new Date().toLocaleDateString('fr-FR'), leIso: new Date().toISOString() });
+    await kvSet(cle, { faits: fusion, retires: masque, mots: mots,
+                       le: new Date().toLocaleDateString('fr-FR'), leIso: new Date().toISOString() });
   }catch(e){ /* sans mémoire locale, le partagé reprendra la main demain */ }
 }
 
@@ -3708,7 +3756,7 @@ async function ouvrirSuivi(cid){
         const titre = d ? (' title="Déjà déclaré' + (d.par ? ' par ' + escapeHtml(d.par) : '')
                             + (d.le ? ' le ' + escapeHtml(d.le) : '') + '"') : '';
         body += '<span class="pyl-chip' + (d ? ' on' + (d.par && d.par !== 'toi' ? ' autre' : '') : '') + '"'
-          + ' data-pyl="'+escapeHtml(pv)+'"' + titre
+          + ' data-pyl="'+escapeHtml(pv)+'"' + (d ? ' data-deja="1"' : '') + titre
           + ' onclick="this.classList.toggle(\'on\')">'+escapeHtml(pv)+'</span>';
       });
       body += '</div>';
@@ -3721,7 +3769,7 @@ async function ouvrirSuivi(cid){
       const t0 = (st && st.par) ? (' title="Déjà déclaré par ' + escapeHtml(st.par)
                    + (st.le ? ' le ' + escapeHtml(st.le) : '') + '"') : '';
       body += '<div class="suivi-field" data-tache="'+escapeHtml(tid)+'" data-mode="statut">';
-      body += '<button type="button" class="statut-chip etat'+e0+'" data-etat="'+e0+'"'+t0
+      body += '<button type="button" class="statut-chip etat'+e0+'" data-etat="'+e0+'"'+(e0 ? ' data-deja="1"' : '')+t0
         + ' onclick="cycleStatut(this)">'+lib0+'</button>';
       body += '</div>';
     }
@@ -3729,6 +3777,16 @@ async function ouvrirSuivi(cid){
   });
   body += '<div class="suivi-tache"><div class="suivi-tache-h">Commentaire</div>'
     + '<textarea class="suivi-comment" id="suiviComment" placeholder="Remarques, câble posé, ce qui reste à faire..."></textarea></div>';
+  /* SES COMMENTAIRES DÉJÀ PARTIS, AVEC « RETIRER » (24/09/2026). Seuls ceux
+     envoyés depuis CE téléphone : c'est là qu'ils sont gardés. */
+  const mesMots = (deja._mots || []).slice().reverse();
+  if(mesMots.length){
+    body += '<div class="suivi-tache"><div class="suivi-tache-h">Tes commentaires déjà envoyés</div>'
+      + mesMots.map(m => '<div class="suivi-mot"><div class="suivi-mot-t">' + escapeHtml(m.t) + '</div>'
+        + '<div class="suivi-mot-bas">' + escapeHtml(new Date(m.le).toLocaleDateString('fr-FR'))
+        + ' <button type="button" class="suivi-retirer" onclick="retirerCommentaire(\'' + cid + '\',\'' + escapeHtml(m.le) + '\',this)">Retirer</button></div></div>').join('')
+      + '</div>';
+  }
   ov.innerHTML =
     '<div class="suivi-modal">'
     + '<div class="suivi-head"><div class="suivi-title">Suivi d\'avancement</div>'
@@ -3741,6 +3799,49 @@ async function ouvrirSuivi(cid){
   document.body.appendChild(ov);
 }
 function fermerSuivi(){ const o=document.getElementById('suiviOverlay'); if(o) o.remove(); }
+
+/* RETIRER UN COMMENTAIRE DÉJÀ ENVOYÉ (24/09/2026). Le fichier parti reste dans
+   Dropbox : on envoie un second envoi qui dit « retire celui du tant », et le
+   calcul du bureau ne l'affiche plus (avancement-suivi.ps1). Il ne compte pas
+   comme un suivi de la semaine : `leIso` n'est pas touché. */
+async function retirerCommentaire(cid, le, btn){
+  const c = chantierById(cid);
+  if(!c || !confirm('Retirer ce commentaire ? Le bureau ne le verra plus.')) return;
+  if(btn){ btn.disabled = true; btn.textContent = 'Envoi...'; }
+  const payload = {
+    type:'suivi-avancement', version:1,
+    chantier: c.numero||'', chantierNom: c.nom||'',
+    technicien: currentTech, date: new Date().toISOString(),
+    faits: {}, commentaire: '', retireCommentaire: [le]
+  };
+  let ok = false, errcode = '';
+  try{
+    const filename = 'suivi_'+(c.numero||'chantier')+'.json';
+    const fd = new FormData();
+    fd.append('dest', 'suivi');
+    fd.append('tech', currentTech);
+    fd.append('chantier', c.numero||'');
+    fd.append('appTechUrl', c.documentsAppTech||'');
+    fd.append('filename', filename);
+    fd.append('file', new File([JSON.stringify(payload, null, 2)], filename, {type:'application/json'}));
+    const resp = await fetch(RELAY_URL, {method:'POST', body:fd});
+    const data = await resp.json().catch(()=>null);
+    ok = !!(resp.ok && data && data.ok);
+    if(!ok) errcode = (data && data.error) ? data.error : ('http '+resp.status);
+  }catch(e){ errcode = 'connexion'; }
+  if(!ok){
+    alert("Le retrait n'est pas parti ("+errcode+"). Vérifie ta connexion et réessaie.");
+    if(btn){ btn.disabled = false; btn.textContent = 'Retirer'; }
+    return;
+  }
+  try{
+    const cle = 'suivi_' + (c.numero || c.id);
+    const m = await avecDelai(kvGet(cle), 1500);
+    if(m && Array.isArray(m.mots)){ m.mots = m.mots.filter(x => x.le !== le); await kvSet(cle, m); }
+  }catch(e){}
+  const bloc = btn && btn.closest('.suivi-mot');
+  if(bloc) bloc.remove();
+}
 function suiviTout(btn, on){
   const tache = btn.closest('.suivi-tache');
   if(!tache) return;
@@ -3758,6 +3859,7 @@ async function envoyerSuivi(cid){
   const c = chantierById(cid);
   if(!c) return;
   const faits = {};
+  const retires = {};   // repères déjà déclarés que le technicien a DÉCOCHÉS (24/09/2026)
   document.querySelectorAll('#suiviOverlay .suivi-field').forEach(el=>{
     const tid = el.getAttribute('data-tache');
     if(el.getAttribute('data-mode')==='statut'){
@@ -3765,16 +3867,25 @@ async function envoyerSuivi(cid){
       const e = b ? (parseInt(b.getAttribute('data-etat'),10)||0) : 0;
       if(e===1) faits[tid] = 'encours';
       else if(e===2) faits[tid] = 'fait';
-      // e===0 (pas fait) : on n'écrit rien.
+      // e===0 : rien, SAUF si la tâche était déclarée — c'est alors une erreur
+      // que le technicien défait.
+      else if(b && b.getAttribute('data-deja')) faits[tid] = 'pasfait';
     } else {
-      const on = [];
-      el.querySelectorAll('.pyl-chip.on').forEach(ch=> on.push(ch.getAttribute('data-pyl')));
+      const on = [], off = [];
+      el.querySelectorAll('.pyl-chip').forEach(ch=>{
+        if(ch.classList.contains('on')) on.push(ch.getAttribute('data-pyl'));
+        else if(ch.getAttribute('data-deja')) off.push(ch.getAttribute('data-pyl'));
+      });
       if(on.length) faits[tid] = on;
+      if(off.length) retires[tid] = off;
     }
   });
   const commentEl = document.getElementById('suiviComment');
   const commentaire = commentEl ? commentEl.value.trim() : '';
-  if(Object.keys(faits).length===0 && !commentaire){
+  const nbRetires = Object.keys(retires).reduce((n,k)=> n + retires[k].length, 0);
+  if(nbRetires && !confirm(nbRetires + (nbRetires>1 ? ' repères déjà déclarés sont décochés' : ' repère déjà déclaré est décoché')
+       + ' : ' + (nbRetires>1 ? 'ils seront retirés' : 'il sera retiré') + ' de l\'avancement. C\'est bien une erreur ?')) return;
+  if(Object.keys(faits).length===0 && !commentaire && !nbRetires){
     alert('Rien à envoyer : coche un pylône, mets une tâche « En cours » ou « Fait », ou écris un commentaire.');
     return;
   }
@@ -3784,6 +3895,7 @@ async function envoyerSuivi(cid){
     technicien: currentTech, date: new Date().toISOString(),
     faits: faits, commentaire: commentaire
   };
+  if(nbRetires) payload.retires = retires;
   const btn = document.getElementById('suiviSendBtn');
   const lbl = btn ? btn.innerHTML : '';
   if(btn){ btn.disabled=true; btn.textContent='Envoi...'; }
@@ -3808,7 +3920,7 @@ async function envoyerSuivi(cid){
       // On ne retient QUE ce qui est parti. Retenir avant l'envoi ferait croire
       // au technicien que son travail est declare alors qu'il est reste dans son
       // telephone.
-      await retenirSuivi(c, faits);
+      await retenirSuivi(c, faits, retires, commentaire ? { le: payload.date, t: commentaire } : null);
       alert('Ton suivi a bien été envoyé. Merci !');
       fermerSuivi();
       majRappelSuivi();   // le rappel de la feuille d'heures s'éteint tout de suite
