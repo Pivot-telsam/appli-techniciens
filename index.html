@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-24-1';
+var APP_VERSION = '2026-09-24-2';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-24-1';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Tu peux maintenant défaire une erreur : décocher un pylône déjà envoyé dans le Suivi, retirer un commentaire que tu as envoyé, ou retirer un matériel ajouté par erreur.";
+var APP_NOUVEAUTE = "Si tu ouvres l'appli depuis la nouvelle adresse, après avoir tapé ton adresse mail et ton mot de passe, elle te reconnaît et affiche tes chantiers directement : plus de mot de passe personnel à retaper ici.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -3942,10 +3942,28 @@ async function envoyerSuivi(cid){
 document.getElementById('legend').textContent =
   'Les documents s\'ouvrent depuis Dropbox : une connexion est nécessaire.';
 
-(async function init(){
-  renderTechGrid();
-  await initGate();
-})();
+/* LE DÉMARRAGE A ÉTÉ DÉPLACÉ TOUT EN BAS DE CE SCRIPT, ET CE N'EST PAS UN
+   RANGEMENT — c'était un bug, trouvé en service le 24/09/2026.
+
+   Il était ici, avant le portail. `initGate` et `identiteDuSuivi` sont des
+   FONCTIONS DÉCLARÉES : elles remontent, donc l'appel marchait. Mais elles
+   lisent `DELAI_IDENTITE`, qui est un `const` écrit plus bas — et un `const`,
+   lui, NE REMONTE PAS : avant sa ligne, le simple fait de le lire jette
+   (« Cannot access before initialization »). Ce jet tombait dans le `catch` de
+   `identiteDuSuivi`, dont le métier est justement de rendre `null` quand le
+   suivi ne répond pas. Donc : aucune erreur dans la console, aucun appel
+   réseau, et l'ancien portail redemandait son mot de passe à un technicien
+   qui venait POURTANT de passer la porte du suivi. Anthony Denis l'a eu en
+   pleine figure quatre minutes après avoir posé son nouveau mot de passe.
+
+   CE QUI REND CE PIÈGE MÉCHANT : il n'y a rien à voir. Un `catch` écrit pour
+   une panne de réseau avale une faute de programmation, et le repli est
+   exactement ce qu'on aurait fait en cas de panne. Le seul contrôle qui
+   pouvait l'attraper est celui qui FAIT TOURNER LA VRAIE PAGE —
+   `partage/test-porte-apptech.html` dans le dépôt du suivi.
+
+   RÈGLE À GARDER : le démarrage se fait en DERNIER, après toutes les
+   déclarations. Ne pas le remonter « pour le voir plus tôt ». */
 
 /* ---------- portail d'accès par technicien (mis en place le 27/08/2026) ----------
    Chaque technicien a SON mot de passe. Il ouvre l'appli, tape son mot de passe,
@@ -4140,6 +4158,15 @@ async function initGate(){
   input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryValidate(); });
   input.focus();
 }
+
+/* ---------- démarrage ----------
+   EN DERNIER, ET C'EST LA SEULE PLACE JUSTE : tout ce que ce script déclare
+   est alors en place, `const` compris. Voir le grand commentaire laissé à
+   l'endroit d'où ce bloc vient. */
+(async function init(){
+  renderTechGrid();
+  await initGate();
+})();
 </script>
 </body>
 </html>
