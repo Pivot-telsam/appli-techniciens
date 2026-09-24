@@ -190,191 +190,260 @@
   // =======================================================================
   // 2. LES CASES QUI RESTENT COCHEES
   // =======================================================================
-  R.push('     avancement declare : ' + Object.keys(AVANCEMENT_DECLARE.chantiers || {}).length
-         + ' chantier(s), maj ' + AVANCEMENT_DECLARE.maj);
-  const numDecl = Object.keys(AVANCEMENT_DECLARE.chantiers || {});
-  ok('2. des declarations sont publiees', numDecl.length > 0, numDecl.join(', '));
+  /* REECRIT LE 24/09/2026 : LE CAS EST FABRIQUE, IL N'EST PLUS CHERCHE.
+   * Cette serie prenait le premier chantier declare qui avait des taches
+   * vendues, et exigeait d'y trouver des PYLONES coches. Le 24/09 ce premier
+   * chantier etait 26-115, dont la seule declaration est un ETAT (touret « en
+   * cours ») : 0 case, 5 echecs, et rien de casse dans l'appli. C'est l'etat du
+   * monde fige que le §17 interdit. On prend donc une fiche qui a une tache a
+   * reperes, on y POSE une declaration connue (partagee et locale), on mesure,
+   * puis on RESTAURE AVANCEMENT_DECLARE et kvGet. Le cas « etat sans reperes »,
+   * celui qui avait fait tomber l'ancienne serie, est eprouve a part. */
+  const declAvant = JSON.stringify(AVANCEMENT_DECLARE);
+  const vraiKvGet = kvGet, vraiKvSet = kvSet, vraiTech = currentTech;
+  let locale = {};                       // la memoire du telephone, doublee
+  kvGet = async (k) => locale[k];
+  kvSet = async (k, v) => { locale[k] = v; return true; };
+  try {
+    /* 2.0 LA FORME DE CE QUI EST PUBLIE : propriete sur toute la donnee du
+     * jour (le nombre de chantiers declares, lui, n'est qu'imprime). */
+    const numDecl = Object.keys(AVANCEMENT_DECLARE.chantiers || {});
+    R.push('     avancement declare : ' + numDecl.length + ' chantier(s), maj ' + AVANCEMENT_DECLARE.maj);
+    function declMalFormees(chs) {
+      const mal = [];
+      for (const n in chs) for (const tid in chs[n]) {
+        const d = chs[n][tid] || {};
+        const okP = Array.isArray(d.pylones) && d.pylones.every(p => p && p.p !== undefined && p.p !== '');
+        if (!okP && !d.statut) mal.push(n + '/' + tid);
+      }
+      return mal;
+    }
+    const mal = declMalFormees(AVANCEMENT_DECLARE.chantiers || {});
+    ok('2. chaque declaration publiee porte des reperes ou un etat', mal.length === 0, mal.join(', ') || 'toutes');
+    ok('2. CONTRE-EXEMPLE : une declaration creuse serait attrapee',
+       declMalFormees({ 'x': { t: {} }, 'y': { t: { pylones: [{ p: '' }] } } }).length === 2);
 
-  const cTest = Object.values(chantiers).find(c => numDecl.indexOf(c.numero) !== -1
-    && c.tachesVendues && c.tachesVendues.taches && c.tachesVendues.taches.length);
-  ok('2. un chantier declare a bien des taches vendues', !!cTest, cTest ? cTest.numero : 'aucun');
-  if (!cTest) { fin(); return; }
+    // Les deux fiches du cas : une tache a reperes (3 au moins), une tache sans.
+    const tachePyl = c => (c.tachesVendues && c.tachesVendues.taches || [])
+      .map((t, i) => ({ t: t, tid: t.id || ('t' + i) })).find(x => x.t.pylones && x.t.pylones.length >= 3);
+    const tacheEtat = c => (c.tachesVendues && c.tachesVendues.taches || [])
+      .map((t, i) => ({ t: t, tid: t.id || ('t' + i) })).find(x => !(x.t.pylones && x.t.pylones.length));
+    const cP = SEED_DATA.find(c => c.numero && tachePyl(c));
+    const cS = SEED_DATA.find(c => c.numero && tacheEtat(c));
+    ok('2. une fiche a reperes existe pour fabriquer le cas', !!cP, cP ? cP.numero : 'aucune');
+    ok('2. une fiche a etat existe pour fabriquer le cas', !!cS, cS ? cS.numero : 'aucune');
 
-  currentTech = 'Anthony DENIS';
-  const memo = await memoireSuivi(cTest);
-  let nbCoches = 0;
-  for (const tid in memo) nbCoches += Object.keys(memo[tid].pylones).length;
-  ok('2. la memoire retrouve des cases a cocher', nbCoches > 0, nbCoches + ' case(s) sur ' + cTest.numero);
+    const moi = TECHS[0], autre = TECHS[1];
+    currentTech = moi;
 
-  await ouvrirSuivi(cTest.id);
-  const ov = document.getElementById('suiviOverlay');
-  ok('2. la fenetre de suivi s ouvre', !!ov);
-  if (ov) {
-    const cochees = ov.querySelectorAll('.pyl-chip.on');
-    ok('2. des cases sont deja cochees a l ouverture', cochees.length > 0,
-       cochees.length + ' case(s) cochee(s)');
-    ok('2. celles des autres sont marquees a part', ov.querySelectorAll('.pyl-chip.on.autre').length > 0,
-       String(ov.querySelectorAll('.pyl-chip.on.autre').length));
-    const avecTitre = [].slice.call(cochees).filter(ch => ch.getAttribute('title'));
-    ok('2. et l infobulle dit par qui', avecTitre.length === cochees.length,
-       avecTitre.length ? avecTitre[0].getAttribute('title') : 'aucune');
-    ok('2. un rappel compte les cases deja declarees', !!ov.querySelector('.suivi-deja'),
-       ov.querySelector('.suivi-deja') ? ov.querySelector('.suivi-deja').textContent : '');
-    // contre-exemple : toutes les cases ne sont pas cochees
-    const total = ov.querySelectorAll('.pyl-chip').length;
-    ok('2. et TOUTES les cases ne sont pas cochees (sinon le test ne prouve rien)',
-       cochees.length < total, cochees.length + ' / ' + total);
+    if (cP) {
+      const { tid } = tachePyl(cP);
+      const rep = tachePyl(cP).t.pylones.map(String);
+      const cle = 'suivi_' + cP.numero;
+      const compte = async () => {
+        await ouvrirSuivi(cP.id);
+        const ov = document.getElementById('suiviOverlay');
+        const grille = ov && ov.querySelector('.pyl-grid[data-tache="' + tid + '"]');
+        const r = {
+          ov: !!ov,
+          on: grille ? [].slice.call(grille.querySelectorAll('.pyl-chip.on')).map(x => x.dataset.pyl) : null,
+          autre: grille ? [].slice.call(grille.querySelectorAll('.pyl-chip.on.autre')).map(x => x.dataset.pyl) : null,
+          titres: grille ? [].slice.call(grille.querySelectorAll('.pyl-chip.on')).map(x => x.getAttribute('title') || '') : [],
+          total: grille ? grille.querySelectorAll('.pyl-chip').length : 0,
+          deja: ov && ov.querySelector('.suivi-deja') ? ov.querySelector('.suivi-deja').textContent : ''
+        };
+        fermerSuivi();
+        return r;
+      };
+
+      // SCENE A : un collegue a declare les deux premiers reperes, rien en local.
+      AVANCEMENT_DECLARE.chantiers[cP.numero] = { [tid]: { pylones: [
+        { p: rep[0], par: autre, le: '01/09/26' }, { p: rep[1], par: autre, le: '02/09/26' } ] } };
+      locale = {};
+      const memo = await memoireSuivi(cP);
+      const vus = Object.keys((memo[tid] || {}).pylones || {});
+      ok('2. la memoire retrouve les reperes declares par un collegue',
+         vus.length === 2 && vus.indexOf(rep[0]) !== -1 && vus.indexOf(rep[1]) !== -1,
+         cP.numero + ' : ' + vus.join(', '));
+      let a = await compte();
+      ok('2. la fenetre de suivi s ouvre', a.ov && a.on !== null);
+      ok('2. ces deux cases sont cochees a l ouverture, et elles seules',
+         a.on && a.on.length === 2 && a.on.indexOf(rep[0]) !== -1 && a.on.indexOf(rep[1]) !== -1,
+         (a.on || []).join(', ') + ' / ' + a.total);
+      ok('2. elles sont marquees comme venant d un autre', a.autre && a.autre.length === 2, String(a.autre));
+      ok('2. et l infobulle dit par qui', a.titres.length === 2 && a.titres.every(t => t.indexOf(autre) !== -1),
+         a.titres[0] || 'aucune');
+      ok('2. un rappel compte les cases deja declarees', /\b2\b/.test(a.deja), a.deja.trim().slice(0, 60));
+      ok('2. et TOUTES les cases ne sont pas cochees', a.total > 2, 2 + ' / ' + a.total);
+
+      // SCENE B : j'ai coche un troisieme repere depuis ce telephone.
+      locale[cle] = { faits: { [tid]: [rep[2]] }, le: '03/09/2026' };
+      let b = await compte();
+      ok('2. ma propre coche locale s ajoute (union), sans la marque « autre »',
+         b.on && b.on.length === 3 && b.on.indexOf(rep[2]) !== -1 && b.autre.indexOf(rep[2]) === -1,
+         (b.on || []).join(', ') + ' | autre : ' + (b.autre || []).join(', '));
+
+      // SCENE C : j'ai DECOCHE le premier apres la consolidation -> masque.
+      locale[cle] = { faits: {}, retires: { [tid]: { [rep[0]]: '2999-01-01 00:00' } } };
+      let m1 = await compte();
+      ok('2. un repere que j ai decoche apres la consolidation reste decoche',
+         m1.on && m1.on.indexOf(rep[0]) === -1 && m1.on.indexOf(rep[1]) !== -1, (m1.on || []).join(', '));
+      locale[cle] = { faits: {}, retires: { [tid]: { [rep[0]]: '2000-01-01 00:00' } } };
+      let m2 = await compte();
+      ok('2. CONTRE-EXEMPLE : decoche AVANT la consolidation, le partage refait foi',
+         m2.on && m2.on.indexOf(rep[0]) !== -1, (m2.on || []).join(', '));
+
+      // CONTRE-EXEMPLE ENTIER : la meme fiche, sans aucune declaration nulle part.
+      delete AVANCEMENT_DECLARE.chantiers[cP.numero];
+      locale = {};
+      let v = await compte();
+      ok('2. CONTRE-EXEMPLE : la meme fiche sans declaration ouvre tout decoche',
+         v.on && v.on.length === 0 && v.deja === '', (v.on || []).length + ' / ' + v.total);
+    } else {
+      ok('2. serie des reperes jouee', false, 'aucune fiche a 3 reperes ou plus : 9 controles non joues');
+    }
+
+    if (cS) {
+      const { tid } = tacheEtat(cS);
+      const etat = async () => {
+        await ouvrirSuivi(cS.id);
+        const ov = document.getElementById('suiviOverlay');
+        const b = ov && ov.querySelector('.suivi-field[data-tache="' + tid + '"] .statut-chip');
+        const r = b ? { etat: b.dataset.etat, titre: b.getAttribute('title') || '' } : null;
+        fermerSuivi();
+        return r;
+      };
+      AVANCEMENT_DECLARE.chantiers[cS.numero] = { [tid]: { statut: 'fait', par: autre, le: '04/09/26' } };
+      locale = {};
+      const e1 = await etat();
+      ok('2. une tache sans repere declaree « fait » s ouvre sur « Fait », signee',
+         !!e1 && e1.etat === '2' && e1.titre.indexOf(autre) !== -1,
+         cS.numero + ' : ' + JSON.stringify(e1));
+      delete AVANCEMENT_DECLARE.chantiers[cS.numero];
+      const e0 = await etat();
+      ok('2. CONTRE-EXEMPLE : sans declaration elle s ouvre sur « Pas fait »',
+         !!e0 && e0.etat === '0' && e0.titre === '', JSON.stringify(e0));
+    } else {
+      ok('2. serie des etats jouee', false, 'aucune fiche a tache sans repere : 2 controles non joues');
+    }
+
+    // La memoire locale : union, jamais remplacement
+    locale = {};
+    const faux = { id: 'c_faux', numero: '99-999' };
+    await retenirSuivi(faux, { racc: ['1', '2'] });
+    await retenirSuivi(faux, { racc: ['2', '3'], doo: 'fait' });
+    const garde = locale['suivi_99-999'] || { faits: {} };
+    ok('2. la memoire locale fait l UNION des envois',
+       JSON.stringify(garde.faits.racc) === '["1","2","3"]', JSON.stringify(garde.faits));
+    ok('2. et garde le statut des taches sans pylone', garde.faits.doo === 'fait');
+  } finally {
+    const reste = JSON.parse(declAvant);
+    AVANCEMENT_DECLARE.chantiers = reste.chantiers;
+    kvGet = vraiKvGet; kvSet = vraiKvSet; currentTech = vraiTech;
     fermerSuivi();
   }
-
-  // Contre-exemple : un chantier SANS declaration n ouvre rien de coche
-  const cVierge = Object.values(chantiers).find(c => numDecl.indexOf(c.numero) === -1
-    && c.tachesVendues && c.tachesVendues.taches && c.tachesVendues.taches.some(t => t.pylones && t.pylones.length));
-  if (cVierge) {
-    await ouvrirSuivi(cVierge.id);
-    const ov2 = document.getElementById('suiviOverlay');
-    ok('2. un chantier sans declaration ouvre tout decoche',
-       !!ov2 && ov2.querySelectorAll('.pyl-chip.on').length === 0,
-       cVierge.numero + ' : ' + (ov2 ? ov2.querySelectorAll('.pyl-chip.on').length : '?') + ' cochee(s)');
-    fermerSuivi();
-  } else {
-    ok('2. un chantier vierge a ete trouve pour le contre-exemple', false, 'aucun');
-  }
-
-  // La memoire locale : union, jamais remplacement
-  const vraiKvGet = window.kvGet, vraiKvSet = window.kvSet;
-  let mem = {};
-  window.kvGet = async (k) => mem[k];
-  window.kvSet = async (k, v) => { mem[k] = v; };
-  const faux = { id: 'c_faux', numero: '99-999' };
-  await retenirSuivi(faux, { racc: ['1', '2'] });
-  await retenirSuivi(faux, { racc: ['2', '3'], doo: 'fait' });
-  const garde = mem['suivi_99-999'];
-  ok('2. la memoire locale fait l UNION des envois',
-     JSON.stringify(garde.faits.racc) === '["1","2","3"]', JSON.stringify(garde.faits));
-  ok('2. et garde le statut des taches sans pylone', garde.faits.doo === 'fait');
-  window.kvGet = vraiKvGet; window.kvSet = vraiKvSet;
+  ok('2. AVANCEMENT_DECLARE est restaure apres la serie', JSON.stringify(AVANCEMENT_DECLARE) === declAvant);
+  ok('2. et la memoire du telephone aussi', kvGet === vraiKvGet && kvSet === vraiKvSet);
 
   // =======================================================================
   // 3. AVEC QUI JE SUIS (demande des techniciens, 03/09/2026)
   // =======================================================================
-  // On cherche un cas REEL : un chantier de la semaine prochaine ou plusieurs
-  // personnes sont placees. Fabriquer un faux cas ne prouverait rien de ce que
-  // les techniciens verront.
+  /* REECRIT LE 24/09/2026. La serie cherchait un chantier REEL a plusieurs
+   * personnes la semaine prochaine, prenait la premiere comme « moi », puis
+   * ajoutait « Hugues VIRY » deux jours pour eprouver les jours differents.
+   * Ce jour-la, « moi » ETAIT Hugues VIRY : la personne ajoutee etait moi, donc
+   * exclue du bloc, et 2 controles tombaient sans aucun defaut. Un nom ecrit en
+   * dur dans une scene tiree de la donnee du jour finit toujours par tomber sur
+   * elle. La scene est maintenant ENTIEREMENT fabriquee sur une vraie fiche, avec
+   * quatre personnes tirees de TECHS et distinctes par construction, puis la
+   * donnee est restauree. La donnee du jour garde une propriete, mesuree sur
+   * TOUT le planning de la semaine prochaine (et le nombre de cas imprime). */
   const sem = weekRange(1);
-  let cas = null;
+  const isoS = d => d.toISOString().slice(0, 10);
+  const jourDe = n => isoS(new Date(sem.mon.getTime() + n * 86400000));
+
+  // 3.0 La propriete sur la donnee du jour : chacun lit exactement les autres.
+  let casReels = 0; const fautes = [];
   for (const cid of idsChantiersPlanifies()) {
-    const presents = [];
-    for (const t of TECHS) if (isoDatesInRange(datesPour(cid, t), sem.mon, sem.sun).length) presents.push(t);
-    if (presents.length >= 2) { cas = { cid: cid, presents: presents }; break; }
+    const tous = Object.keys(Object.assign({}, planningTechActif() ? PLANNING_TECH.tech[cid] : {}, TECH_RANGES[cid] || {}));
+    const presents = tous.filter(t => isoDatesInRange(datesPour(cid, t), sem.mon, sem.sun).length);
+    for (const t of presents) {
+      casReels++;
+      const eq = equipeSurChantier(cid, sem.mon, sem.sun, t).map(p => p.nom).sort();
+      const attendu = presents.filter(x => x !== t).sort();
+      if (JSON.stringify(eq) !== JSON.stringify(attendu)) fautes.push(cid + ' / ' + t);
+    }
   }
-  ok('3. un chantier a plusieurs personnes la semaine prochaine', !!cas,
-     cas ? (chantierById(cas.cid) || {}).numero + ' : ' + cas.presents.join(', ') : 'aucun');
-  if (cas) {
-    const moi = cas.presents[0];
+  R.push("     semaine prochaine : " + casReels + ' couple(s) personne/chantier dans la donnee du jour');
+  ok('3. dans la donnee du jour, chacun voit exactement les autres presents', fautes.length === 0,
+     fautes.slice(0, 3).join(' ; ') || 'aucune faute');
+
+  const cid3 = (SEED_DATA.find(c => c.numero) || {}).id;
+  const garde3 = { tech: PLANNING_TECH.tech[cid3], ranges: TECH_RANGES[cid3],
+                   du: PLANNING_TECH.du, au: PLANNING_TECH.au, moi: currentTech };
+  const avant3 = JSON.stringify({ t: garde3.tech, r: garde3.ranges, du: garde3.du, au: garde3.au });
+  try {
+    ok('3. une fiche pour poser la scene', !!cid3, (chantierById(cid3) || {}).numero);
+    if (!cid3) throw new Error('aucune fiche');
+    // La fenetre publiee doit couvrir la semaine de la scene (sinon datesPour
+    // ignore les dates posees) : on l'elargit le temps de la scene.
+    if (!(PLANNING_TECH.du && PLANNING_TECH.du <= jourDe(-7))) PLANNING_TECH.du = jourDe(-7);
+    if (!(PLANNING_TECH.au && PLANNING_TECH.au >= jourDe(6))) PLANNING_TECH.au = jourDe(6);
+    const [moi, meme, deux, ailleurs] = TECHS.slice(0, 4);
+    const semaine = [0, 1, 2, 3, 4].map(jourDe);
+    // « deux » est pose AVANT « meme » dans l'objet : l'ordre affiche ne doit
+    // pas etre l'ordre d'insertion mais l'ordre d'arrivee.
+    PLANNING_TECH.tech[cid3] = {
+      [moi]: semaine.slice(), [deux]: [jourDe(2), jourDe(3)], [meme]: semaine.slice(),
+      [ailleurs]: [jourDe(-7)]
+    };
+    TECH_RANGES[cid3] = {};
     currentTech = moi;
-    const eq = equipeSurChantier(cas.cid, sem.mon, sem.sun, moi);
-    ok('3. l equipe est listee sans moi', eq.length === cas.presents.length - 1
-       && !eq.some(p => p.nom === moi), eq.map(p => p.nom).join(', '));
-    ok('3. chacun a ses jours', eq.every(p => p.jours.length > 0),
+    const mesJours = isoDatesInRange(datesPour(cid3, moi), sem.mon, sem.sun);
+    ok('3. la scene me place bien 5 jours', mesJours.length === 5, mesJours.join(' '));
+
+    const eq = equipeSurChantier(cid3, sem.mon, sem.sun, moi);
+    const noms = eq.map(p => p.nom);
+    ok('3. l equipe liste les deux collegues, sans moi',
+       noms.length === 2 && noms.indexOf(meme) !== -1 && noms.indexOf(deux) !== -1 && noms.indexOf(moi) === -1,
+       noms.join(', '));
+    ok('3. CONTRE-EXEMPLE : celui qui vient une autre semaine n y est pas', noms.indexOf(ailleurs) === -1);
+    ok('3. chacun a SES jours', eq.every(p => p.jours.length === (p.nom === deux ? 2 : 5)),
        eq.map(p => p.nom + ' ' + p.jours.length + 'j').join(' | '));
-    ok('3. ils sont classes du plus tot arrive au plus tard',
-       eq.every((p, i) => i === 0 || eq[i - 1].jours[0] <= p.jours[0]));
+    ok('3. ils sont classes du plus tot arrive au plus tard, pas dans l ordre de saisie',
+       noms[0] === meme && noms[1] === deux, noms.join(' puis '));
 
-    const mesJours = isoDatesInRange(datesPour(cas.cid, moi), sem.mon, sem.sun);
-    const html = blocEquipe(cas.cid, sem.mon, sem.sun, mesJours);
-    ok('3. le bloc nomme les collegues', eq.every(p => html.indexOf(p.nom) !== -1));
-    ok('3. le bloc annonce le nombre', html.indexOf('(' + eq.length + ')') !== -1, html.slice(0, 90));
-    ok('3. il dit « memes jours » ou liste les jours',
-       /mêmes jours que toi/.test(html) || /lun|mar|mer|jeu|ven/i.test(html));
+    const html = blocEquipe(cid3, sem.mon, sem.sun, mesJours);
+    const ligne = n => html.split('<div class="equipe-l">').find(x => x.indexOf(n) !== -1) || '';
+    const lisible = s => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    ok('3. le bloc nomme les collegues', html.indexOf(meme) !== -1 && html.indexOf(deux) !== -1);
+    ok('3. le bloc annonce le nombre', html.indexOf('(2)') !== -1, lisible(html).slice(0, 60));
+    ok('3. celui qui a exactement mes jours lit « memes jours que toi »',
+       /mêmes jours que toi/.test(ligne(meme)), lisible(ligne(meme)));
+    ok('3. CONTRE-EXEMPLE : dans la MEME scene, celui present 2 jours voit SES jours',
+       ligne(deux) !== '' && !/mêmes jours/.test(ligne(deux))
+         && /\bMer\b/.test(ligne(deux)) && /\bJeu\b/.test(ligne(deux)) && !/\bLun\b/.test(ligne(deux)),
+       lisible(ligne(deux)));
+    ok('3. la carte du chantier contient le bloc',
+       renderCard(chantierById(cid3), mesJours, sem.mon, sem.sun).indexOf('class="equipe"') !== -1);
+    ok('3. CONTRE-EXEMPLE : sans semaine, la carte n a pas de bloc',
+       renderCard(chantierById(cid3), mesJours).indexOf('class="equipe"') === -1);
+    ok('3. CONTRE-EXEMPLE : avec des collegues, personne ne lit « tu es seul »', !/Tu es seul/.test(html));
 
-    // La carte porte bien le bloc
-    const carte = renderCard(chantierById(cas.cid), mesJours, sem.mon, sem.sun);
-    ok('3. la carte du chantier contient le bloc', carte.indexOf('class="equipe"') !== -1);
-
-    // CONTRE-EXEMPLE : quelqu'un vraiment seul doit lire « tu es seul »
-    let seul = null;
-    for (const cid of idsChantiersPlanifies()) {
-      const presents = [];
-      for (const t of TECHS) if (isoDatesInRange(datesPour(cid, t), sem.mon, sem.sun).length) presents.push(t);
-      if (presents.length === 1) { seul = { cid: cid, qui: presents[0] }; break; }
-    }
-    if (seul) {
-      currentTech = seul.qui;
-      const h = blocEquipe(seul.cid, sem.mon, sem.sun,
-        isoDatesInRange(datesPour(seul.cid, seul.qui), sem.mon, sem.sun));
-      ok('3. celui qui est seul lit « tu es seul »', /Tu es seul/.test(h),
-         (chantierById(seul.cid) || {}).numero + ' ' + seul.qui + ' : ' + h.slice(0, 70));
-      ok('3. et aucun nom de collegue ne s y glisse',
-         !TECHS.some(t => t !== seul.qui && h.indexOf(t) !== -1));
-    } else {
-      R.push('     (personne seul sur un chantier la semaine prochaine : contre-exemple non joue)');
-    }
-
-    // Les jours affiches doivent etre ceux de la PERSONNE, pas les miens
-    const different = eq.find(p => p.jours.length !== mesJours.length);
-    if (different) {
-      currentTech = moi;
-      const h2 = blocEquipe(cas.cid, sem.mon, sem.sun, mesJours);
-      /* RETOUCHE LE 09/09/2026 : l'assertion d'origine demandait que la
-       * mention « memes jours que toi » apparaisse DEUX FOIS dans le bloc
-       * (indexOf different de lastIndexOf). Elle ne pouvait donc passer que
-       * si deux collegues au moins partageaient exactement mes jours — un
-       * hasard de la donnee du moment, sans rapport avec la propriete
-       * verifiee. On regarde maintenant LA LIGNE de ce collegue-la : elle
-       * doit porter SES jours, et surtout pas la mention. */
-      const ligne = h2.split('<div class="equipe-l">')
-                      .find(x => x.indexOf(different.nom) !== -1) || '';
-      ok('3. un collegue aux jours differents voit ses jours listes',
-         ligne !== '' && !/mêmes jours que toi/.test(ligne)
-           && JOURS.some(j => ligne.indexOf(j) !== -1),
-         different.nom + ' : ' + different.jours.length + 'j contre ' + mesJours.length
-           + 'j pour moi -> ' + ligne.replace(/<[^>]+>/g, ' ').trim().slice(0, 60));
-    } else {
-      R.push('     (aucun ecart de jours dans la donnee reelle : on fabrique le cas ci-dessous)');
-    }
-
-    /* LE CAS DES JOURS DIFFERENTS, JOUE MEME SI LA DONNEE REELLE NE L OFFRE PAS.
-     * C'est le plus important pour un logement : si un collegue present 2 jours
-     * s'affichait « memes jours que toi », le technicien reserverait la semaine
-     * a deux pour rien. On ne laisse donc pas cette branche non verifiee sous
-     * pretexte que le planning du moment ne la produit pas. */
-    const cidFaux = cas.cid;
-    const sauve = PLANNING_TECH.tech[cidFaux];
-    PLANNING_TECH.tech[cidFaux] = JSON.parse(JSON.stringify(sauve || {}));
-    const lundiMardi = [sem.mon, new Date(sem.mon.getTime() + 86400000)]
-      .map(d => d.toISOString().slice(0, 10));
-    PLANNING_TECH.tech[cidFaux]['Hugues VIRY'] = lundiMardi;
-    currentTech = moi;
-    const mesJours2 = isoDatesInRange(datesPour(cidFaux, moi), sem.mon, sem.sun);
-    const h3 = blocEquipe(cidFaux, sem.mon, sem.sun, mesJours2);
-    const bloc = h3.split('<div class="equipe-l">').find(x => x.indexOf('Hugues VIRY') !== -1) || '';
-    ok('3. un collegue present 2 jours voit SES jours listes',
-       /lun/i.test(bloc) && /mar/i.test(bloc) && !/mêmes jours/.test(bloc), bloc.slice(0, 120));
-    /* RETOUCHE LE 09/09/2026 : ce controle esperait qu'un collegue ait, par
-     * hasard, exactement mes jours. Quand la donnee ne l'offre pas, il
-     * echoue sans qu'aucun defaut n'existe. On FABRIQUE donc les deux cas
-     * dans la meme scene : Hugues sur deux jours (ses jours listes) et un
-     * autre exactement sur les miens (la mention). C'est la seule facon de
-     * verifier que l'appli sait DISTINGUER les deux — ce qui est tout
-     * l'enjeu pour un logement partage. */
-    PLANNING_TECH.tech[cidFaux]['Anthony DENIS'] = mesJours2.slice();
-    const h4 = blocEquipe(cidFaux, sem.mon, sem.sun, mesJours2);
-    const ligneMeme = h4.split('<div class="equipe-l">')
-                        .find(x => x.indexOf('Anthony DENIS') !== -1) || '';
-    const ligneAutre = h4.split('<div class="equipe-l">')
-                         .find(x => x.indexOf('Hugues VIRY') !== -1) || '';
-    ok('3. et celui qui a exactement mes jours garde la mention',
-       /mêmes jours que toi/.test(ligneMeme),
-       ligneMeme.replace(/<[^>]+>/g, ' ').trim().slice(0, 60));
-    ok('3. contre-exemple : dans la MEME scene, l autre a ses jours listes',
-       ligneAutre !== '' && !/mêmes jours que toi/.test(ligneAutre)
-         && /lun/i.test(ligneAutre) && /mar/i.test(ligneAutre),
-       ligneAutre.replace(/<[^>]+>/g, ' ').trim().slice(0, 60));
-    PLANNING_TECH.tech[cidFaux] = sauve;
-    ok('3. la donnee reelle est restauree apres le test',
-       JSON.stringify(PLANNING_TECH.tech[cidFaux]) === JSON.stringify(sauve));
+    // Seul : la meme fiche, moi seul.
+    PLANNING_TECH.tech[cid3] = { [moi]: semaine.slice(), [ailleurs]: PLANNING_TECH.tech[cid3][ailleurs] };
+    const hs = blocEquipe(cid3, sem.mon, sem.sun, mesJours);
+    ok('3. celui qui est seul lit « tu es seul »', /Tu es seul/.test(hs), lisible(hs).slice(0, 60));
+    ok('3. et aucun nom de collegue ne s y glisse', !TECHS.some(t => t !== moi && hs.indexOf(t) !== -1));
+  } catch (e) {
+    ok('3. la scene s est jouee jusqu au bout', false, e && e.message ? e.message : String(e));
+  } finally {
+    if (garde3.tech === undefined) delete PLANNING_TECH.tech[cid3]; else PLANNING_TECH.tech[cid3] = garde3.tech;
+    if (garde3.ranges === undefined) delete TECH_RANGES[cid3]; else TECH_RANGES[cid3] = garde3.ranges;
+    PLANNING_TECH.du = garde3.du; PLANNING_TECH.au = garde3.au; currentTech = garde3.moi;
   }
+  ok('3. la donnee reelle est restauree apres la scene',
+     JSON.stringify({ t: PLANNING_TECH.tech[cid3], r: TECH_RANGES[cid3], du: PLANNING_TECH.du, au: PLANNING_TECH.au }) === avant3);
 
   fin();
   } catch (e) {
