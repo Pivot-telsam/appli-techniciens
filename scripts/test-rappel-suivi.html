@@ -75,6 +75,24 @@
     ok('4. le suivi d un collegue cette semaine eteint le rappel', !(await chantiersSansSuivi(TECH, wk)).some(x => x.id === c.id));
     delete AVANCEMENT_DECLARE.chantiers[c.numero];
 
+    // 4 bis. (25/09/2026) Le suivi d'un collegue LU DANS LA BASE l'eteint, sans attendre le PC.
+    const memoSuivis = SUIVIS_BUREAU;
+    const ceMatin = new Date(wk.mon.getTime()); ceMatin.setHours(9, 0, 0, 0);
+    SUIVIS_BUREAU = [{ numero: c.numero, technicien: 'Tech FICTIF', le: ceMatin.toISOString() }];
+    ok('4 bis. un envoi d un collegue lu dans la base eteint le rappel', !(await chantiersSansSuivi(TECH, wk)).some(x => x.id === c.id));
+    SUIVIS_BUREAU = [{ numero: c.numero + '-9', technicien: 'Tech FICTIF', le: ceMatin.toISOString() }];
+    ok('4 bis. CONTRE-EXEMPLE : un envoi sur un AUTRE chantier ne l eteint pas', (await chantiersSansSuivi(TECH, wk)).some(x => x.id === c.id));
+    SUIVIS_BUREAU = [{ numero: c.numero, technicien: 'Tech FICTIF', le: new Date(wk.mon.getTime() - 2 * 86400000).toISOString() }];
+    ok('4 bis. CONTRE-EXEMPLE : un envoi de la semaine d avant ne l eteint pas', (await chantiersSansSuivi(TECH, wk)).some(x => x.id === c.id));
+    // Et c'est bien chargerDuBureau qui les pose, depuis la reponse de /api/terrain.
+    SUIVIS_BUREAU = [];
+    window.fetch = async (u) => ({ ok: true, json: async () => ({ fiches: {}, planning: [], absentes: [], equipe: null,
+      suivis: String(u).indexOf('/api/terrain') >= 0 ? [{ numero: c.numero, technicien: 'Tech FICTIF', le: ceMatin.toISOString() }] : [] }) });
+    await chargerDuBureau();
+    ok('4 bis. chargerDuBureau pose les envois lus dans la base', SUIVIS_BUREAU.length === 1 && SUIVIS_BUREAU[0].numero === c.numero, JSON.stringify(SUIVIS_BUREAU));
+    ok('4 bis. et le rappel s eteint', !(await chantiersSansSuivi(TECH, wk)).some(x => x.id === c.id));
+    window.fetch = memo.fetch; SUIVIS_BUREAU = memoSuivis;
+
     // 5. Un chantier ou il n'est pas place cette semaine n'est pas nomme.
     PLANNING_TECH.tech[c.id] = Object.assign({}, memo.planning || {}, { [TECH]: ['2020-01-06'] });
     const hors = await chantiersSansSuivi(TECH, wk);

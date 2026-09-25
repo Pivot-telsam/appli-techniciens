@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-25-3';
+var APP_VERSION = '2026-09-25-4';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-25-3';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Rien ne change pour toi. Un nouveau collègue apparaîtra dans l'appli dès que son accès est créé au bureau.";
+var APP_NOUVEAUTE = "Un nouveau collègue apparaît dans l'appli dès que son accès est créé au bureau. Chefs de chantier : le rappel de suivi voit tout de suite qu'un collègue a déjà envoyé celui du chantier.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1055,6 +1055,11 @@ async function chargerDuBureau(){
     // AVANT le planning : un collègue embauché depuis la publication doit être
     // dans `TECHS`, sinon ses cases posées au bureau seraient écartées.
     ajouterEquipe(d.equipe);
+    if(Array.isArray(d.suivis)){
+      SUIVIS_BUREAU = d.suivis;
+      // Le bandeau a pu être dessiné avant cette réponse : on le refait.
+      if(document.getElementById('rappelSuivi')) majRappelSuivi();
+    }
     const n = appliquerFichesDuBureau(d.fiches) + appliquerPlanningDuBureau(d.planning);
     if(n){ BUREAU_MAJ = new Date(); }
     return n > 0;
@@ -3110,7 +3115,19 @@ function jourIsoDeLe(s){
   let a = +m[3]; if(a < 100) a += 2000;
   return a + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
 }
+/* LES ENVOIS DES COLLÈGUES, LUS DANS LA BASE (25/09/2026). `AVANCEMENT_DECLARE`
+   est publié par le PC : le suivi d'un collègue n'y entrait que le lendemain,
+   et jamais PC éteint — le rappel réclamait un suivi déjà parti. `/api/terrain`
+   rend qui a envoyé un suivi et quand (jamais son contenu), `chargerDuBureau`
+   les pose ici. Un envoi compte au JOUR LOCAL où il est parti. */
+let SUIVIS_BUREAU = [];
+function jourLocalIso(s){
+  const d = new Date(s || '');
+  if(!isFinite(d.getTime())) return '';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 function suiviPartageDepuis(numero, lundi){
+  if(numero && SUIVIS_BUREAU.some(s => s && s.numero === numero && jourLocalIso(s.le) >= lundi)) return true;
   const ch = ((AVANCEMENT_DECLARE && AVANCEMENT_DECLARE.chantiers) || {})[numero] || {};
   for(const tid in ch){
     const d = ch[tid] || {};
