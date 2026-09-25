@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-25-2';
+var APP_VERSION = '2026-09-25-3';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-25-2';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Rien ne change pour toi : ta feuille d'heures s'envoie comme avant, le bureau la retrouve maintenant aussi dans le suivi.";
+var APP_NOUVEAUTE = "Rien ne change pour toi. Un nouveau collègue apparaîtra dans l'appli dès que son accès est créé au bureau.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1052,6 +1052,9 @@ async function chargerDuBureau(){
     }finally{ clearTimeout(minuteur); }
     if(!r || !r.ok) return false;
     const d = await r.json();
+    // AVANT le planning : un collègue embauché depuis la publication doit être
+    // dans `TECHS`, sinon ses cases posées au bureau seraient écartées.
+    ajouterEquipe(d.equipe);
     const n = appliquerFichesDuBureau(d.fiches) + appliquerPlanningDuBureau(d.planning);
     if(n){ BUREAU_MAJ = new Date(); }
     return n > 0;
@@ -1230,6 +1233,49 @@ function slugify(s){
 }
 const TECH_SLUGS = {};
 TECHS.forEach(t=>{ TECH_SLUGS[slugify(t)] = t; });
+
+/* LA LISTE SE COMPLÈTE PAR LE SUIVI (25/09/2026, reste du point 5 de l'audit).
+   `TECHS` est écrit ici, donc un embauché n'y entrait qu'après une modification
+   partie du PC de Patrice. Derrière le suivi, `/api/terrain` rend les accès
+   actifs au poste Technicien (écran Accès) : on AJOUTE ceux qui manquent, on
+   ne retire jamais personne — une base qui ne répond pas ne doit vider aucune
+   liste. Sur l'adresse publique rien ne change : pas de suivi, pas d'ajout.
+   L'ORTHOGRAPHE EST CELLE DES DONNÉES : le compte dit « Zoé Fictive », le
+   planning publié peut dire « Zoé FICTIVE ». Si un planning connaît déjà ce nom,
+   on prend le sien, sinon ses jours ne seraient pas retrouvés. */
+function orthographeDesDonnees(nom){
+  const s = slugify(nom);
+  const sources = [(typeof PLANNING_TECH !== 'undefined' && PLANNING_TECH) ? PLANNING_TECH.tech : null, TECH_RANGES];
+  for(const src of sources){
+    if(!src) continue;
+    for(const cid in src){ for(const p in (src[cid] || {})){ if(slugify(p) === s) return p; } }
+  }
+  return nom;
+}
+function ajouterEquipe(noms){
+  if(!Array.isArray(noms)) return 0;
+  let n = 0;
+  for(const brut of noms){
+    const nom = String(brut || '').trim();
+    if(!nom || !slugify(nom) || TECH_SLUGS[slugify(nom)]) continue;
+    const t = orthographeDesDonnees(nom);
+    TECHS.push(t); TECH_SLUGS[slugify(t)] = t; n++;
+  }
+  return n;
+}
+// Pour l'écran des noms (bureau) : aucun planning n'est encore chargé.
+async function chargerEquipe(){
+  try{
+    const stop = new AbortController();
+    const minuteur = setTimeout(()=>stop.abort(), DELAI_BUREAU);
+    const j = new Date(); const iso = j.getFullYear() + '-' + String(j.getMonth()+1).padStart(2,'0') + '-' + String(j.getDate()).padStart(2,'0');
+    let r;
+    try{ r = await fetch('/api/terrain?du=' + iso + '&au=' + iso, {credentials:'same-origin', cache:'no-store', signal:stop.signal}); }
+    finally{ clearTimeout(minuteur); }
+    if(!r || !r.ok) return 0;
+    return ajouterEquipe((await r.json()).equipe);
+  }catch(e){ return 0; }
+}
 let lockedByUrl=false;
 
 function renderTechGrid(){
@@ -4223,6 +4269,7 @@ async function initGate(){
       // survivrait à sa déconnexion.
       accessMode = 'admin';
       document.getElementById('pickScreen').style.display='flex';
+      chargerEquipe().then(n => { if(n) renderTechGrid(); });
       return;
     }
     if(moi && moi.role === 'tech'){
@@ -4231,7 +4278,10 @@ async function initGate(){
       // adresse : deux normalisations voisines finiraient par diverger, et la
       // correspondance raterait un jour sur une majuscule sans que personne
       // comprenne pourquoi.
-      const sien = TECH_SLUGS[slugify(moi.nom || '')];
+      let sien = TECH_SLUGS[slugify(moi.nom || '')];
+      // Le suivi le connaît avec un accès technicien : c'est lui qui fait foi,
+      // plus besoin d'attendre qu'on l'ajoute dans ce fichier (25/09/2026).
+      if(!sien && ajouterEquipe([moi.nom])) sien = TECH_SLUGS[slugify(moi.nom)];
       if(sien){
         accessMode = 'tech';
         // Il n'a pas de mot de passe à retaper, donc rien à « changer » : le
