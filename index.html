@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-25-1';
+var APP_VERSION = '2026-09-25-2';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-25-1';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Bérat - Portet : ton dossier (brief, NDS, PDP, PGO) et le dépôt de photos sont en place. Coudon - Escaillon : PDP et PGO reçus.";
+var APP_NOUVEAUTE = "Rien ne change pour toi : ta feuille d'heures s'envoie comme avant, le bureau la retrouve maintenant aussi dans le suivi.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -3606,6 +3606,20 @@ async function marquerEnvoiFeuille(parti){
   await compterFeuillesEnAttente();
 }
 
+/* LA FEUILLE PART AUSSI DANS LA BASE DU SUIVI (25/09/2026), après Dropbox.
+   Demande de Patrice : un onglet « Feuilles d'heures » où elles arrivent
+   directement. Seulement avec le suivi devant l'appli (nouvelle adresse) ;
+   le PDF de Dropbox reste l'archive et part en premier, un échec ici ne gêne
+   rien. Même objet exact que celui caché dans le PDF : le bureau le lit avec
+   les mêmes règles que les feuilles relues dans Dropbox. */
+async function envoyerFeuilleAuBureau(payload){
+  try{
+    if(!SESSION_SUIVI || !payload) return;
+    await fetch('/api/mes-heures', { method:'POST', credentials:'same-origin',
+      headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ feuille: payload }) });
+  }catch(e){ /* le PDF est dans Dropbox : le passage du matin le reprendra */ }
+}
+
 async function emailFeuille(){
   if(!hoursEntry) return;
   // Verification synchrone AVANT tout await : sur mobile, navigator.share exige
@@ -3632,7 +3646,7 @@ async function emailFeuille(){
   const originalLabel = btn ? btn.innerHTML : '';
   if(btn){ btn.disabled=true; btn.textContent='Génération...'; }
   try{
-    const {blob, filename} = await generateFeuillePDF();
+    const {blob, filename, payload} = await generateFeuillePDF();
 
     // Envoi DIRECT vers Dropbox via le relais (plus de mail). Le PDF contient déjà
     // les données cachées (TELSAMDATA) lues ensuite par le skill Recap ; il atterrit
@@ -3663,6 +3677,7 @@ async function emailFeuille(){
       if(ok){
         await marquerEnvoiFeuille(true);
         envoyerKmAuSuivi();
+        envoyerFeuilleAuBureau(payload);
         alert("Ta feuille d'heures a bien été envoyée. Merci !");
       }else{
         await marquerEnvoiFeuille(false);
