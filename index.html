@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-28-4';
+var APP_VERSION = '2026-09-28-5';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-28-4';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Cross - Sausset : le PGO passe à l’indice 55 (28/09), ta ligne TELSAM ne change pas. Cantegrit : l’IST Circulation signée par RTE est dans Documents.";
+var APP_NOUVEAUTE = "Feuille d’heures : nouvelle rubrique « Heures sup / intervention ». Une ligne par intervention (référence, date, heure de départ, heure de fin) ; le nombre d’heures se calcule tout seul.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -2296,7 +2296,7 @@ async function ensureFeuilleForWeek(tech, weekInfo){
   let entry = await kvGet(key);
   const weekChantiers = getWeekChantiers(tech, weekInfo.mon, weekInfo.sun);
   if(!entry){
-    entry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{}, vehiculeMode:null, km:'', immat:'', commentaires:'' };
+    entry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{}, interventions:[], vehiculeMode:null, km:'', immat:'', commentaires:'' };
   }
   // Nettoyage : "Contribution agence" ne doit plus jamais apparaître automatiquement sous Absences
   // (l'ancien système la sauvegardait là), ni persister toute seule d'une semaine à l'autre.
@@ -2898,6 +2898,41 @@ function cycleNacelle(dayIdx){
   renderHoursUI();
 }
 
+/* ---- heures sup / intervention (28/09/2026) ----
+   Demande de la paie : une ligne par intervention (référence, date, heure de
+   départ, heure de fin) ; le nombre d'heures se calcule, il ne se tape pas.
+   Une fin avant le départ veut dire qu'on a passé minuit. */
+function minutesDe(hhmm){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm||''));
+  return m ? (+m[1])*60 + (+m[2]) : null;
+}
+function heuresIntervention(it){
+  const d = minutesDe(it && it.debut), f = minutesDe(it && it.fin);
+  if(d===null || f===null || d===f) return null;
+  return Math.round(((f - d + 1440) % 1440) / 60 * 100) / 100;
+}
+function interventionComplete(it){ return !!(it && it.date && heuresIntervention(it) !== null); }
+function addIntervention(){
+  if(!hoursEntry.interventions) hoursEntry.interventions = [];
+  hoursEntry.interventions.push({ ref:'', date:'', debut:'', fin:'' });
+  sauverHeures();
+  renderHoursUI();
+}
+function removeIntervention(idx){
+  (hoursEntry.interventions||[]).splice(idx,1);
+  sauverHeures();
+  renderHoursUI();
+}
+function updateIntervention(idx, champ, value){
+  const it = (hoursEntry.interventions||[])[idx];
+  if(!it) return;
+  it[champ] = value;
+  sauverHeures();
+  const h = heuresIntervention(it);
+  const el = document.getElementById('intervH'+idx);
+  if(el) el.textContent = h===null ? '' : String(h).replace('.', ',') + ' h';
+}
+
 /* ---- véhicule / commentaires ---- */
 function setVehiculeMode(mode){
   hoursEntry.vehiculeMode = hoursEntry.vehiculeMode===mode ? null : mode;
@@ -2924,7 +2959,7 @@ async function effacerSemaine(){
     + "Cette action est définitive.");
   if(!ok) return;
   hoursEntry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{},
-                 vehiculeMode:null, km:'', immat:'', commentaires:'' };
+                 interventions:[], vehiculeMode:null, km:'', immat:'', commentaires:'' };
   await kvSet(hoursKeyCurrent, hoursEntry);
   await loadAndRenderHours();
 }
@@ -3031,6 +3066,31 @@ function renderHoursUI(){
     + '<div class="h-toggle-row">'+nacelleHtml+'</div>'
     + '</div>';
 
+  /* HEURES SUP / INTERVENTION : une ligne par intervention, dans la semaine
+     de la feuille. Le nombre d'heures s'affiche tout seul. */
+  const wkI = weekRange(currentOffset);
+  const lunI = wkI.mon.toISOString().slice(0,10), dimI = wkI.sun.toISOString().slice(0,10);
+  const numsSemaine = Array.from(new Set(e.chantierLines.map(l => numeroDeChantier(l)).filter(Boolean)));
+  const intervHtml = (e.interventions||[]).map((it, idx)=>{
+    const h = heuresIntervention(it);
+    return '<div class="h-absence-row">'
+      + '<div class="h-absence-title"><span>Intervention '+(idx+1)+'</span><button class="h-del-btn" aria-label="Retirer cette intervention" onclick="removeIntervention('+idx+')">'+ico('poubelle','ic-s')+'</button></div>'
+      + '<input class="h-km-input" type="text" list="intervRefs" placeholder="Référence (n° de chantier, ticket…)" value="'+escapeHtml(it.ref||'')+'" oninput="updateIntervention('+idx+',\'ref\',this.value)">'
+      + '<input class="h-km-input" type="date" min="'+lunI+'" max="'+dimI+'" value="'+escapeHtml(it.date||'')+'" onchange="updateIntervention('+idx+',\'date\',this.value)">'
+      + '<div style="display:flex; gap:8px; align-items:center;">'
+      +   '<label style="flex:1; font-size:12px; color:var(--t2);">Départ<input class="h-km-input" type="time" value="'+escapeHtml(it.debut||'')+'" onchange="updateIntervention('+idx+',\'debut\',this.value)"></label>'
+      +   '<label style="flex:1; font-size:12px; color:var(--t2);">Fin<input class="h-km-input" type="time" value="'+escapeHtml(it.fin||'')+'" onchange="updateIntervention('+idx+',\'fin\',this.value)"></label>'
+      +   '<b id="intervH'+idx+'" style="min-width:52px; text-align:right;">'+(h===null ? '' : String(h).replace('.', ',')+' h')+'</b>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+  const intervSection = '<div class="h-section">'
+    + '<div class="h-section-title">Heures sup / intervention</div>'
+    + '<datalist id="intervRefs">' + numsSemaine.map(n => '<option value="'+escapeHtml(n)+'">').join('') + '</datalist>'
+    + intervHtml
+    + '<button class="h-add-btn" onclick="addIntervention()">'+ico('plus','ic-s')+'Ajouter une intervention</button>'
+    + '</div>';
+
   const vehSection = '<div class="h-section">'
     + '<div class="h-section-title">Véhicule</div>'
     + '<div class="h-veh-row">'
@@ -3082,7 +3142,7 @@ function renderHoursUI(){
      dit que la saisie en cours n'est pas gardée, la seconde comment faire
      mieux la semaine prochaine. L'urgent d'abord. */
   panel.innerHTML = htmlAlerteStockage() + htmlRappelEpingle()
-    + chantiersSection + absencesSection + deplSection + vehSection + comSection
+    + chantiersSection + absencesSection + deplSection + intervSection + vehSection + comSection
     + '<div id="rappelSuivi"></div>' + sendSection;
   majRappelSuivi();
 }
@@ -3355,6 +3415,10 @@ function buildExportPayload(mon, weekNum){
     nom: nomTitle, prenom: prenomTitle,
     chantierLines, absences,
     pd: hoursEntry.pd||{}, gd: hoursEntry.gd||{}, nacelle: hoursEntry.nacelle||{},
+    // Seules les interventions complètes partent (date, départ, fin) ; l'envoi prévient avant.
+    interventions: (hoursEntry.interventions||[]).filter(interventionComplete).map(it => ({
+      ref: String(it.ref||'').trim(), date: it.date, debut: it.debut, fin: it.fin, heures: heuresIntervention(it),
+    })),
     vehiculeMode: hoursEntry.vehiculeMode||null,
     km: hoursEntry.km||null,
     immat: hoursEntry.immat||null,
@@ -3553,6 +3617,10 @@ function buildPdfFromPayload(payload){
   }
   if(depl.length) infoItems.push(['Detail par jour', depl.join(', ')]);
   if(nacelle.length) infoItems.push(['Nacelle par jour', nacelle.join(', ')]);
+  (payload.interventions||[]).forEach(it => {
+    infoItems.push(['Intervention', (it.ref ? it.ref + '   -   ' : '') + fmtDateFR(new Date(it.date + 'T12:00:00Z'))
+      + '   ' + it.debut + ' -> ' + it.fin + '   (' + String(it.heures).replace('.', ',') + ' h)']);
+  });
   if(vehLine) infoItems.push(['Vehicule', vehLine]);
 
   if(infoItems.length){
@@ -3693,6 +3761,14 @@ async function emailFeuille(){
       + "Pour saisir des heures, ajoute d'abord une ligne avec « + Ajouter un chantier » "
       + "(choisis « Contribution agence » si tu n'es sur aucun chantier précis).\n\n"
       + "Envoyer quand même une feuille vide ?");
+    if(!ok) return;
+  }
+  const incompletes = (hoursEntry.interventions||[]).filter(it => !interventionComplete(it)
+    && (it.ref || it.date || it.debut || it.fin));
+  if(incompletes.length){
+    const ok = confirm(incompletes.length + (incompletes.length > 1 ? ' interventions ne sont pas complètes' : ' intervention n’est pas complète')
+      + ' (date, heure de départ et heure de fin) : ' + (incompletes.length > 1 ? 'elles ne partiront pas' : 'elle ne partira pas')
+      + '.\n\nEnvoyer ta feuille quand même ?');
     if(!ok) return;
   }
   /* Le rappel du chef de chantier, lu ICI sans rien attendre : il a été
