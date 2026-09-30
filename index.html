@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-09-29-2';
+var APP_VERSION = '2026-09-30-1';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-09-29-2';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Rien qui change pour toi : une fiche Fleyriat vide, créée en double, a été retirée de la liste des chantiers.";
+var APP_NOUVEAUTE = "Quand le bureau te met en contribution agence au planning, la ligne « Contribution agence » s'ajoute toute seule à ta feuille d'heures de la semaine.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1030,6 +1030,11 @@ function appliquerPlanningDuBureau(cases){
         PLANNING_TECH.tech[cid][k.personne] = jours.filter(j => j !== k.jour);
       }
     }
+    // La contribution agence suit la même règle : la case du bureau remplace
+    // la journée publiée, qu'elle en ajoute une ou qu'elle en retire une.
+    const ag = PLANNING_TECH.agence = PLANNING_TECH.agence || {};
+    ag[k.personne] = (ag[k.personne] || []).filter(j => j !== k.jour);
+    if(k.agence) ag[k.personne] = ag[k.personne].concat([k.jour]).sort();
     const cid = (k.chantier && k.numero) ? idDuNumero(k.numero) : null;
     if(cid){
       const parTech = PLANNING_TECH.tech[cid] = PLANNING_TECH.tech[cid] || {};
@@ -2276,6 +2281,15 @@ async function envoyerKmAuSuivi(){
   }catch(e){ /* la feuille est partie ; le relevé se rattrapera par la feuille suivante */ }
 }
 
+/* Les jours de contribution agence d'un technicien dans la semaine (30/09/2026) :
+   publiés par `planning-rte.ps1` (`PLANNING_TECH.agence`), complétés par les
+   cases du bureau (`appliquerPlanningDuBureau`). Absent d'un planning publié
+   avant cette date : aucun jour, et rien ne change. */
+function joursAgence(tech, mon, sun){
+  const ag = (typeof PLANNING_TECH === 'object' && PLANNING_TECH && PLANNING_TECH.agence) || {};
+  return isoDatesInRange(ag[tech] || [], mon, sun);
+}
+
 function getWeekChantiers(tech, mon, sun){
   const result=[];
   for(const cid of idsChantiersPlanifies()){
@@ -2308,13 +2322,26 @@ async function ensureFeuilleForWeek(tech, weekInfo){
   // aussi les entrees anciennes ou le champ n'existait pas encore.
   entry.nacelle = entry.nacelle || {};
   Object.keys(entry.nacelle).forEach(d=>{ if(entry.nacelle[d]) entry.nacelle[d] = 1; });
-  entry.chantierLines = entry.chantierLines.filter(l=> l.id!=='__contribution_agence__' || l.addedManually===true);
+  /* SAUF QUAND LE PLANNING LA PORTE (30/09/2026). Le bureau pose désormais la
+     contribution agence au planning (motif « Agence ») : la ligne est alors
+     ajoutée d'office, exactement comme un chantier planifié — `duPlanning` la
+     distingue d'un résidu de l'ancien système. Elle reste si des heures y sont
+     saisies, même si le planning change ensuite : on n'efface jamais une saisie.
+     Retirée par le technicien, elle ne revient pas (`removedAutoIds`). */
+  const agenceSemaine = joursAgence(tech, weekInfo.mon, weekInfo.sun).length > 0;
+  const aDesHeures = l => Object.keys(l.jours || {}).length > 0;
+  entry.chantierLines = entry.chantierLines.filter(l=> l.id!=='__contribution_agence__' || l.addedManually===true
+    || (l.duPlanning === true && (agenceSemaine || aDesHeures(l))));
   const existingIds = new Set(entry.chantierLines.filter(l=>l.id).map(l=>l.id));
   weekChantiers.forEach(wc=>{
     if(!existingIds.has(wc.id) && entry.removedAutoIds.indexOf(wc.id)===-1){
       entry.chantierLines.push({id:wc.id, nom:wc.nom, lieu:wc.lieu, client:wc.client, jours:{}});
     }
   });
+  if(agenceSemaine && !existingIds.has('__contribution_agence__')
+     && entry.removedAutoIds.indexOf('__contribution_agence__') === -1){
+    entry.chantierLines.push({id:'__contribution_agence__', duPlanning:true, nom:'Contribution agence', lieu:'', client:'', jours:{}});
+  }
   hoursKeyCurrent = key;
   hoursEntry = entry;
   /* Premier contact avec le magasin local : s'il refuse déjà ici, le
@@ -2513,6 +2540,11 @@ function feuillePrete(tech, s){
       feuille.removedAutoIds.push(wc.id);
     }
   });
+  // Même garde-fou pour la contribution agence posée au planning (30/09/2026).
+  if(joursAgence(tech, lundi, dimanche).length && dejaLa.indexOf('__contribution_agence__') === -1
+     && feuille.removedAutoIds.indexOf('__contribution_agence__') === -1){
+    feuille.removedAutoIds.push('__contribution_agence__');
+  }
   return feuille;
 }
 
