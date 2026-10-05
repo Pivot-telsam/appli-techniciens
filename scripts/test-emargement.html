@@ -26,6 +26,7 @@ setTimeout(async function(){ try {
   // B
   let envoi = null, refuser = false;
   let modelesMock = [{ numero:'26-068', indice:'3', lignes:12, page:22 }];
+  let atelierSigs = null;
   const vraiFetch = window.fetch;
   window.fetch = async (u, o) => {
     if(String(u).indexOf('/api/emargement') === 0){
@@ -34,8 +35,8 @@ setTimeout(async function(){ try {
         if(refuser) return new Response(JSON.stringify({ erreur:'sans_modele', message:'Ce PDP (indice 3) n\'a pas de feuille d\'émargement repérée.' }), { status:409 });
         return new Response(JSON.stringify({ ok:true, signeLe:'2026-10-05T05:41:00.000Z', remplacee:false }), { status:200 });
       }
-      return new Response(JSON.stringify({ ok:true, modeles:modelesMock, miennes:[],
-        moi:{ nom:'Pascal BONAVENTURE', entreprise:'TELSAM', habilitation:'H2V-B2' } }), { status:200 });
+      return new Response(JSON.stringify(Object.assign(atelierSigs ? { signatures: atelierSigs } : {}, { ok:true, modeles:modelesMock, miennes:[],
+        moi:{ nom:'Pascal BONAVENTURE', entreprise:'TELSAM', habilitation:'H2V-B2' } })), { status:200 });
     }
     return vraiFetch(u, o);
   };
@@ -47,9 +48,21 @@ setTimeout(async function(){ try {
   fiche.pdp = Object.assign({}, fiche.pdp, { indice:'4' });
   ok('B. contre-exemple : le PDP passe à l\'indice 4, pas de feuille repérée ⇒ pas de bouton', !carte().querySelector('.pdp-sign-row'));
   fiche.pdp = avant;
-  accessMode = 'admin';
-  ok('B. l\'accès atelier du bureau ne charge rien (il ne signe pas)', (await chargerEmargement()) === false);
+  /* L'aperçu du bureau (05/10/2026) : boutons visibles, état du technicien choisi, jamais de signature. */
+  accessMode = 'admin'; atelierSigs = [{ numero:'26-068', indice:'3', nom:'Pascal BONAVENTURE', signe_le:'2026-10-04T08:00:00Z' },
+                                       { numero:'26-068', indice:'3', nom:'Bilal HAMOUCH', signe_le:'2026-10-03T08:00:00Z' }];
+  const techAvant = currentTech; currentTech = 'Pascal BONAVENTURE';
+  ok('B. l\'accès du bureau lit la liste (aperçu)', (await chargerEmargement()) === true && EMARGEMENT.atelier === true);
+  b = carte().querySelector('.pdp-sign-row .doc-btn');
+  ok('B. aperçu : la carte de Pascal dit « signé le 04/10 » (sa signature, pas celle de Bilal)', b && b.classList.contains('pdp-signe') && /signé le 04\/10/.test(b.textContent), b && b.textContent);
+  ouvrirEmargement(fiche.id);
+  ok('B. aperçu : le panneau dit que seul le technicien signe, et le bouton reste éteint',
+     /Aperçu du bureau/.test(document.getElementById('suiviOverlay').textContent) && document.getElementById('emSigner').disabled);
+  envoi = null; await emEnvoyer(fiche.id);
+  ok('B. aperçu : rien ne part', envoi === null);
+  fermerSuivi(); currentTech = techAvant; atelierSigs = null;
   accessMode = 'tech'; await chargerEmargement();
+  ok('B. revenu au technicien : plus d\'aperçu', EMARGEMENT.atelier === false);
 
   // C
   try{ sessionStorage.removeItem('em_ouvert|26-068|3'); }catch(e){}

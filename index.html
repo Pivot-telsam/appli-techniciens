@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-10-05-2';
+var APP_VERSION = '2026-10-05-3';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-10-05-2';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Nouveau : tu peux aussi signer les IST TELSAM. Sur la carte du chantier, un bouton « Lire et signer » par IST : tu l’ouvres, tu signes au doigt, et ta signature va sur sa fiche d’émargement.";
+var APP_NOUVEAUTE = "Rien qui change pour toi : le bureau voit maintenant, dans son aperçu, les boutons « Lire et signer » de ton chantier. Signer reste à toi, sur ton téléphone.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -4190,8 +4190,18 @@ function emQuand(iso){
   return d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'}) + ' à '
     + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}).replace(':', 'h');
 }
+/* L'APERÇU DU BUREAU (05/10/2026, Patrice : « je ne vois rien sur Cantegrit ») : par
+   l'accès atelier, les boutons se voient aussi, avec l'état du technicien choisi (ses
+   signatures, lues dans la liste du bureau) — mais le panneau ne signe pas : une
+   signature posée par un autre ne prouve rien, et le serveur la refuse de toute façon. */
+function emNomCle(n){ return String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]+/g, ' ').trim().split(' ').sort().join(' '); }
+function emAtelierMiennes(){
+  if(!EMARGEMENT || !EMARGEMENT.atelier) return;
+  const qui = emNomCle(currentTech);
+  EMARGEMENT.miennes = (EMARGEMENT.signatures || []).filter(s => emNomCle(s.nom) === qui);
+}
 async function chargerEmargement(){
-  if(!SESSION_SUIVI || accessMode !== 'tech') return false;
+  if(!SESSION_SUIVI || (accessMode !== 'tech' && accessMode !== 'admin')) return false;
   try{
     const stop = new AbortController();
     const minuteur = setTimeout(()=>stop.abort(), DELAI_EMARGEMENT);
@@ -4202,6 +4212,8 @@ async function chargerEmargement(){
     const d = await r.json();
     if(!d || !Array.isArray(d.modeles)) return false;
     EMARGEMENT = d;
+    EMARGEMENT.atelier = accessMode !== 'tech';
+    emAtelierMiennes();
     return d.modeles.length > 0;
   }catch(e){ return false; }
 }
@@ -4238,6 +4250,7 @@ function ouvrirEmargement(cid, k){
     + '<div class="suivi-head"><div class="suivi-title">Signer ' + escapeHtml(em.article + em.libelle) + '</div>'
     + '<div class="suivi-sub">' + escapeHtml(c.nom || '') + (c.numero ? ' · ' + escapeHtml(c.numero) : '') + '</div></div>'
     + '<div class="suivi-body">'
+    + (EMARGEMENT && EMARGEMENT.atelier ? '<div class="em-deja">Aperçu du bureau : seul ' + escapeHtml(currentTech || 'le technicien') + ' peut signer, depuis son téléphone.</div>' : '')
     + (em.signe ? '<div class="em-deja">' + ico('coche','ic-s') + ' Déjà signé' + (ist ? 'e' : '') + ' le ' + escapeHtml(emQuand(em.signe)) + '. Signer à nouveau remplace ta signature.</div>' : '')
     + (lien ? '<a class="doc-btn" id="emOuvrir" href="' + lien + '" target="_blank" rel="noopener">' + ico('document') + 'Ouvrir ' + (ist ? 'l\'IST' : 'le PDP') + '</a>'
             : '<span class="doc-btn disabled">' + ico('document') + court + ' —</span>')
@@ -4272,7 +4285,7 @@ function emPret(){
   const b = document.getElementById('emSigner');
   if(!ov || !b) return;
   const dessin = EM_TRAIT && EM_TRAIT.longueur > 60;
-  b.disabled = !(ov.dataset.ouvert && dessin);
+  b.disabled = !!(EMARGEMENT && EMARGEMENT.atelier) || !(ov.dataset.ouvert && dessin);
 }
 function emBrancherCadre(cv){
   const r = cv.getBoundingClientRect();
@@ -4324,7 +4337,7 @@ async function emEnvoyer(cid, k){
   const ov = document.getElementById('suiviOverlay');
   const msg = document.getElementById('emMsg');
   const b = document.getElementById('emSigner');
-  if(!c || !em || !ov) return;
+  if(!c || !em || !ov || (EMARGEMENT && EMARGEMENT.atelier)) return;
   const arrivee = (document.getElementById('emArrivee').value || '').trim();
   if(!/^\d{4}-\d{2}-\d{2}$/.test(arrivee)){ msg.textContent = 'La date d\'arrivée manque.'; return; }
   b.disabled = true; msg.textContent = '';
