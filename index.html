@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-10-05-1';
+var APP_VERSION = '2026-10-05-2';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-10-05-1';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Cantegrit : le PDP passe à l’indice 8 (port des vêtements HV et couvrants, risque incendie), et tu peux le lire et le signer depuis la carte du chantier. Cubnezais : le PPSPS passe à l’indice B, avec le plan d’installation et le protocole de chargement du site.";
+var APP_NOUVEAUTE = "Nouveau : tu peux aussi signer les IST TELSAM. Sur la carte du chantier, un bouton « Lire et signer » par IST : tu l’ouvres, tu signes au doigt, et ta signature va sur sa fiche d’émargement.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1793,15 +1793,19 @@ function renderCard(c, daysThisWeek, mon, sun){
 
   /* SIGNER LE PDP (02/10/2026) : seulement quand la feuille d'émargement de CE
      PDP, à CET indice, est repérée au bureau, et par la nouvelle adresse. */
+  /* ET LES IST (05/10/2026) : un bouton par IST dont la feuille est repérée. Le bouton
+     porte un NUMÉRO (sa place dans la liste), jamais la référence : pas de texte dans
+     un onclick. */
   let signeHtml = '';
-  const em = emargementPour(c);
-  if(em){
-    signeHtml = '<div class="pdp-sign-row">' + (em.signe
-      ? '<button type="button" class="doc-btn pdp-signe" onclick="ouvrirEmargement(\''+c.id+'\')">'+ico('coche')
-        +'PDP ind.'+escapeHtml(em.indice)+' signé le '+escapeHtml(emQuand(em.signe))+'</button>'
-      : '<button type="button" class="doc-btn pdp-a-signer" onclick="ouvrirEmargement(\''+c.id+'\')">'+ico('document')
-        +'Lire et signer le PDP ind.'+escapeHtml(em.indice)+'</button>') + '</div>';
-  }
+  const aSigner = emListe(c);
+  aSigner.forEach((em, k) => {
+    const appel = 'ouvrirEmargement(\''+c.id+'\','+k+')';
+    signeHtml += '<div class="pdp-sign-row">' + (em.signe
+      ? '<button type="button" class="doc-btn pdp-signe" onclick="'+appel+'">'+ico('coche')
+        +escapeHtml(em.libelle)+' signé'+(em.doc === 'ist' ? 'e' : '')+' le '+escapeHtml(emQuand(em.signe))+'</button>'
+      : '<button type="button" class="doc-btn pdp-a-signer" onclick="'+appel+'">'+ico('document')
+        +'Lire et signer '+escapeHtml(em.article + em.libelle)+'</button>') + '</div>';
+  });
   if(c.depotTerrain){
     docsHtml += '<a class="doc-btn" href="'+c.depotTerrain+'" target="_blank" rel="noopener">'+ico('photo')+'Dépôt photos</a>';
   }
@@ -4160,10 +4164,25 @@ function emargementPour(c){
   if(!EMARGEMENT || !c || !c.numero || !c.pdp || c.mesureTouret) return null;
   const ic = indiceCourt(c.pdp.indice);
   if(!ic) return null;
-  const m = (EMARGEMENT.modeles || []).find(x => x.numero === c.numero && indiceCourt(x.indice) === ic);
+  const m = (EMARGEMENT.modeles || []).find(x => x.numero === c.numero && (x.doc || 'pdp') === 'pdp' && indiceCourt(x.indice) === ic);
   if(!m) return null;
   const s = (EMARGEMENT.miennes || []).find(x => x.numero === c.numero && String(x.indice) === String(m.indice));
-  return { indice: String(m.indice), signe: s ? s.signe_le : null };
+  return { doc: 'pdp', indice: String(m.indice), libelle: 'PDP ind.' + String(m.indice), article: 'le ', signe: s ? s.signe_le : null };
+}
+/* LES IST AUSSI (05/10/2026) : chaque IST TELSAM du chantier dont le bureau a repéré
+   la feuille « Fiche de lecture et d'émargement ». Leur référence (« IST:poste:C »)
+   est ce qui part avec la signature ; le technicien lit le titre et l'indice. */
+function istPour(c){
+  if(!EMARGEMENT || !c || !c.numero) return [];
+  return (EMARGEMENT.modeles || []).filter(x => x.numero === c.numero && x.doc === 'ist').map(m => {
+    const s = (EMARGEMENT.miennes || []).find(x => x.numero === c.numero && String(x.indice) === String(m.indice));
+    return { doc: 'ist', indice: String(m.indice), libelle: (m.titre || 'IST') + ' ind.' + (m.indiceDoc || ''), article: 'l\'', signe: s ? s.signe_le : null };
+  });
+}
+/* Le document à signer : le PDP sans référence, une IST avec la sienne. */
+function emDocPour(c, ref){
+  if(!ref) return emargementPour(c);
+  return istPour(c).find(x => x.indice === ref) || null;
 }
 function emQuand(iso){
   const d = new Date(iso);
@@ -4195,39 +4214,45 @@ function emLienPdp(c){
   return c.documentsAppTech || '';
 }
 let EM_TRAIT = null;   // { traits, boite } — ce qui a été dessiné dans le cadre
-function ouvrirEmargement(cid){
+function emListe(c){ return [emargementPour(c)].filter(Boolean).concat(istPour(c)); }
+function ouvrirEmargement(cid, k){
   const c = chantierById(cid);
-  const em = emargementPour(c);
+  const em = emListe(c)[k || 0];
   if(!c || !em) return;
   fermerSuivi();
   const cleOuvert = 'em_ouvert|' + c.numero + '|' + em.indice;
   const ouvertLe = (function(){ try{ return sessionStorage.getItem(cleOuvert) || ''; }catch(e){ return ''; } })();
   const moi = (EMARGEMENT && EMARGEMENT.moi) || {};
-  const lien = emLienPdp(c);
+  /* Une IST est rangée dans le dossier App Tech : c'est lui qui s'ouvre. Sa feuille
+     n'a ni habilitation ni date d'arrivée : les deux cases sont cachées (la date
+     part quand même, c'est celle du jour). */
+  const ist = em.doc === 'ist';
+  const court = ist ? 'IST' : 'PDP';
+  const lien = ist ? (c.documentsAppTech || '') : emLienPdp(c);
   const aujourdhui = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const ov = document.createElement('div');
   ov.className = 'suivi-overlay';
   ov.id = 'suiviOverlay';
   ov.innerHTML =
     '<div class="suivi-modal">'
-    + '<div class="suivi-head"><div class="suivi-title">Signer le PDP ind.' + escapeHtml(em.indice) + '</div>'
+    + '<div class="suivi-head"><div class="suivi-title">Signer ' + escapeHtml(em.article + em.libelle) + '</div>'
     + '<div class="suivi-sub">' + escapeHtml(c.nom || '') + (c.numero ? ' · ' + escapeHtml(c.numero) : '') + '</div></div>'
     + '<div class="suivi-body">'
-    + (em.signe ? '<div class="em-deja">' + ico('coche','ic-s') + ' Déjà signé le ' + escapeHtml(emQuand(em.signe)) + '. Signer à nouveau remplace ta signature.</div>' : '')
-    + (lien ? '<a class="doc-btn" id="emOuvrir" href="' + lien + '" target="_blank" rel="noopener">' + ico('document') + 'Ouvrir le PDP</a>'
-            : '<span class="doc-btn disabled">' + ico('document') + 'PDP —</span>')
-    + '<div class="em-ouvert" id="emOuvert">' + (ouvertLe ? '✓ PDP ouvert à ' + escapeHtml(emQuand(ouvertLe).split(' à ')[1] || '') : '') + '</div>'
+    + (em.signe ? '<div class="em-deja">' + ico('coche','ic-s') + ' Déjà signé' + (ist ? 'e' : '') + ' le ' + escapeHtml(emQuand(em.signe)) + '. Signer à nouveau remplace ta signature.</div>' : '')
+    + (lien ? '<a class="doc-btn" id="emOuvrir" href="' + lien + '" target="_blank" rel="noopener">' + ico('document') + 'Ouvrir ' + (ist ? 'l\'IST' : 'le PDP') + '</a>'
+            : '<span class="doc-btn disabled">' + ico('document') + court + ' —</span>')
+    + '<div class="em-ouvert" id="emOuvert">' + (ouvertLe ? '✓ ' + court + ' ouvert' + (ist ? 'e' : '') + ' à ' + escapeHtml(emQuand(ouvertLe).split(' à ')[1] || '') : '') + '</div>'
     + '<div class="em-ligne"><span>Nom</span><span>' + escapeHtml(currentTech || moi.nom || '') + '</span></div>'
     + '<div class="em-ligne"><span>Entreprise</span><span>' + escapeHtml(moi.entreprise || 'TELSAM') + '</span></div>'
-    + '<div class="em-ligne"><span>Habilitation électrique</span><input id="emHab" maxlength="40" value="' + escapeHtml(moi.habilitation || '') + '"></div>'
-    + '<div class="em-ligne"><span>Arrivée sur le chantier</span><input id="emArrivee" type="date" value="' + aujourdhui + '"></div>'
+    + '<div class="em-ligne"' + (ist ? ' style="display:none"' : '') + '><span>Habilitation électrique</span><input id="emHab" maxlength="40" value="' + escapeHtml(ist ? '' : (moi.habilitation || '')) + '"></div>'
+    + '<div class="em-ligne"' + (ist ? ' style="display:none"' : '') + '><span>Arrivée sur le chantier</span><input id="emArrivee" type="date" value="' + aujourdhui + '"></div>'
     + '<div class="em-cadre"><canvas id="emCadre"></canvas></div>'
     + '<div class="em-cadre-bas"><span>Signe avec le doigt</span><button type="button" onclick="emEffacer()">Effacer</button></div>'
     + '<div class="em-msg" id="emMsg"></div>'
     + '</div>'
     + '<div class="suivi-foot">'
     + '<button type="button" class="suivi-cancel" onclick="fermerSuivi()">Annuler</button>'
-    + '<button type="button" class="suivi-send" id="emSigner" disabled onclick="emEnvoyer(\'' + cid + '\')">Je l\'ai lu et je m\'engage à le respecter</button>'
+    + '<button type="button" class="suivi-send" id="emSigner" disabled onclick="emEnvoyer(\'' + cid + '\',' + (k || 0) + ')">' + (ist ? 'Je l\'ai lue et je m\'engage à la respecter' : 'Je l\'ai lu et je m\'engage à le respecter') + '</button>'
     + '</div></div>';
   document.body.appendChild(ov);
   ov.dataset.ouvert = ouvertLe;
@@ -4236,7 +4261,7 @@ function ouvrirEmargement(cid){
     const t = new Date().toISOString();
     try{ sessionStorage.setItem(cleOuvert, t); }catch(e){}
     ov.dataset.ouvert = t;
-    document.getElementById('emOuvert').textContent = '✓ PDP ouvert à ' + (emQuand(t).split(' à ')[1] || '');
+    document.getElementById('emOuvert').textContent = '✓ ' + court + ' ouvert' + (ist ? 'e' : '') + ' à ' + (emQuand(t).split(' à ')[1] || '');
     emPret();
   });
   emBrancherCadre(document.getElementById('emCadre'));
@@ -4293,9 +4318,9 @@ function emImage(){
   out.getContext('2d').drawImage(cv, x0, y0, w, h, 0, 0, out.width, out.height);
   return out.toDataURL('image/png');
 }
-async function emEnvoyer(cid){
+async function emEnvoyer(cid, k){
   const c = chantierById(cid);
-  const em = emargementPour(c);
+  const em = emListe(c)[k || 0];
   const ov = document.getElementById('suiviOverlay');
   const msg = document.getElementById('emMsg');
   const b = document.getElementById('emSigner');

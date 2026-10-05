@@ -25,6 +25,7 @@ setTimeout(async function(){ try {
 
   // B
   let envoi = null, refuser = false;
+  let modelesMock = [{ numero:'26-068', indice:'3', lignes:12, page:22 }];
   const vraiFetch = window.fetch;
   window.fetch = async (u, o) => {
     if(String(u).indexOf('/api/emargement') === 0){
@@ -33,7 +34,7 @@ setTimeout(async function(){ try {
         if(refuser) return new Response(JSON.stringify({ erreur:'sans_modele', message:'Ce PDP (indice 3) n\'a pas de feuille d\'émargement repérée.' }), { status:409 });
         return new Response(JSON.stringify({ ok:true, signeLe:'2026-10-05T05:41:00.000Z', remplacee:false }), { status:200 });
       }
-      return new Response(JSON.stringify({ ok:true, modeles:[{ numero:'26-068', indice:'3', lignes:12, page:22 }], miennes:[],
+      return new Response(JSON.stringify({ ok:true, modeles:modelesMock, miennes:[],
         moi:{ nom:'Pascal BONAVENTURE', entreprise:'TELSAM', habilitation:'H2V-B2' } }), { status:200 });
     }
     return vraiFetch(u, o);
@@ -89,6 +90,31 @@ setTimeout(async function(){ try {
   // E
   b = carte().querySelector('.pdp-sign-row .doc-btn');
   ok('E. la carte dit « signé le » en gris', b && b.classList.contains('pdp-signe') && /PDP ind\.3 signé le 05\/10/.test(b.textContent), b && b.textContent);
+
+  // G. LES IST (05/10/2026) : un bouton de plus par IST repérée, même panneau sans habilitation.
+  const miennesPdp = EMARGEMENT.miennes;
+  modelesMock = [{ numero:'26-068', indice:'3', doc:'pdp', lignes:12, page:22 },
+                 { numero:'26-068', indice:'IST:poste:C', doc:'ist', titre:'IST Poste de Galus', indiceDoc:'C', lignes:5, page:12 }];
+  await chargerEmargement(); EMARGEMENT.miennes = miennesPdp;
+  let rangs = carte().querySelectorAll('.pdp-sign-row .doc-btn');
+  ok('G. deux boutons : le PDP signé, puis l\'IST à signer', rangs.length === 2 && rangs[0].classList.contains('pdp-signe')
+     && rangs[1].classList.contains('pdp-a-signer') && /Lire et signer l'IST Poste de Galus ind\.C/.test(rangs[1].textContent), rangs.length && rangs[rangs.length - 1].textContent);
+  ok('G. le bouton porte un numéro, jamais la référence', /ouvrirEmargement\('[^']+',1\)/.test(rangs[1].getAttribute('onclick')) && !/IST:/.test(rangs[1].getAttribute('onclick')));
+  try{ sessionStorage.removeItem('em_ouvert|26-068|IST:poste:C'); }catch(e){}
+  ouvrirEmargement(fiche.id, 1);
+  const ov2 = document.getElementById('suiviOverlay');
+  ok('G. le panneau dit « Signer l\'IST … », sans case d\'habilitation ni d\'arrivée', !!ov2 && /Signer l'IST Poste de Galus ind\.C/.test(ov2.textContent)
+     && document.getElementById('emHab').closest('.em-ligne').style.display === 'none' && document.getElementById('emArrivee').closest('.em-ligne').style.display === 'none'
+     && /Je l'ai lue/.test(signer().textContent));
+  const lien2 = document.getElementById('emOuvrir');
+  ok('G. « Ouvrir l\'IST » mène au dossier App Tech', !!lien2 && /Ouvrir l'IST/.test(lien2.textContent) && lien2.getAttribute('href') === fiche.documentsAppTech, lien2 && lien2.getAttribute('href'));
+  lien2.addEventListener('click', ev => ev.preventDefault(), { capture: true });
+  lien2.click(); tracer();
+  envoi = null;
+  await emEnvoyer(fiche.id, 1);
+  ok('G. l\'envoi porte la référence de l\'IST, sans habilitation', envoi && envoi.indice === 'IST:poste:C' && envoi.habilitation === '' && envoi.numero === '26-068', envoi && envoi.indice);
+  rangs = carte().querySelectorAll('.pdp-sign-row .doc-btn');
+  ok('G. la carte dit « IST … signée le », le PDP reste signé', rangs.length === 2 && /IST Poste de Galus ind\.C signée le/.test(rangs[1].textContent) && rangs[0].classList.contains('pdp-signe'));
 
   window.fetch = vraiFetch;
   const ko = R.filter(x => x.startsWith('ECHEC')).length;
