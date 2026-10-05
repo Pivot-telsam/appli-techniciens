@@ -27,9 +27,14 @@ setTimeout(async function(){ try {
   let envoi = null, refuser = false;
   let modelesMock = [{ numero:'26-068', indice:'3', lignes:12, page:22 }];
   let atelierSigs = null;
+  const appels = [];
   const vraiFetch = window.fetch;
   window.fetch = async (u, o) => {
     if(String(u).indexOf('/api/emargement') === 0){
+      appels.push(String(u));
+      /* La feuille refaite après la signature (05/10/2026) : on répond « pas de
+         feuille repérée », le téléphone s'arrête là, sans rien dire au technicien. */
+      if(/[?&](feuille|fichier)=1/.test(String(u))) return new Response(JSON.stringify({ erreur:'sans_modele', message:'essai' }), { status:404 });
       if(o && o.method === 'POST'){
         envoi = JSON.parse(o.body);
         if(refuser) return new Response(JSON.stringify({ erreur:'sans_modele', message:'Ce PDP (indice 3) n\'a pas de feuille d\'émargement repérée.' }), { status:409 });
@@ -126,6 +131,15 @@ setTimeout(async function(){ try {
   envoi = null;
   await emEnvoyer(fiche.id, 1);
   ok('G. l\'envoi porte la référence de l\'IST, sans habilitation', envoi && envoi.indice === 'IST:poste:C' && envoi.habilitation === '' && envoi.numero === '26-068', envoi && envoi.indice);
+  /* H. LA FEUILLE SIGNÉE DANS APP TECH (05/10/2026) : juste après, le téléphone la refait. */
+  const estIst = x => /feuille=1/.test(x) && x.indexOf(encodeURIComponent('IST:poste:C')) > 0;
+  for(let i = 0; i < 40 && !appels.some(estIst); i++) await new Promise(r => setTimeout(r, 100));
+  const af = appels.filter(estIst);
+  ok('H. la signature du PDP (en D) a aussi demandé SA feuille', appels.some(x => /feuille=1/.test(x) && /indice=3(&|$)/.test(x)));
+  ok('H. après la signature, le téléphone demande de quoi refaire la feuille de CE document', af.length === 1
+     && /numero=26-068/.test(af[0]) && af[0].indexOf('indice=' + encodeURIComponent('IST:poste:C')) > 0, af.join(' | '));
+  ok('H. un refus du serveur ne dit rien au technicien et ne rouvre pas le panneau', !document.getElementById('suiviOverlay'));
+  ok('H. la bibliothèque est celle du suivi (/lib/emargement-feuille.js)', !!window.EmargementFeuille && typeof window.EmargementFeuille.refaire === 'function');
   rangs = carte().querySelectorAll('.pdp-sign-row .doc-btn');
   ok('G. la carte dit « IST … signée le », le PDP reste signé', rangs.length === 2 && /IST Poste de Galus ind\.C signée le/.test(rangs[1].textContent) && rangs[0].classList.contains('pdp-signe'));
 
