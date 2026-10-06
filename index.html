@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-10-06-02';
+var APP_VERSION = '2026-10-06-03';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-10-06-02';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Poste de Cantegrit : brief mis à jour avec la recette vers Naoutot, et une tâche de plus pour la cocher.";
+var APP_NOUVEAUTE = "Aoste - Marnise Z Brens : tu peux maintenant lire et signer le mode opératoire (MO ind.B) depuis l'appli, comme le PDP et les IST.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -1802,7 +1802,7 @@ function renderCard(c, daysThisWeek, mon, sun){
     const appel = 'ouvrirEmargement(\''+c.id+'\','+k+')';
     signeHtml += '<div class="pdp-sign-row">' + (em.signe
       ? '<button type="button" class="doc-btn pdp-signe" onclick="'+appel+'">'+ico('coche')
-        +escapeHtml(em.libelle)+' signé'+(em.doc === 'ist' ? 'e' : '')+' le '+escapeHtml(emQuand(em.signe))+'</button>'
+        +escapeHtml(em.libelle)+' signé'+(em.feminin ? 'e' : '')+' le '+escapeHtml(emQuand(em.signe))+'</button>'
       : '<button type="button" class="doc-btn pdp-a-signer" onclick="'+appel+'">'+ico('document')
         +'Lire et signer '+escapeHtml(em.article + em.libelle)+'</button>') + '</div>';
   });
@@ -4176,7 +4176,10 @@ function istPour(c){
   if(!EMARGEMENT || !c || !c.numero) return [];
   return (EMARGEMENT.modeles || []).filter(x => x.numero === c.numero && x.doc === 'ist').map(m => {
     const s = (EMARGEMENT.miennes || []).find(x => x.numero === c.numero && String(x.indice) === String(m.indice));
-    return { doc: 'ist', indice: String(m.indice), libelle: (m.titre || 'IST') + ' ind.' + (m.indiceDoc || ''), article: 'l\'', signe: s ? s.signe_le : null };
+    /* UN MO TELSAM (06/10/2026, 26-115) : même fiche, même circuit qu'une IST ;
+       seul ce que lit le technicien change (« le MO », au masculin). */
+    const mo = m.court === 'MO';
+    return { doc: 'ist', court: mo ? 'MO' : 'IST', feminin: !mo, indice: String(m.indice), libelle: (m.titre || 'IST') + ' ind.' + (m.indiceDoc || ''), article: mo ? 'le ' : 'l\'', signe: s ? s.signe_le : null };
   });
 }
 /* Le document à signer : le PDP sans référence, une IST avec la sienne. */
@@ -4239,7 +4242,8 @@ function ouvrirEmargement(cid, k){
      n'a ni habilitation ni date d'arrivée : les deux cases sont cachées (la date
      part quand même, c'est celle du jour). */
   const ist = em.doc === 'ist';
-  const court = ist ? 'IST' : 'PDP';
+  const court = ist ? (em.court || 'IST') : 'PDP';
+  const fem = ist && em.feminin !== false;   // une IST se lit au féminin, un MO non
   const lien = ist ? (c.documentsAppTech || '') : emLienPdp(c);
   const aujourdhui = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const ov = document.createElement('div');
@@ -4251,10 +4255,10 @@ function ouvrirEmargement(cid, k){
     + '<div class="suivi-sub">' + escapeHtml(c.nom || '') + (c.numero ? ' · ' + escapeHtml(c.numero) : '') + '</div></div>'
     + '<div class="suivi-body">'
     + (EMARGEMENT && EMARGEMENT.atelier ? '<div class="em-deja">Aperçu du bureau : seul ' + escapeHtml(currentTech || 'le technicien') + ' peut signer, depuis son téléphone.</div>' : '')
-    + (em.signe ? '<div class="em-deja">' + ico('coche','ic-s') + ' Déjà signé' + (ist ? 'e' : '') + ' le ' + escapeHtml(emQuand(em.signe)) + '. Signer à nouveau remplace ta signature.</div>' : '')
-    + (lien ? '<a class="doc-btn" id="emOuvrir" href="' + lien + '" target="_blank" rel="noopener">' + ico('document') + 'Ouvrir ' + (ist ? 'l\'IST' : 'le PDP') + '</a>'
+    + (em.signe ? '<div class="em-deja">' + ico('coche','ic-s') + ' Déjà signé' + (fem ? 'e' : '') + ' le ' + escapeHtml(emQuand(em.signe)) + '. Signer à nouveau remplace ta signature.</div>' : '')
+    + (lien ? '<a class="doc-btn" id="emOuvrir" href="' + lien + '" target="_blank" rel="noopener">' + ico('document') + 'Ouvrir ' + (ist ? (fem ? 'l\'' : 'le ') + court : 'le PDP') + '</a>'
             : '<span class="doc-btn disabled">' + ico('document') + court + ' —</span>')
-    + '<div class="em-ouvert" id="emOuvert">' + (ouvertLe ? '✓ ' + court + ' ouvert' + (ist ? 'e' : '') + ' à ' + escapeHtml(emQuand(ouvertLe).split(' à ')[1] || '') : '') + '</div>'
+    + '<div class="em-ouvert" id="emOuvert">' + (ouvertLe ? '✓ ' + court + ' ouvert' + (fem ? 'e' : '') + ' à ' + escapeHtml(emQuand(ouvertLe).split(' à ')[1] || '') : '') + '</div>'
     + '<div class="em-ligne"><span>Nom</span><span>' + escapeHtml(currentTech || moi.nom || '') + '</span></div>'
     + '<div class="em-ligne"><span>Entreprise</span><span>' + escapeHtml(moi.entreprise || 'TELSAM') + '</span></div>'
     + '<div class="em-ligne"' + (ist ? ' style="display:none"' : '') + '><span>Habilitation électrique</span><input id="emHab" maxlength="40" value="' + escapeHtml(ist ? '' : (moi.habilitation || '')) + '"></div>'
@@ -4265,7 +4269,7 @@ function ouvrirEmargement(cid, k){
     + '</div>'
     + '<div class="suivi-foot">'
     + '<button type="button" class="suivi-cancel" onclick="fermerSuivi()">Annuler</button>'
-    + '<button type="button" class="suivi-send" id="emSigner" disabled onclick="emEnvoyer(\'' + cid + '\',' + (k || 0) + ')">' + (ist ? 'Je l\'ai lue et je m\'engage à la respecter' : 'Je l\'ai lu et je m\'engage à le respecter') + '</button>'
+    + '<button type="button" class="suivi-send" id="emSigner" disabled onclick="emEnvoyer(\'' + cid + '\',' + (k || 0) + ')">' + (fem ? 'Je l\'ai lue et je m\'engage à la respecter' : 'Je l\'ai lu et je m\'engage à le respecter') + '</button>'
     + '</div></div>';
   document.body.appendChild(ov);
   ov.dataset.ouvert = ouvertLe;
@@ -4274,7 +4278,7 @@ function ouvrirEmargement(cid, k){
     const t = new Date().toISOString();
     try{ sessionStorage.setItem(cleOuvert, t); }catch(e){}
     ov.dataset.ouvert = t;
-    document.getElementById('emOuvert').textContent = '✓ ' + court + ' ouvert' + (ist ? 'e' : '') + ' à ' + (emQuand(t).split(' à ')[1] || '');
+    document.getElementById('emOuvert').textContent = '✓ ' + court + ' ouvert' + (fem ? 'e' : '') + ' à ' + (emQuand(t).split(' à ')[1] || '');
     emPret();
   });
   emBrancherCadre(document.getElementById('emCadre'));
