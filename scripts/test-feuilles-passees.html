@@ -434,11 +434,111 @@
       // un serveur qui ne repond pas laisse la semaine vide, sans erreur
       SESSION_SUIVI = { nom: 'Anthony DENIS', role: 'tech', mail: 'x' };
       window.fetch = async () => { throw new Error('reseau'); };
+      _reponsesBureau.clear();   // la réponse d'avant est gardée 20 s : on la retire pour jouer la panne
       magasin8.delete(cle);
       await ensureFeuilleForWeek('Anthony DENIS', w);
       ok('8c. serveur muet : la semaine s\'ouvre vide, sans erreur', feuilleVierge(hoursEntry));
     } finally {
       SESSION_SUIVI = sessionAvant; window.fetch = fetchAvant; currentOffset = offsetAvant;
+    }
+
+    /* ---- 9. LE VERROU ET CE QUE LE BUREAU A CHANGÉ (06/10/2026) ----
+       Patrice : feuilles non modifiables par le technicien une fois le mois
+       validé ; le bureau peut les modifier (atelier) et le technicien en est
+       informé ; idem pour une correction de sa fiche de paie. */
+    const sess9 = SESSION_SUIVI, fetch9 = window.fetch, mode9 = accessMode, alert9 = window.alert, off9 = currentOffset;
+    const magasin9 = new Map(); let ecritures9 = 0;
+    kvGet = async (k) => (magasin9.has(k) ? JSON.parse(JSON.stringify(magasin9.get(k))) : null);
+    kvSet = async (k, v) => { ecritures9++; magasin9.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    let reponse9 = null, demandes9 = 0;
+    window.fetch = async () => { demandes9++; return { ok: true, json: async () => JSON.parse(JSON.stringify(reponse9)) }; };
+    window.alert = () => {};
+    try {
+      SESSION_SUIVI = { nom: 'Anthony DENIS', role: 'tech', mail: 'x' };
+      accessMode = 'tech'; currentTech = 'Anthony DENIS'; currentOffset = 0;
+      const w9 = weekRange(0);
+      const cle9 = 'fh_Anthony DENIS_' + w9.year + '_' + w9.weekNum;
+      const sienne9 = () => ({ chantierLines: [{ id: null, nom: 'MA SAISIE', lieu: '', client: '', jours: { 0: { j: 7 } } }],
+        removedAutoIds: [], absences: [], pd: { 0: 1 }, gd: {}, nacelle: {}, interventions: [], vehiculeMode: null,
+        km: '', immat: '', commentaires: '', envoyeLe: '2026-10-05T08:00:00.000Z' });
+      const ouvrir = async () => {
+        _reponsesBureau.clear();
+        await ensureFeuilleForWeek('Anthony DENIS', w9);
+        renderHoursUI();
+        await majDepuisBureau('Anthony DENIS', w9, cle9);
+      };
+      const panneau = () => document.getElementById('hoursPanel');
+      const figes = () => [...panneau().querySelectorAll('input, textarea, button')].filter(b => b.disabled).length;
+      const libresListe = () => [...panneau().querySelectorAll('input, textarea, button')].filter(b => !b.disabled && b.id !== 'excelBtn' && !b.closest('#rappelSuivi') && !/Epingle/.test(b.getAttribute('onclick') || ''));
+      const libres = () => libresListe().length;
+
+      // 9a. le verrou
+      magasin9.set(cle9, sienne9());
+      reponse9 = { base: 'ok', feuille: null, verrou: { periode: '2026-10', par: 'Patrice PIVOT', le: '2026-10-20T09:00:00Z' }, bureau: null, paie: null };
+      await ouvrir();
+      ok('9a. mois validé : la feuille le dit', /validée par le bureau/.test(panneau().innerHTML) && /ne se modifie plus/.test(panneau().innerHTML));
+      ok('9a. mois validé : rien ne se modifie (cases et boutons figés)', figes() > 5 && libres() === 0, figes() + ' figés, libres : ' + libresListe().map(b => b.outerHTML.slice(0, 80)).join(' ; '));
+      ok('9a. le fichier Excel reste téléchargeable', !document.getElementById('excelBtn').disabled);
+      ok('9a. la saisie du téléphone reste affichée', hoursEntry.chantierLines.some(l => l.nom === 'MA SAISIE'));
+      ok('9a. le verrou est gardé sur la feuille (il tient hors réseau)', !!(magasin9.get(cle9) || {}).verrouBureau);
+      ecritures9 = 0; hoursEntry.commentaires = 'triche'; await sauverHeures();
+      ok('9a. une écriture forcée ne passe pas', ecritures9 === 0 && magasin9.get(cle9).commentaires === '');
+      const envois9 = demandes9; await emailFeuille();
+      ok('9a. l\'envoi est refusé', demandes9 === envois9 && !magasin9.get(cle9).envoiEnAttente);
+      // CONTRE-EXEMPLE : l'accès atelier du bureau garde la main
+      accessMode = 'admin';
+      renderHoursUI();
+      ok('9a. CONTRE-EXEMPLE : en accès atelier, la feuille reste modifiable', libres() > 5 && /le technicien ne peut plus la modifier/.test(panneau().innerHTML), libres() + ' libres');
+      accessMode = 'tech';
+      // CONTRE-EXEMPLE : mois dévalidé => la feuille se rouvre
+      reponse9 = { base: 'ok', feuille: null, verrou: null, bureau: null, paie: null };
+      await ouvrir();
+      ok('9a. CONTRE-EXEMPLE : validation retirée au bureau, la feuille se rouvre', !hoursEntry.verrouBureau && libres() > 5 && !/validée par le bureau/.test(panneau().innerHTML));
+
+      // 9b. le bureau a modifié la feuille depuis l'atelier
+      magasin9.clear(); magasin9.set(cle9, sienne9());
+      const versionBureau = JSON.parse(JSON.stringify(ref.envoi));
+      reponse9 = { base: 'ok', feuille: versionBureau, recuLe: '2026-10-07T10:12:00.000Z', origine: 'base',
+                   bureau: { par: 'Patrice PIVOT', le: '2026-10-07T10:12:00.000Z' }, verrou: null, paie: null };
+      await ouvrir();
+      ok('9b. la version du bureau remplace celle du téléphone', totalEnvoi(hoursEntry) === totalEnvoi(feuilleDepuisEnvoi(versionBureau))
+         && !hoursEntry.chantierLines.some(l => l.nom === 'MA SAISIE'), totalEnvoi(hoursEntry));
+      ok('9b. la feuille dit que le bureau l\'a modifiée, quand et qui',
+         /Le bureau a modifié cette feuille le 07\/10/.test(panneau().innerHTML) && /Patrice PIVOT/.test(panneau().innerHTML));
+      ok('9b. l\'ancienne saisie du téléphone est gardée à part (jamais perdue)',
+         (magasin9.get('avant_bureau_' + cle9) || { chantierLines: [] }).chantierLines.some(l => l.nom === 'MA SAISIE'));
+      ok('9b. la sauvegarde ne compte pas comme une feuille (pas de préfixe fh_)', !('avant_bureau_' + cle9).startsWith('fh_'));
+      const apres = JSON.stringify(magasin9.get(cle9)); ecritures9 = 0;
+      await ouvrir();
+      ok('9b. rouvrir ne refait pas le remplacement', ecritures9 <= 1 && JSON.stringify(magasin9.get(cle9)) === apres);
+      // CONTRE-EXEMPLE : la propre version de l'atelier, reçue juste après son envoi, ne se remplace pas elle-même
+      magasin9.clear(); magasin9.set(cle9, Object.assign(sienne9(), { envoyeLe: '2026-10-07T10:11:30.000Z' }));
+      await ouvrir();
+      ok('9b. CONTRE-EXEMPLE : envoi du téléphone dans les 2 minutes : pas de remplacement', hoursEntry.chantierLines.some(l => l.nom === 'MA SAISIE'));
+      // CONTRE-EXEMPLE : une version envoyée par le technicien lui-même ne déclenche rien
+      magasin9.clear(); magasin9.set(cle9, sienne9());
+      reponse9 = Object.assign({}, reponse9, { bureau: null });
+      await ouvrir();
+      ok('9b. CONTRE-EXEMPLE : sa propre version sur le serveur ne remplace pas son téléphone', hoursEntry.chantierLines.some(l => l.nom === 'MA SAISIE')
+         && !/Le bureau a modifié/.test(panneau().innerHTML));
+
+      // 9c. la fiche de paie corrigée au bureau
+      magasin9.clear(); magasin9.set(cle9, sienne9());
+      reponse9 = { base: 'ok', feuille: null, verrou: null, bureau: null,
+                   paie: { periode: '2026-09', le: '2026-10-03T14:00:00Z', par: 'Carine RAMBAUD',
+                           corrections: { gd: 18, absences: [{ type: 'conges', du: '2026-09-01', au: '2026-09-05', jours: 5 }] } } };
+      await ouvrir();
+      const h9 = panneau().innerHTML;
+      ok('9c. la correction de paie est dite, avec le mois', /Le bureau a corrigé ta paie de septembre 2026/.test(h9), h9.slice(0, 0));
+      ok('9c. et son contenu : GD et absence datée', /GD 18 j/.test(h9) && /Congés du 01\/09 au 05\/09 \(5 j\)/.test(h9));
+      ok('9c. une correction de paie ne fige rien', libres() > 5);
+      // 9d. base muette : on ne sait pas, on ne dit rien et on ne retire rien
+      magasin9.set(cle9, Object.assign(sienne9(), { verrouBureau: { periode: '2026-10', par: 'X', le: '' } }));
+      reponse9 = { base: 'muette', feuille: null, verrou: null, bureau: null, paie: null };
+      await ouvrir();
+      ok('9d. base muette : le verrou déjà connu tient', !!hoursEntry.verrouBureau && libres() === 0);
+    } finally {
+      SESSION_SUIVI = sess9; window.fetch = fetch9; accessMode = mode9; window.alert = alert9; currentOffset = off9;
     }
 
     fin();

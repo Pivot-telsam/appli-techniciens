@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-10-06-09';
+var APP_VERSION = '2026-10-06-10';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-10-06-09';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Ajouter un chantier à ta feuille d'heures : tape un bout de son nom, de son numéro, de la ville ou du client, la liste se filtre ; touche le bon chantier puis « Ajouter ».";
+var APP_NOUVEAUTE = "Quand le bureau a validé la paie du mois, tes feuilles de ce mois ne se modifient plus ; si le bureau change ta feuille ou ta paie, elle te le dit. La recherche de chantier ne montre plus que numéro et nom, et les absences se cherchent de la même façon.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -540,7 +540,9 @@ footer.legend{max-width:640px; margin:8px auto 0; padding:0 16px;
 .h-choix-liste{display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto;
   margin-top:8px; -webkit-overflow-scrolling:touch;}
 .h-choix-compte{font-size:11.5px; color:var(--t2); margin-top:6px;}
-.h-choix{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;
+/* flex-shrink:0 : sans lui, une longue liste TASSE ses lignes dans les 300 px
+   et les textes se chevauchent (capture de Patrice, 06/10/2026). */
+.h-choix{flex-shrink:0; display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;
   background:var(--touche); border:1px solid var(--filet2); color:var(--t1); border-radius:11px;
   padding:9px 11px; min-height:48px; cursor:pointer; width:100%; font-size:13.5px;}
 .h-choix.on{border-color:var(--vert-filet); background:linear-gradient(var(--vert-fond),var(--vert-fond)),var(--touche);}
@@ -549,6 +551,15 @@ footer.legend{max-width:640px; margin:8px auto 0; padding:0 16px;
 .h-choix-nom{font-weight:500;}
 .h-choix-sous{font-size:11.5px; color:var(--t2);}
 .h-choix.autre{border-style:dashed; color:var(--indigo-pale);}
+/* Ce que le bureau a fait sur la feuille (06/10/2026) : un fait, en ambre. */
+.h-bureau{display:flex; gap:8px; align-items:flex-start; background:var(--ambre-fond);
+  border:1px solid var(--ambre-filet); color:var(--ambre); border-radius:12px; padding:10px 12px;
+  font-size:13px; line-height:1.4; margin-bottom:10px;}
+.h-bureau .ic{flex-shrink:0; margin-top:2px;}
+/* Feuille figée : ce qui ne répond plus se VOIT (couleurs, jamais d'opacité). */
+.h-fige button:disabled, .h-fige input:disabled, .h-fige textarea:disabled{cursor:default;
+  color:var(--t3); border-color:var(--filet); background-color:transparent;}
+.h-fige .h-add-btn:disabled, .h-fige .h-del-btn:disabled{display:none;}
 .h-absence-row{display:flex; flex-direction:column; gap:8px; padding-bottom:10px;
   border-bottom:1px solid var(--filet);}
 .h-absence-row:last-child{border-bottom:none; padding-bottom:0;}
@@ -2423,6 +2434,8 @@ async function loadAndRenderHours(){
   const weekInfo = weekRange(currentOffset);
   if(await ensureFeuilleForWeek(currentTech, weekInfo) === false) return;
   renderHoursUI();
+  // Après le premier dessin : l'écran n'attend jamais le réseau.
+  majDepuisBureau(currentTech, weekInfo, hoursKeyCurrent).catch(() => {});
   // Préchargement discret de la librairie Excel, pour que le clic sur "Envoyer" n'ait
   // plus besoin d'attendre un chargement réseau (ce qui invalide le partage natif sur certains téléphones).
   loadJSZipLib().catch(()=>{ /* pas grave si ça échoue ici, generateFeuilleFile réessaiera au clic */ });
@@ -2727,18 +2740,136 @@ function feuilleDepuisEnvoi(p, recuLe){
 
 /* Rend la feuille envoyée prête à poser, ou null (pas de session, pas de
    réponse en quelques secondes, rien d'envoyé). Ne bloque jamais l'écran. */
-async function feuilleEnvoyeeDuServeur(tech, w){
+/* Une seule question au serveur par semaine affichée : la réponse sert à la
+   reprise d'une semaine vide ET à l'état du bureau (verrou, modification,
+   corrections de paie), demandé juste après. Gardée 20 s. */
+const _reponsesBureau = new Map();
+async function demanderAuBureau(tech, w){
   if(!SESSION_SUIVI || !tech) return null;
+  const k = tech + '|' + w.year + '|' + w.weekNum;
+  const m = _reponsesBureau.get(k);
+  if(m && Date.now() - m.quand < 20000) return m.d;
   try{
     const r = await avecDelai(fetch('/api/mes-heures?tech=' + encodeURIComponent(tech)
       + '&annee=' + w.year + '&semaine=' + w.weekNum,
       { credentials:'same-origin', headers:{ 'Accept':'application/json' } }), 4000);
     if(!r || !r.ok) return null;
     const d = await avecDelai(r.json(), 2000);
-    if(!d || !d.feuille) return null;
-    const f = feuillePrete(tech, { feuille: feuilleDepuisEnvoi(d.feuille, d.recuLe), annee: w.year, semaine: w.weekNum });
-    return feuilleVierge(f) ? null : f;
+    if(!d) return null;
+    _reponsesBureau.set(k, { quand: Date.now(), d });
+    return d;
   }catch(e){ return null; }
+}
+async function feuilleEnvoyeeDuServeur(tech, w){
+  const d = await demanderAuBureau(tech, w);
+  if(!d || !d.feuille) return null;
+  const f = feuillePrete(tech, { feuille: feuilleDepuisEnvoi(d.feuille, d.recuLe), annee: w.year, semaine: w.weekNum });
+  return feuilleVierge(f) ? null : f;
+}
+
+/* =====================================================================
+   LE VERROU ET CE QUE LE BUREAU A CHANGÉ (06/10/2026)
+   ---------------------------------------------------------------------
+   Décision de Patrice : « les feuilles ne doivent pas être modifiables par
+   les techniciens, mais ils doivent être alertés si nous en faisons au
+   bureau » ; et « nous devons pouvoir aussi modifier leurs feuilles sur la
+   version atelier et qu'ils en soient informés ».
+   - VERROU : dès que le mois de paie de la semaine est validé au bureau,
+     le technicien ne modifie ni ne renvoie plus cette feuille (l'écran se
+     fige, le serveur refuse son envoi : 409). L'accès atelier, lui, garde
+     la main. Le verrou est rangé SUR la feuille : il tient hors réseau.
+   - LE BUREAU A MODIFIÉ LA FEUILLE (envoyée depuis l'atelier) : la version
+     du bureau, plus récente que son envoi, remplace celle du téléphone —
+     l'ancienne est gardée à part (`avant_bureau_…`, jamais perdue) — et la
+     feuille dit qui l'a modifiée et quand.
+   - LE BUREAU A CORRIGÉ LA FICHE DE PAIE du mois (PD, GD, nacelle,
+     absences, interventions) : chaque semaine du mois le dit.
+   L'appli dit le FAIT, jamais la consigne. Nouvelle adresse seulement :
+   l'ancienne ne sait rien du bureau. */
+function feuilleVerrouillee(){
+  return !!(hoursEntry && hoursEntry.verrouBureau && accessMode !== 'admin');
+}
+const MOIS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+function moisDePeriode(p){
+  const m = /^(\d{4})-(\d{2})$/.exec(String(p || ''));
+  return m ? MOIS_FR[Number(m[2]) - 1] + ' ' + m[1] : String(p || '');
+}
+function quandCourt(iso){
+  const d = new Date(iso);
+  if(isNaN(d)) return '';
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0')
+    + ' à ' + heureCourte(d);
+}
+// « de septembre », « d'octobre » : l'élision devant avril, août, octobre.
+function deMois(p){ const m = moisDePeriode(p); return (/^[aeiou]/i.test(m) ? 'd\'' : 'de ') + m; }
+function jjmmIso(iso){ const s = String(iso || ''); return s.length >= 10 ? s.slice(8,10) + '/' + s.slice(5,7) : s; }
+function texteCorrectionsPaie(c){
+  const morceaux = [];
+  if(c.pd != null) morceaux.push('PD ' + c.pd + ' j');
+  if(c.gd != null) morceaux.push('GD ' + c.gd + ' j');
+  if(c.nacelle != null) morceaux.push('nacelle ' + c.nacelle + ' j');
+  if(Array.isArray(c.absences)){
+    morceaux.push(c.absences.length
+      ? 'absences : ' + c.absences.map(a => {
+          const code = ABSENCE_CODES.find(x => x.key === a.type);
+          return (code ? code.label : a.type) + (a.du === a.au ? ' le ' + jjmmIso(a.du) : ' du ' + jjmmIso(a.du) + ' au ' + jjmmIso(a.au)) + ' (' + a.jours + ' j)';
+        }).join(', ')
+      : 'aucune absence retenue');
+  }
+  if(Array.isArray(c.interventions)){
+    morceaux.push(c.interventions.length
+      ? 'interventions : ' + c.interventions.map(it => jjmmIso(it.date) + ' ' + it.debut + '-' + it.fin).join(', ')
+      : 'aucune intervention retenue');
+  }
+  return morceaux.join(' · ');
+}
+function htmlBureau(e){
+  let h = '';
+  if(e.verrouBureau){
+    const v = e.verrouBureau;
+    h += '<div class="h-bureau verrou">' + ico('bouclier','ic-s') + '<span>Paie ' + escapeHtml(deMois(v.periode))
+      + ' validée par le bureau' + (v.le ? ' le ' + escapeHtml(quandCourt(v.le)) : '') + (v.par ? ' (' + escapeHtml(v.par) + ')' : '')
+      + (accessMode === 'admin'
+          ? ' : le technicien ne peut plus la modifier, ce qui est envoyé d\'ici lui sera signalé.'
+          : ' : cette feuille ne se modifie plus.') + '</span></div>';
+  }
+  if(e.modifBureau){
+    h += '<div class="h-bureau">' + '<span>Le bureau a modifié cette feuille le ' + escapeHtml(quandCourt(e.modifBureau.le))
+      + (e.modifBureau.par ? ' (' + escapeHtml(e.modifBureau.par) + ')' : '') + '.</span></div>';
+  }
+  if(e.paieBureau && e.paieBureau.corrections){
+    const p = e.paieBureau;
+    h += '<div class="h-bureau">' + '<span>Le bureau a corrigé ta paie ' + escapeHtml(deMois(p.periode))
+      + (p.le ? ' le ' + escapeHtml(quandCourt(p.le)) : '') + ' : ' + escapeHtml(texteCorrectionsPaie(p.corrections)) + '.</span></div>';
+  }
+  return h;
+}
+async function majDepuisBureau(tech, w, cle){
+  const d = await demanderAuBureau(tech, w);
+  if(!d || d.base !== 'ok' || hoursKeyCurrent !== cle || currentTech !== tech || !hoursEntry) return;
+  const e = hoursEntry;
+  let change = false;
+  const pareil = (a, b) => JSON.stringify(a || null) === JSON.stringify(b || null);
+  if(!pareil(e.verrouBureau, d.verrou)){ if(d.verrou) e.verrouBureau = d.verrou; else delete e.verrouBureau; change = true; }
+  if(!pareil(e.paieBureau, d.paie)){ if(d.paie) e.paieBureau = d.paie; else delete e.paieBureau; change = true; }
+  /* La version envoyée par le bureau, plus récente que le dernier envoi de ce
+     téléphone (2 min de marge : l'atelier qui vient d'envoyer ne se remplace
+     pas lui-même). */
+  const t = s => { const v = Date.parse(s || ''); return isFinite(v) ? v : 0; };
+  let entree = e;
+  if(d.feuille && d.bureau && e.versionBureau !== d.recuLe && t(d.recuLe) > t(e.envoyeLe) + 120000){
+    if(!feuilleVierge(e)) await kvSet('avant_bureau_' + cle, e);
+    entree = feuillePrete(tech, { feuille: feuilleDepuisEnvoi(d.feuille, d.recuLe), annee: w.year, semaine: w.weekNum });
+    entree.versionBureau = d.recuLe;
+    entree.modifBureau = d.bureau;
+    if(d.verrou) entree.verrouBureau = d.verrou;
+    if(d.paie) entree.paieBureau = d.paie;
+    change = true;
+  }
+  if(!change || hoursKeyCurrent !== cle) return;
+  hoursEntry = entree;
+  await kvSet(cle, entree);
+  renderHoursUI();
 }
 
 /* =====================================================================
@@ -2877,6 +3008,7 @@ let _dernierEnregistrement = null;
 
 function sauverHeures(){
   if(!hoursKeyCurrent || !hoursEntry) return _ecritureHeures;
+  if(feuilleVerrouillee()) return _ecritureHeures;   // mois validé : rien ne s'écrit (cf. majDepuisBureau)
   hoursEntry.majLe = new Date().toISOString();
   /* Une seule écriture en file à la fois. Ce n'est PAS un report : celle
      qui est en file n'a pas encore commencé, donc elle emportera l'état le
@@ -3059,6 +3191,9 @@ function removeChantierLine(idx){
    Demande de Patrice : le menu déroulant n'était « pas pratique » (90 fiches
    à faire défiler sur un téléphone). On tape un nom, un n° d'affaire, une
    ville ou un client ; la liste se filtre à chaque lettre, sans tenir compte
+   [CORRIGÉ LE MÊME JOUR par Patrice : « nom et numéro de chantier seront
+   suffisants, trop surchargé » — la recherche et l'affichage ne portent plus
+   que sur le n° d'affaire et le nom ; lieu et client sont retirés.]
    des majuscules ni des accents, sur un morceau de mot (« montl » trouve
    « Montlhéry », « 26045 » trouve « 26-045 »). Plusieurs mots : il les faut
    tous. On touche une ligne pour la choisir, puis « Ajouter », comme avant.
@@ -3074,15 +3209,14 @@ function chantiersAProposer(){
   const lignes = (hoursEntry && hoursEntry.chantierLines) || [];
   const out = [];
   if(!lignes.some(l => l.id === '__contribution_agence__')){
-    out.push({ id:'__contribution_agence__', numero:'', nom:'Contribution agence', sous:'Pas de chantier précis',
+    out.push({ id:'__contribution_agence__', numero:'', nom:'Contribution agence',
                cherche: normRecherche('contribution agence') });
   }
   SEED_DATA.filter(c => !lignes.some(l => l.id === c.id))
     .slice().sort((a, b) => (a.termine ? 1 : 0) - (b.termine ? 1 : 0))
     .forEach(c => out.push({
       id: c.id, numero: c.numero || '', nom: c.nom || '',
-      sous: [c.lieu, c.client].filter(Boolean).join(' · '),
-      cherche: normRecherche([c.numero, String(c.numero || '').replace(/-/g, ''), c.nom, c.lieu, c.client].join(' ')),
+      cherche: normRecherche([c.numero, String(c.numero || '').replace(/-/g, ''), c.nom].join(' ')),
     }));
   return out;
 }
@@ -3097,7 +3231,7 @@ function htmlChoixChantiers(){
     const garde = chantiersAProposer().find(c => c.id === addChantierChoix);
     if(garde) trouves.unshift(garde); else addChantierChoix = null;
   }
-  _choixChantiers = trouves.concat([{ id:'__autre__', numero:'', nom:'Autre chantier (saisie libre)', sous:'Pas dans la liste : tu tapes son nom' }]);
+  _choixChantiers = trouves.concat([{ id:'__autre__', numero:'', nom:'Autre chantier (saisie libre)' }]);
   const compte = addChantierTexte.trim()
     ? (trouves.length ? trouves.length + ' chantier' + (trouves.length > 1 ? 's' : '') + ' trouvé' + (trouves.length > 1 ? 's' : '') : 'Aucun chantier ne contient « ' + escapeHtml(addChantierTexte.trim()) + ' »')
     : '';
@@ -3173,12 +3307,59 @@ function removeAbsence(idx){
   sauverHeures();
   renderHoursUI();
 }
-function addAbsenceStart(){ addingAbsence=true; renderHoursUI(); }
-function addAbsenceCancel(){ addingAbsence=false; renderHoursUI(); }
+/* LA MÊME RECHERCHE POUR LES ABSENCES (Patrice, 06/10/2026 : « faire la même
+   chose pour poser les absences »). Sur le libellé, sans accent ni majuscule ;
+   on touche, puis « Ajouter ». */
+let addAbsenceTexte = '';
+let addAbsenceChoix = null;
+let _choixAbsences = [];
+function absencesTrouvees(texte){
+  const lignes = (hoursEntry && hoursEntry.absences) || [];
+  const mots = normRecherche(texte).split(/\s+/).filter(Boolean);
+  return ABSENCE_CODES.filter(a => a.key !== 'contribution' && !lignes.some(x => x.key === a.key))
+    .filter(a => mots.every(m => normRecherche(a.label).indexOf(m) !== -1));
+}
+function htmlChoixAbsences(){
+  const trouvees = absencesTrouvees(addAbsenceTexte);
+  if(addAbsenceChoix && !trouvees.some(a => a.key === addAbsenceChoix)){
+    const garde = ABSENCE_CODES.find(a => a.key === addAbsenceChoix);
+    if(garde) trouvees.unshift(garde); else addAbsenceChoix = null;
+  }
+  _choixAbsences = trouvees;
+  const compte = addAbsenceTexte.trim() && !trouvees.length
+    ? '<div class="h-choix-compte">Aucune absence ne contient « ' + escapeHtml(addAbsenceTexte.trim()) + ' »</div>' : '';
+  return compte + '<div class="h-choix-liste" role="listbox">'
+    + trouvees.map((a, i) => '<button type="button" role="option" aria-selected="' + (a.key === addAbsenceChoix) + '"'
+        + ' class="h-choix' + (a.key === addAbsenceChoix ? ' on' : '') + '" onclick="choisirAbsence(' + i + ')">'
+        + '<span class="h-choix-nom">' + escapeHtml(a.label) + '</span></button>').join('')
+    + '</div>';
+}
+function rechercherAbsence(texte){
+  addAbsenceTexte = String(texte || '');
+  const el = document.getElementById('addAbsenceListe');
+  if(el) el.innerHTML = htmlChoixAbsences();
+}
+function choisirAbsence(i){
+  const a = _choixAbsences[i];
+  if(!a) return;
+  addAbsenceChoix = a.key;
+  rechercherAbsence(addAbsenceTexte);
+}
+function addAbsenceStart(){
+  addingAbsence=true; addAbsenceTexte=''; addAbsenceChoix=null;
+  renderHoursUI();
+  const champ = document.getElementById('addAbsenceRecherche');
+  if(champ) champ.focus();
+}
+function addAbsenceCancel(){ addingAbsence=false; addAbsenceTexte=''; addAbsenceChoix=null; renderHoursUI(); }
 function addAbsenceConfirm(){
-  const sel = document.getElementById('addAbsenceSelect');
-  const val = sel ? sel.value : '';
-  addingAbsence=false;
+  let val = addAbsenceChoix || '';
+  if(!val && addAbsenceTexte.trim()){
+    const t = absencesTrouvees(addAbsenceTexte);
+    if(t.length === 1) val = t[0].key;
+  }
+  if(!val){ alert('Choisis une absence dans la liste (touche sa ligne), puis « Ajouter ».'); return; }
+  addingAbsence=false; addAbsenceTexte=''; addAbsenceChoix=null;
   if(val){
     hoursEntry.absences.push({key:val, jours:{}});
     sauverHeures();
@@ -3259,6 +3440,7 @@ function updateCommentaires(value){ hoursEntry.commentaires=value; sauverHeures(
    de la semaine, vides. */
 async function effacerSemaine(){
   if(!hoursEntry) return;
+  if(feuilleVerrouillee()) return;
   const w = weekRange(currentOffset);
   const ok = confirm(
     "Effacer toute ta saisie de la semaine " + w.weekNum + " ?\n\n"
@@ -3308,7 +3490,7 @@ function renderHoursUI(){
   let addChantierHtml;
   if(addingChantier){
     addChantierHtml = '<input class="h-picker h-recherche" id="addChantierRecherche" type="search" autocomplete="off"'
-      + ' enterkeyhint="search" placeholder="Nom, n° d\'affaire, ville, client…"'
+      + ' enterkeyhint="search" placeholder="Nom ou n° d\'affaire…"'
       + ' value="'+escapeHtml(addChantierTexte)+'" oninput="rechercherChantier(this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}">'
       + '<div id="addChantierListe">'+htmlChoixChantiers()+'</div>'
       + '<div style="display:flex; gap:8px; margin-top:8px;">'
@@ -3343,9 +3525,10 @@ function renderHoursUI(){
 
   let addAbsenceHtml;
   if(addingAbsence){
-    const usedKeys = new Set(e.absences.map(a=>a.key));
-    const options = ABSENCE_CODES.filter(a=>a.key!=='contribution' && !usedKeys.has(a.key)).map(a=>'<option value="'+a.key+'">'+escapeHtml(a.label)+'</option>').join('');
-    addAbsenceHtml = '<select class="h-picker" id="addAbsenceSelect"><option value="">— choisir —</option>'+options+'</select>'
+    addAbsenceHtml = '<input class="h-picker h-recherche" id="addAbsenceRecherche" type="search" autocomplete="off"'
+      + ' enterkeyhint="search" placeholder="Congés, RTT, maladie…"'
+      + ' value="'+escapeHtml(addAbsenceTexte)+'" oninput="rechercherAbsence(this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}">'
+      + '<div id="addAbsenceListe">'+htmlChoixAbsences()+'</div>'
       + '<div style="display:flex; gap:8px; margin-top:8px;">'
       + '<button class="h-add-btn" style="flex:1;" onclick="addAbsenceConfirm()">Ajouter</button>'
       + '<button class="h-add-btn" style="flex:1;" onclick="addAbsenceCancel()">Annuler</button>'
@@ -3427,7 +3610,14 @@ function renderHoursUI(){
   const dejaEnvoyee = e.envoyeLe && !isNaN(new Date(e.envoyeLe))
     ? '<div class="h-send-sub deja">Déjà envoyée le ' + fmtDateFR(new Date(e.envoyeLe)) + '.</div>'
     : '';
-  const sendSection = '<div class="h-section">'
+  /* Mois validé (06/10/2026) : ni « Envoyer » ni « Effacer » — un bouton gris
+     qu'on touche sans effet se lit « l'appli est cassée ». Il reste la date
+     d'envoi et le fichier Excel. */
+  const sendSection = feuilleVerrouillee()
+    ? '<div class="h-section">' + dejaEnvoyee
+      + '<button class="h-send-btn secondary-link" id="excelBtn" onclick="downloadExcelFeuille()">'+ico('tableur','ic-s')+'Télécharger le fichier Excel officiel</button>'
+      + '</div>'
+    : '<div class="h-section">'
     + dejaEnvoyee
     + '<button class="h-send-btn" id="emailBtn" onclick="emailFeuille()">'+ico('envoi')+'Envoyer ma feuille (S'+weekInfo.weekNum+')</button>'
     /* CETTE PHRASE SUIT LE CODE, ELLE N'EST PLUS ÉCRITE À LA MAIN.
@@ -3450,10 +3640,21 @@ function renderHoursUI(){
   /* L'alerte de stockage passe AVANT le rappel d'épinglage : la première
      dit que la saisie en cours n'est pas gardée, la seconde comment faire
      mieux la semaine prochaine. L'urgent d'abord. */
-  panel.innerHTML = htmlAlerteStockage() + htmlRappelEpingle()
+  panel.innerHTML = htmlAlerteStockage() + htmlRappelEpingle() + htmlBureau(e)
     + chantiersSection + absencesSection + deplSection + intervSection + vehSection + comSection
     + '<div id="rappelSuivi"></div>' + sendSection;
   majRappelSuivi();
+  /* Mois validé : tout ce qui modifie ou renvoie est figé (le fichier Excel
+     reste téléchargeable). `sauverHeures` et l'envoi refusent aussi : le
+     bouton grisé n'est qu'un confort, le serveur répond 409. */
+  panel.classList.toggle('h-fige', feuilleVerrouillee());
+  if(feuilleVerrouillee()){
+    // Le rappel du suivi de chantier et celui de l'épinglage ne touchent pas la feuille : ils restent actifs.
+    panel.querySelectorAll('input, textarea, select, button').forEach(b => {
+      if(b.id === 'excelBtn' || b.closest('#rappelSuivi') || /Epingle/.test(b.getAttribute('onclick') || '')) return;
+      b.disabled = true;
+    });
+  }
 }
 
 /* ---------- LE RAPPEL DU CHEF DE CHANTIER (23/09/2026) ----------
@@ -4044,6 +4245,8 @@ async function marquerEnvoiFeuille(parti){
   const quand = new Date().toISOString();
   hoursEntry.envoiEnAttente = !parti;
   if(parti) hoursEntry.envoyeLe = quand; else hoursEntry.envoiEchoueLe = quand;
+  // Renvoyée par le technicien : la version du bureau n'est plus celle qui fait foi.
+  if(parti && accessMode !== 'admin') delete hoursEntry.modifBureau;
   await kvSet(hoursKeyCurrent, hoursEntry);
   await compterFeuillesEnAttente();
 }
@@ -4064,6 +4267,7 @@ async function envoyerFeuilleAuBureau(payload){
 
 async function emailFeuille(){
   if(!hoursEntry) return;
+  if(feuilleVerrouillee()){ alert('Ce mois de paie est validé par le bureau : la feuille ne se renvoie plus.'); return; }
   // Verification synchrone AVANT tout await : sur mobile, navigator.share exige
   // un geste utilisateur encore "frais", qu'une attente asynchrone peut perdre.
   if(feuilleSansHeures() && TECHS_SANS_CHANTIER.indexOf(currentTech) === -1){
