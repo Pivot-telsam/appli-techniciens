@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-10-06-08';
+var APP_VERSION = '2026-10-06-09';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-10-06-08';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Chaussée - Revigny (26-118) : le dossier est en place — brief, PDP, PGO, tes tâches à cocher, le dépôt des photos et la signature du PDP.";
+var APP_NOUVEAUTE = "Ajouter un chantier à ta feuille d'heures : tape un bout de son nom, de son numéro, de la ville ou du client, la liste se filtre ; touche le bon chantier puis « Ajouter ».";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -534,6 +534,21 @@ footer.legend{max-width:640px; margin:8px auto 0; padding:0 16px;
 }
 .h-picker{background:var(--touche); border:1px solid var(--filet2); color:var(--t1);
   border-radius:11px; padding:11px; min-height:var(--cible); font-size:13.5px; width:100%;}
+/* La recherche d'un chantier à ajouter (06/10/2026). 16 px dans le champ : en
+   dessous, le téléphone agrandit toute la page quand on touche la case. */
+.h-recherche{font-size:16px;}
+.h-choix-liste{display:flex; flex-direction:column; gap:6px; max-height:300px; overflow-y:auto;
+  margin-top:8px; -webkit-overflow-scrolling:touch;}
+.h-choix-compte{font-size:11.5px; color:var(--t2); margin-top:6px;}
+.h-choix{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;
+  background:var(--touche); border:1px solid var(--filet2); color:var(--t1); border-radius:11px;
+  padding:9px 11px; min-height:48px; cursor:pointer; width:100%; font-size:13.5px;}
+.h-choix.on{border-color:var(--vert-filet); background:linear-gradient(var(--vert-fond),var(--vert-fond)),var(--touche);}
+.h-choix-num{font-size:12px; color:var(--indigo-pale);}
+.h-choix.on .h-choix-num{color:var(--vert);}
+.h-choix-nom{font-weight:500;}
+.h-choix-sous{font-size:11.5px; color:var(--t2);}
+.h-choix.autre{border-style:dashed; color:var(--indigo-pale);}
 .h-absence-row{display:flex; flex-direction:column; gap:8px; padding-bottom:10px;
   border-bottom:1px solid var(--filet);}
 .h-absence-row:last-child{border-bottom:none; padding-bottom:0;}
@@ -3038,12 +3053,95 @@ function removeChantierLine(idx){
   sauverHeures();
   renderHoursUI();
 }
-function addChantierStart(){ addingChantier=true; renderHoursUI(); }
-function addChantierCancel(){ addingChantier=false; renderHoursUI(); }
+/* =====================================================================
+   AJOUTER UN CHANTIER PAR RECHERCHE (06/10/2026)
+   ---------------------------------------------------------------------
+   Demande de Patrice : le menu déroulant n'était « pas pratique » (90 fiches
+   à faire défiler sur un téléphone). On tape un nom, un n° d'affaire, une
+   ville ou un client ; la liste se filtre à chaque lettre, sans tenir compte
+   des majuscules ni des accents, sur un morceau de mot (« montl » trouve
+   « Montlhéry », « 26045 » trouve « 26-045 »). Plusieurs mots : il les faut
+   tous. On touche une ligne pour la choisir, puis « Ajouter », comme avant.
+   Un chantier déjà choisi RESTE dans la liste même si la recherche ne le
+   ramène plus : continuer à taper n'efface pas le choix en silence. */
+let addChantierTexte = '';
+let addChantierChoix = null;     // id de fiche, '__contribution_agence__' ou '__autre__'
+let _choixChantiers = [];        // ce qui est affiché, dans l'ordre : le bouton porte l'INDEX
+function normRecherche(s){
+  return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+function chantiersAProposer(){
+  const lignes = (hoursEntry && hoursEntry.chantierLines) || [];
+  const out = [];
+  if(!lignes.some(l => l.id === '__contribution_agence__')){
+    out.push({ id:'__contribution_agence__', numero:'', nom:'Contribution agence', sous:'Pas de chantier précis',
+               cherche: normRecherche('contribution agence') });
+  }
+  SEED_DATA.filter(c => !lignes.some(l => l.id === c.id))
+    .slice().sort((a, b) => (a.termine ? 1 : 0) - (b.termine ? 1 : 0))
+    .forEach(c => out.push({
+      id: c.id, numero: c.numero || '', nom: c.nom || '',
+      sous: [c.lieu, c.client].filter(Boolean).join(' · '),
+      cherche: normRecherche([c.numero, String(c.numero || '').replace(/-/g, ''), c.nom, c.lieu, c.client].join(' ')),
+    }));
+  return out;
+}
+function chantiersTrouves(texte){
+  const mots = normRecherche(texte).split(/\s+/).filter(Boolean);
+  return chantiersAProposer().filter(c => mots.every(m => c.cherche.indexOf(m) !== -1));
+}
+function htmlChoixChantiers(){
+  const trouves = chantiersTrouves(addChantierTexte);
+  // Le choix déjà fait reste visible, en tête, même hors de la recherche.
+  if(addChantierChoix && addChantierChoix !== '__autre__' && !trouves.some(c => c.id === addChantierChoix)){
+    const garde = chantiersAProposer().find(c => c.id === addChantierChoix);
+    if(garde) trouves.unshift(garde); else addChantierChoix = null;
+  }
+  _choixChantiers = trouves.concat([{ id:'__autre__', numero:'', nom:'Autre chantier (saisie libre)', sous:'Pas dans la liste : tu tapes son nom' }]);
+  const compte = addChantierTexte.trim()
+    ? (trouves.length ? trouves.length + ' chantier' + (trouves.length > 1 ? 's' : '') + ' trouvé' + (trouves.length > 1 ? 's' : '') : 'Aucun chantier ne contient « ' + escapeHtml(addChantierTexte.trim()) + ' »')
+    : '';
+  return (compte ? '<div class="h-choix-compte">' + compte + '</div>' : '')
+    + '<div class="h-choix-liste" role="listbox">'
+    + _choixChantiers.map((c, i) => '<button type="button" role="option" aria-selected="' + (c.id === addChantierChoix) + '"'
+        + ' class="h-choix' + (c.id === addChantierChoix ? ' on' : '') + (c.id === '__autre__' ? ' autre' : '') + '"'
+        + ' onclick="choisirChantier(' + i + ')">'
+        + (c.numero ? '<span class="mono h-choix-num">' + escapeHtml(c.numero) + '</span>' : '')
+        + '<span class="h-choix-nom">' + escapeHtml(c.nom) + '</span>'
+        + (c.sous ? '<span class="h-choix-sous">' + escapeHtml(c.sous) + '</span>' : '')
+        + '</button>').join('')
+    + '</div>';
+}
+function dessinerChoixChantiers(){
+  const el = document.getElementById('addChantierListe');
+  if(el) el.innerHTML = htmlChoixChantiers();
+}
+function rechercherChantier(texte){
+  addChantierTexte = String(texte || '');
+  dessinerChoixChantiers();
+}
+function choisirChantier(i){
+  const c = _choixChantiers[i];
+  if(!c) return;
+  addChantierChoix = c.id;
+  dessinerChoixChantiers();
+}
+function addChantierStart(){
+  addingChantier=true; addChantierTexte=''; addChantierChoix=null;
+  renderHoursUI();
+  const champ = document.getElementById('addChantierRecherche');
+  if(champ) champ.focus();
+}
+function addChantierCancel(){ addingChantier=false; addChantierTexte=''; addChantierChoix=null; renderHoursUI(); }
 function addChantierConfirm(){
-  const sel = document.getElementById('addChantierSelect');
-  const val = sel ? sel.value : '';
-  addingChantier=false;
+  let val = addChantierChoix || '';
+  // Rien de touché mais un seul chantier trouvé : c'est lui.
+  if(!val && addChantierTexte.trim()){
+    const trouves = chantiersTrouves(addChantierTexte);
+    if(trouves.length === 1) val = trouves[0].id;
+  }
+  if(!val){ alert('Choisis un chantier dans la liste (touche sa ligne), puis « Ajouter ».'); return; }
+  addingChantier=false; addChantierTexte=''; addChantierChoix=null;
   if(val==='__autre__'){
     const nom = prompt('Nom du chantier :');
     if(nom){
@@ -3209,12 +3307,10 @@ function renderHoursUI(){
 
   let addChantierHtml;
   if(addingChantier){
-    const options = SEED_DATA
-      .filter(c=> !e.chantierLines.some(l=>l.id===c.id))
-      .map(c=>'<option value="'+c.id+'">'+escapeHtml((c.numero? c.numero+' - ':'')+c.nom)+'</option>').join('');
-    const contribOption = e.chantierLines.some(l=>l.id==='__contribution_agence__')
-      ? '' : '<option value="__contribution_agence__">Contribution agence</option>';
-    addChantierHtml = '<select class="h-picker" id="addChantierSelect"><option value="">— choisir un chantier —</option>'+contribOption+options+'<option value="__autre__">Autre (saisie libre)</option></select>'
+    addChantierHtml = '<input class="h-picker h-recherche" id="addChantierRecherche" type="search" autocomplete="off"'
+      + ' enterkeyhint="search" placeholder="Nom, n° d\'affaire, ville, client…"'
+      + ' value="'+escapeHtml(addChantierTexte)+'" oninput="rechercherChantier(this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}">'
+      + '<div id="addChantierListe">'+htmlChoixChantiers()+'</div>'
       + '<div style="display:flex; gap:8px; margin-top:8px;">'
       + '<button class="h-add-btn" style="flex:1;" onclick="addChantierConfirm()">Ajouter</button>'
       + '<button class="h-add-btn" style="flex:1;" onclick="addChantierCancel()">Annuler</button>'

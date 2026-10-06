@@ -1,0 +1,123 @@
+<pre id="verdictTest" style="position:fixed;top:0;left:0;background:#fff;color:#000;z-index:99999;font:11px monospace;padding:4px;max-height:100vh;overflow:auto">en cours</pre>
+<script>
+/* TEST DE L'AJOUT D'UN CHANTIER PAR RECHERCHE (demande de Patrice du 06/10/2026).
+ * A concatener apres index.html, servi en http.
+ *
+ * SA DEMANDE : remplacer le menu deroulant par une recherche — nom, n° d'affaire,
+ * ville, client — sans majuscules ni accents, sur un morceau de mot ; le n°
+ * d'affaire et le nom dans les resultats ; on cherche, on choisit, on clique
+ * « Ajouter ». Chaque propriete a son contre-exemple. */
+(async function () {
+  const R = []; let ko = 0;
+  function ok(nom, cond, detail) {
+    R.push((cond ? 'OK   ' : 'ECHEC') + ' | ' + nom + (detail ? '  -> ' + detail : ''));
+    if (!cond) ko++;
+  }
+  function fin() {
+    R.push('---');
+    R.push(R.filter(l => l.startsWith('OK')).length + ' controle(s) passes, ' + ko + ' en echec');
+    R.push(ko ? 'VERDICT: ECHEC' : 'VERDICT: TOUT PASSE');
+    document.getElementById('verdictTest').textContent = R.join('\n');
+  }
+  try {
+    for (let i = 0; i < 100 && typeof htmlChoixChantiers === 'undefined'; i++) await new Promise(r => setTimeout(r, 50));
+    const magasin = new Map();
+    kvGet = async (k) => (magasin.has(k) ? JSON.parse(JSON.stringify(magasin.get(k))) : null);
+    kvSet = async (k, v) => { magasin.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    currentTech = 'Hugues VIRY';
+    hoursKeyCurrent = 'fh_test';
+    hoursEntry = { chantierLines: [], removedAutoIds: [], absences: [], pd: {}, gd: {}, nacelle: {}, interventions: [],
+                   vehiculeMode: null, km: '', immat: '', commentaires: '' };
+    document.getElementById('appScreen').style.display = 'block';
+    document.getElementById('hoursPanel').style.display = 'flex';
+    window.alert = () => {};
+
+    const fiche = (n) => SEED_DATA.find(c => c.numero === n);
+    const severac = fiche('26-070'), galus = fiche('26-068');
+    ok('0. les fiches d\'essai existent (26-070 Séverac, 26-068 Mérignac)', !!severac && !!galus);
+
+    // 1. ce qu'on voit en ouvrant
+    addChantierStart();
+    const champ = document.getElementById('addChantierRecherche');
+    ok('1. « Ajouter un chantier » ouvre une case de recherche, plus de menu déroulant',
+       !!champ && !document.getElementById('addChantierSelect'));
+    ok('1. la case fait 16 px (le téléphone ne zoome pas la page en la touchant)',
+       parseFloat(getComputedStyle(champ).fontSize) >= 16, getComputedStyle(champ).fontSize);
+    ok('1. le bouton « Ajouter » est toujours là', /addChantierConfirm\(\)[^>]*>Ajouter</.test(document.getElementById('hoursPanel').innerHTML));
+    const tout = _choixChantiers.length;
+    ok('1. sans rien taper, toutes les fiches sont proposées (+ contribution agence + saisie libre)',
+       tout === SEED_DATA.length + 2, tout + ' lignes');
+
+    // 2. la recherche
+    const noms = () => _choixChantiers.map(c => c.numero + ' ' + c.nom);
+    rechercherChantier('SEVER');
+    ok('2. « SEVER » (sans accent, en majuscules, morceau de mot) trouve Campagnac - Séverac',
+       _choixChantiers.some(c => c.id === severac.id), noms().slice(0, 3).join(' | '));
+    rechercherChantier('merig');
+    ok('2. « merig » trouve Mérignac (26-068)', _choixChantiers.some(c => c.id === galus.id));
+    rechercherChantier('26070');
+    ok('2. « 26070 » (n° sans tiret) trouve 26-070', _choixChantiers.some(c => c.id === severac.id));
+    rechercherChantier('26-070');
+    ok('2. « 26-070 » le trouve aussi', _choixChantiers.some(c => c.id === severac.id));
+    if (severac.lieu) {
+      const motLieu = normRecherche(severac.lieu).split(/\s+/).find(m => m.length > 4) || '';
+      rechercherChantier(motLieu.slice(0, 5));
+      ok('2. un morceau du lieu le trouve (« ' + motLieu.slice(0, 5) + ' »)', _choixChantiers.some(c => c.id === severac.id));
+    }
+    rechercherChantier('campagnac sever');
+    ok('2. deux mots : il faut les deux', _choixChantiers.some(c => c.id === severac.id));
+    rechercherChantier('campagnac merig');
+    ok('2. CONTRE-EXEMPLE : deux mots qui ne vont pas ensemble ne trouvent rien (hors saisie libre)',
+       _choixChantiers.length === 1 && _choixChantiers[0].id === '__autre__', noms().join(' | '));
+    ok('2. la liste dit qu\'il n\'y a rien', /Aucun chantier ne contient/.test(document.getElementById('addChantierListe').innerHTML));
+    rechercherChantier('zzqqxx');
+    ok('2. CONTRE-EXEMPLE : un texte absent ne ramène aucune fiche', !_choixChantiers.some(c => c.id && c.id.indexOf('__') !== 0));
+    rechercherChantier('sever');
+    const html = document.getElementById('addChantierListe').innerHTML;
+    ok('2. chaque résultat montre le n° d\'affaire ET le nom', html.indexOf('26-070') !== -1 && html.indexOf(escapeHtml(severac.nom)) !== -1);
+
+    // 3. choisir, puis Ajouter
+    const iSev = _choixChantiers.findIndex(c => c.id === severac.id);
+    choisirChantier(iSev);
+    ok('3. la ligne touchée est marquée', !!document.querySelector('#addChantierListe .h-choix.on'));
+    rechercherChantier('merig');
+    ok('3. le choix reste visible quand on continue de taper', _choixChantiers[0].id === severac.id
+       && !!document.querySelector('#addChantierListe .h-choix.on'));
+    addChantierConfirm();
+    ok('3. « Ajouter » met le chantier choisi sur la feuille, avec sa fiche',
+       hoursEntry.chantierLines.length === 1 && hoursEntry.chantierLines[0].id === severac.id,
+       JSON.stringify(hoursEntry.chantierLines.map(l => l.nom)));
+    ok('3. la recherche se referme', !document.getElementById('addChantierRecherche'));
+    addChantierStart();
+    ok('3. un chantier déjà sur la feuille n\'est plus proposé', !_choixChantiers.some(c => c.id === severac.id));
+
+    // 4. Ajouter sans choisir
+    rechercherChantier('');
+    const avant = hoursEntry.chantierLines.length;
+    addChantierConfirm();
+    ok('4. CONTRE-EXEMPLE : « Ajouter » sans rien choisir n\'ajoute rien et laisse la recherche ouverte',
+       hoursEntry.chantierLines.length === avant && !!document.getElementById('addChantierRecherche'));
+    rechercherChantier('26-068');
+    addChantierConfirm();
+    ok('4. un seul chantier trouvé : « Ajouter » le prend sans qu\'on le touche',
+       hoursEntry.chantierLines.some(l => l.id === galus.id), JSON.stringify(hoursEntry.chantierLines.map(l => l.nom)));
+    addChantierStart();
+    rechercherChantier('contrib');
+    choisirChantier(_choixChantiers.findIndex(c => c.id === '__contribution_agence__'));
+    addChantierConfirm();
+    ok('4. la contribution agence s\'ajoute comme avant', hoursEntry.chantierLines.some(l => l.id === '__contribution_agence__' && l.addedManually));
+    addChantierStart();
+    addChantierCancel();
+    ok('4. « Annuler » referme sans rien ajouter', !document.getElementById('addChantierRecherche') && hoursEntry.chantierLines.length === 3);
+
+    // 5. le texte tapé ne casse pas la page
+    addChantierStart();
+    rechercherChantier('<img src=x onerror=alert(1)>"\'');
+    ok('5. un texte tapé est affiché comme du texte', !document.querySelector('#addChantierListe img'));
+    addChantierCancel();
+  } catch (e) {
+    R.push('EXCEPTION : ' + (e && e.stack ? e.stack : e)); ko++;
+  }
+  fin();
+})();
+</script>
