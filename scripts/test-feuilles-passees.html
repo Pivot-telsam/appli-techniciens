@@ -49,11 +49,24 @@
        qui l'entourent. Ils mesurent maintenant une PROPRIETE : le tableau couvre
        tout le monde pour toutes les semaines qu'il contient, et il ne contient
        que du passe. Voir CLAUDE.md §16, « ne pas figer un etat du monde ». */
-    const semaines = [...new Set(SEED_FEUILLES.map(s => s.semaine))].sort((a, b) => a - b);
+    /* LES SEMAINES REPRISES DES ENVOIS (S39 et suivantes, 06/10/2026) NE
+       COMPTENT QUE LES FEUILLES REÇUES : on n'invente pas celle qui n'est pas
+       arrivée, et une feuille qui porte un arrêt maladie reste hors de ce
+       fichier public. La règle « tout le monde, chaque semaine » ne vaut que
+       pour les semaines recopiées du classeur (S34 à S38). */
+    const envoi = s => s.source === 'envoi';
+    const semaines = [...new Set(SEED_FEUILLES.filter(s => !envoi(s)).map(s => s.semaine))].sort((a, b) => a - b);
+    const classeur = SEED_FEUILLES.filter(s => !envoi(s));
     ok('1. ' + (TECHS.length * semaines.length) + ' feuilles (' + TECHS.length + ' techniciens x '
          + semaines.length + ' semaines : S' + semaines.join(', S') + ')',
-       SEED_FEUILLES.length === TECHS.length * semaines.length,
-       SEED_FEUILLES.length + ' feuilles');
+       classeur.length === TECHS.length * semaines.length,
+       classeur.length + ' feuilles');
+    const envois = SEED_FEUILLES.filter(envoi);
+    ok('1. les feuilles reprises des envois portent la saisie partie (technicien et semaine concordent)',
+       envois.length > 0 && envois.every(s => s.envoi && s.envoi.technicien === s.tech && Number(s.envoi.weekNum) === s.semaine),
+       envois.length + ' feuille(s) : S' + [...new Set(envois.map(s => s.semaine))].join(', S'));
+    ok('1. aucune absence de santé dans ce fichier public',
+       SEED_FEUILLES.every(s => (s.feuille.absences || []).every(a => a.key !== 'maladie' && a.key !== 'accident')));
     const inconnus = SEED_FEUILLES.filter(s => TECHS.indexOf(s.tech) === -1).map(s => s.tech);
     ok('1. tous les noms figurent dans TECHS', inconnus.length === 0, inconnus.join(', ') || 'aucun intrus');
     const vus = {};
@@ -61,7 +74,7 @@
     ok('1. aucun doublon technicien/semaine', Object.keys(vus).every(c => vus[c] === 1));
     const trous = [];
     TECHS.forEach(t => semaines.forEach(w => {
-      if (!SEED_FEUILLES.some(s => s.tech === t && s.semaine === w)) trous.push(t + ' S' + w);
+      if (!classeur.some(s => s.tech === t && s.semaine === w)) trous.push(t + ' S' + w);
     }));
     ok('1. chaque technicien a toutes les semaines du tableau', trous.length === 0,
        trous.join(', ') || 'aucun trou');
@@ -83,7 +96,8 @@
     // ---- 2. les references pointent quelque part, et rien ne s'evapore ----
     const idsMorts = [];
     SEED_FEUILLES.forEach(s => s.feuille.chantierLines.forEach(l => {
-      if (l.id && !chantierById(l.id)) idsMorts.push(s.tech + ' S' + s.semaine + ' : ' + l.id);
+      // `__contribution_agence__` n'est pas une fiche : c'est la ligne de l'appli pour la contribution agence.
+      if (l.id && l.id !== '__contribution_agence__' && !chantierById(l.id)) idsMorts.push(s.tech + ' S' + s.semaine + ' : ' + l.id);
     }));
     ok('2. chaque ligne liee pointe une fiche existante', idsMorts.length === 0, idsMorts.join(' ; ') || 'aucun id mort');
     const clesInconnues = [];
@@ -338,6 +352,94 @@
     const html2 = document.getElementById('hoursPanel').innerHTML;
     ok('7. CONTRE-EXEMPLE : sans date d\'envoi, la phrase disparait',
        html2.indexOf('Déjà envoyée') === -1 && html2.indexOf('jamais envoyée') === -1);
+
+    /* ---- 8. LA FEUILLE ENVOYÉE REVIENT DANS L'APPLI (06/10/2026) ----
+       Signalé par Patrice : depuis la S39, les cases restaient vides après
+       l'envoi. On joue le vrai chemin (`ensureFeuilleForWeek`) avec une session
+       et un serveur simulés. Ce qui compte ici, ce sont les contre-exemples :
+       la reprise ne passe JAMAIS par-dessus une saisie ni après un « Effacer ». */
+    const totalEnvoi = (p) => {
+      const t = [0, 0, 0, 0, 0, 0, 0];
+      (p.chantierLines || []).forEach(l => Object.keys(l.jours || {}).forEach(d => {
+        t[d] += (parseFloat(l.jours[d].j) || 0) + (parseFloat(l.jours[d].n) || 0); }));
+      (p.absences || []).forEach(a => Object.keys(a.jours || {}).forEach(d => { t[d] += parseFloat(a.jours[d]) || 0; }));
+      return t.join(',');
+    };
+    // 8a. aller-retour : la saisie partie, remise au format de l'appli puis renvoyee, donne les memes heures
+    let ecartsEnvoi = 0, detailEnvoi = '';
+    for (const s of SEED_FEUILLES.filter(x => x.source === 'envoi')) {
+      currentTech = s.tech;
+      hoursEntry = JSON.parse(JSON.stringify(s.feuille));
+      const p = buildExportPayload(mondayOfISOWeek(s.semaine, s.annee), s.semaine);
+      const ok1 = totalEnvoi(p) === totalEnvoi(s.envoi)
+        && JSON.stringify(p.pd) === JSON.stringify(s.envoi.pd || {})
+        && JSON.stringify(p.gd) === JSON.stringify(s.envoi.gd || {})
+        && String(p.commentaires || '') === String(s.envoi.commentaires || '')
+        && p.chantierLines.map(l => l.numero).join('|') === (s.envoi.chantierLines || []).map(l => l.numero || '').join('|');
+      if (!ok1) { ecartsEnvoi++; if (!detailEnvoi) detailEnvoi = s.tech + ' S' + s.semaine + ' : ' + totalEnvoi(p) + ' vs ' + totalEnvoi(s.envoi); }
+    }
+    ok('8a. les feuilles S39+ ressortent comme elles sont parties (heures, PD, GD, n° d\'affaire, commentaire)',
+       ecartsEnvoi === 0, ecartsEnvoi ? detailEnvoi : '0 ecart');
+    // 8b. la mention paternite calculee a l'envoi ne s'empile pas dans le commentaire
+    currentTech = 'Benjamin SOUPA';
+    hoursEntry = JSON.parse(JSON.stringify(SEED_FEUILLES.find(s => s.tech === 'Benjamin SOUPA' && s.semaine === 35).feuille));
+    hoursEntry.commentaires = 'RAS';
+    const pPat = buildExportPayload(mondayOfISOWeek(35, 2026), 35);
+    const retour = feuilleDepuisEnvoi(pPat, '2026-09-07T13:54:00Z');
+    ok('8b. la mention paternite est retiree, le commentaire du technicien reste',
+       retour.commentaires === 'RAS' && pPat.commentaires !== 'RAS', JSON.stringify(retour.commentaires));
+    // 8c. le vrai chemin, avec une session et un serveur simules
+    const sessionAvant = SESSION_SUIVI, fetchAvant = window.fetch, offsetAvant = currentOffset;
+    const magasin8 = new Map();
+    kvGet = async (k) => (magasin8.has(k) ? JSON.parse(JSON.stringify(magasin8.get(k))) : null);
+    kvSet = async (k, v) => { magasin8.set(k, JSON.parse(JSON.stringify(v))); return true; };
+    const ref = SEED_FEUILLES.find(s => s.source === 'envoi' && s.tech === 'Anthony DENIS' && s.semaine === 40);
+    let demandes = [];
+    window.fetch = async (url) => {
+      demandes.push(String(url));
+      return { ok: true, json: async () => ({ feuille: JSON.parse(JSON.stringify(ref.envoi)), recuLe: '2026-10-02T06:10:23Z', origine: 'base' }) };
+    };
+    try {
+      SESSION_SUIVI = { nom: 'Anthony DENIS', role: 'tech', mail: 'x' };
+      currentTech = 'Anthony DENIS'; currentOffset = 0;
+      const w = weekRange(0);
+      const cle = 'fh_Anthony DENIS_' + w.year + '_' + w.weekNum;
+      await ensureFeuilleForWeek('Anthony DENIS', w);
+      ok('8c. semaine vide : la feuille envoyee revient, avec ses heures',
+         totalEnvoi(hoursEntry) === totalEnvoi(feuilleDepuisEnvoi(ref.envoi)) && totalEnvoi(hoursEntry) !== '0,0,0,0,0,0,0',
+         totalEnvoi(hoursEntry));
+      ok('8c. elle se sait deja envoyee', hoursEntry.envoyeLe === '2026-10-02T06:10:23Z', hoursEntry.envoyeLe || 'aucune date');
+      ok('8c. elle est gardee sur le telephone', magasin8.has(cle) && !feuilleVierge(magasin8.get(cle)));
+      ok('8c. la question porte sur CE technicien et CETTE semaine',
+         demandes.length === 1 && demandes[0].indexOf('tech=Anthony%20DENIS') !== -1
+         && demandes[0].indexOf('annee=' + w.year) !== -1 && demandes[0].indexOf('semaine=' + w.weekNum) !== -1, demandes[0]);
+      // CONTRE-EXEMPLE : une saisie sur le telephone n'est jamais remplacee, et le serveur n'est pas interroge
+      demandes = [];
+      magasin8.set(cle, { chantierLines: [{ id: null, nom: 'MA SAISIE', lieu: '', client: '', jours: { 0: { j: 3 } } }],
+                          removedAutoIds: [], absences: [], pd: {}, gd: {}, nacelle: {}, vehiculeMode: null, km: '', immat: '', commentaires: '' });
+      await ensureFeuilleForWeek('Anthony DENIS', w);
+      ok('8c. CONTRE-EXEMPLE : une saisie du telephone reste intacte',
+         hoursEntry.chantierLines.some(l => l.nom === 'MA SAISIE') && demandes.length === 0,
+         JSON.stringify(hoursEntry.chantierLines.map(l => l.nom)) + ' / ' + demandes.length + ' demande(s)');
+      // CONTRE-EXEMPLE : une semaine effacee par le technicien ne revient pas
+      magasin8.set(cle, { chantierLines: [], removedAutoIds: [], absences: [], pd: {}, gd: {}, nacelle: {},
+                          vehiculeMode: null, km: '', immat: '', commentaires: '', effaceeLe: '2026-10-06T10:00:00Z' });
+      await ensureFeuilleForWeek('Anthony DENIS', w);
+      ok('8c. CONTRE-EXEMPLE : une semaine effacee reste vide', feuilleVierge(hoursEntry) && demandes.length === 0);
+      // CONTRE-EXEMPLE : sans session (ancienne adresse), rien n'est demande
+      magasin8.delete(cle); SESSION_SUIVI = null;
+      await ensureFeuilleForWeek('Anthony DENIS', w);
+      ok('8c. CONTRE-EXEMPLE : sans session, aucune demande et la semaine reste vide',
+         demandes.length === 0 && feuilleVierge(hoursEntry));
+      // un serveur qui ne repond pas laisse la semaine vide, sans erreur
+      SESSION_SUIVI = { nom: 'Anthony DENIS', role: 'tech', mail: 'x' };
+      window.fetch = async () => { throw new Error('reseau'); };
+      magasin8.delete(cle);
+      await ensureFeuilleForWeek('Anthony DENIS', w);
+      ok('8c. serveur muet : la semaine s\'ouvre vide, sans erreur', feuilleVierge(hoursEntry));
+    } finally {
+      SESSION_SUIVI = sessionAvant; window.fetch = fetchAvant; currentOffset = offsetAvant;
+    }
 
     fin();
   } catch (e) {
