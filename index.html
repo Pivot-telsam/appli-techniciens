@@ -60,7 +60,7 @@
    aussi la date affichée dessous — un seul endroit à modifier, pas deux.
    Ce bloc est volontairement dans le <head> et sans dépendance : il doit
    décider AVANT le premier affichage, sinon l'écran clignote.              */
-var APP_VERSION = '2026-10-06-04';
+var APP_VERSION = '2026-10-06-06';
 
 /* Ce qui change pour LE TECHNICIEN dans cette version, en une phrase ecrite de
    son point de vue. Affichee sous la date, uniquement quand c'est une mise a
@@ -70,7 +70,7 @@ var APP_VERSION = '2026-10-06-04';
    le message de la fois precedente. Une phrase honnete a chaque fois, y compris
    « rien qui te concerne » : une formule creuse repetee cesse d'etre lue en
    trois semaines. Garder court, une ligne ou deux au maximum.              */
-var APP_NOUVEAUTE = "Cantegrit : le PDP du poste de Naoutot (ind.3, pour la recette de la liaison Cantegrit - Naoutot) est dans Documents. Chaussée - Revigny : PDP ind.2 et PGO de la ligne renseignés (dates TELSAM au PGO : 02-03/11, 17-19/11 et 20/11). Rien ne change pour les autres chantiers.";
+var APP_NOUVEAUTE = "Cantegrit : tu peux maintenant signer aussi le PDP du poste de Naoutot, avec son propre bouton à côté de celui du PDP de Cantegrit.";
 
 /* Adresse du relais qui dépose les fichiers dans Dropbox (feuille d'heures, et
    plus tard le suivi). La clé Dropbox vit dans ce relais, jamais dans cette page.
@@ -2347,6 +2347,16 @@ function getWeekChantiers(tech, mon, sun){
 async function ensureFeuilleForWeek(tech, weekInfo){
   const key = 'fh_'+tech+'_'+weekInfo.year+'_'+weekInfo.weekNum;
   let entry = await kvGet(key);
+  /* Semaine vide sur ce téléphone : la feuille déjà envoyée revient (06/10/2026,
+     voir `feuilleEnvoyeeDuServeur`). Jamais par-dessus une saisie, jamais après
+     un « Effacer » du technicien. */
+  if(SESSION_SUIVI && feuilleVierge(entry) && !(entry && entry.effaceeLe)){
+    const reprise = await feuilleEnvoyeeDuServeur(tech, weekInfo);
+    // Le technicien a changé de semaine pendant l'attente : la suivante dessinera.
+    const w = weekRange(currentOffset);
+    if(currentTech !== tech || w.weekNum !== weekInfo.weekNum || w.year !== weekInfo.year) return false;
+    if(reprise) entry = reprise;
+  }
   const weekChantiers = getWeekChantiers(tech, weekInfo.mon, weekInfo.sun);
   if(!entry){
     entry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{}, interventions:[], vehiculeMode:null, km:'', immat:'', commentaires:'' };
@@ -2396,7 +2406,7 @@ async function loadAndRenderHours(){
      d'AVANT la dernière saisie, et la réécrivait ensuite par-dessus. */
   await _ecritureHeures.catch(() => {});
   const weekInfo = weekRange(currentOffset);
-  await ensureFeuilleForWeek(currentTech, weekInfo);
+  if(await ensureFeuilleForWeek(currentTech, weekInfo) === false) return;
   renderHoursUI();
   // Préchargement discret de la librairie Excel, pour que le clic sur "Envoyer" n'ait
   // plus besoin d'attendre un chargement réseau (ce qui invalide le partage natif sur certains téléphones).
@@ -2532,8 +2542,43 @@ const SEED_FEUILLES = [
   {"tech":"Pascal BONAVENTURE","annee":2026,"semaine":38,"source":"appli","feuille":{"chantierLines":[{"id":"c_creney_troyes","nom":"Creney - Troyes (63kV)","lieu":"Ligne 63kV Creney - Troyes Est, pylônes 28 et 29 (RTE Nancy)","client":"SEMI FRANCE","jours":{"2":{"j":7},"3":{"j":7}}},{"id":"c_g9z3kzqw","nom":"Arnage - Ecommoy (90kV)","lieu":"Ligne 90kV Arnage-Ecommoy","client":"INABENSA","jours":{"0":{"j":7},"1":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"9662","immat":"HL-596-QH","commentaires":"","envoyeLe":"2026-09-18T07:56:36"}},
   {"tech":"Sid Ahmed BENZAMERA","annee":2026,"semaine":38,"source":"appli","feuille":{"chantierLines":[{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7}}},{"id":"c_poste_de_rion_des_la","nom":"Poste de Rion des Landes","lieu":"Poste de Rion des Landes (63kV) — Renouvellement SMART ELECTRE, RTE GdP Argia / INEO P\u0026CS","client":"INEO","jours":{"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-18T09:16:56"}},
   {"tech":"Vincent PERRIN","annee":2026,"semaine":38,"source":"appli","feuille":{"chantierLines":[{"id":"c_icp_ls_cross_sausset_goodman_1efea5","nom":"Ls Cross-Sausset-Goodman","lieu":"","client":"","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}},{"id":"c_9g5cqsuj","nom":"Poste de Portet (P.SIM)","lieu":"Poste de Portet St Simon","client":"Omexom","jours":{}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"43696","immat":"HG-183-RR","commentaires":"","envoyeLe":"2026-09-21T06:50:14"}},
-  {"tech":"Younes MOUSSA","annee":2026,"semaine":38,"source":"appli","feuille":{"chantierLines":[{"id":"c_poste_de_casteljalou","nom":"Poste de Casteljaloux (GASC/LESPARAT)","lieu":"Poste 63kV de Casteljaloux (CSLJA), 12 Avenue de Marmande, 47700 Casteljaloux — GMR GASC / Équipe LESPARAT","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-17T14:17:01"}}
+  {"tech":"Younes MOUSSA","annee":2026,"semaine":38,"source":"appli","feuille":{"chantierLines":[{"id":"c_poste_de_casteljalou","nom":"Poste de Casteljaloux (GASC/LESPARAT)","lieu":"Poste 63kV de Casteljaloux (CSLJA), 12 Avenue de Marmande, 47700 Casteljaloux — GMR GASC / Équipe LESPARAT","client":"Omexom","jours":{"0":{"j":7},"1":{"j":7},"2":{"j":7},"3":{"j":7},"4":{"j":7}}}],"removedAutoIds":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"","immat":"","commentaires":"","envoyeLe":"2026-09-17T14:17:01"}},
+  {"tech":"Ahmed HAMOUCH","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-10-01T09:05:52Z","envoi":{"technicien":"Ahmed HAMOUCH","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":null,"km":null,"immat":null,"commentaires":""}},
+  {"tech":"Anthony DENIS","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-09-25T05:51:51Z","envoi":{"technicien":"Anthony DENIS","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"Omexom","lieu":"Poste de Portet St Simon","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Poste de Portet (P.SIM)","numero":"26-051"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":null,"immat":null,"commentaires":""}},
+  {"tech":"Anthony DENIS","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-02T06:10:23Z","envoi":{"technicien":"Anthony DENIS","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"SDEL ELEXA / OMEXOM","lieu":"Station de conversion HVDC de Cubnezais, rue Perrot Bichon Ouest, 33620 Cubnezais (Gironde) - soudures et recettes FO dans les baies et armoires","jours":{"0":{"j":7,"n":null}},"nom":"Poste de Cubnezais - station de conversion HVDC","numero":"26-130"},{"client":"","lieu":"Ligne aérienne Berat-Portet","jours":{"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"LA Berat-Portet","numero":"26-034"}],"absences":[{"key":"contribution","jours":{"1":7,"2":7}}],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":"TELSAM","km":null,"immat":null,"commentaires":""}},
+  {"tech":"Benjamin DIRAT","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-09-25T13:01:48Z","envoi":{"technicien":"Benjamin DIRAT","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"OMEXOM","lieu":"Poste de Dambron (RD355 route de Popry, 28140 Dambron) — Opération 06 : Entretien ligne Dambron-Voves-Tivernon","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Dambron - Voves","numero":"26-031"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":null,"immat":null,"commentaires":"Ras "}},
+  {"tech":"Benjamin SOUPA","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-09-25T08:30:42Z","envoi":{"technicien":"Benjamin SOUPA","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"Omexom","lieu":"Poste de Portet St Simon","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Poste de Portet (P.SIM)","numero":"26-051"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"49000","immat":"HG-260-WH","commentaires":""}},
+  {"tech":"Benjamin SOUPA","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-02T12:30:05Z","envoi":{"technicien":"Benjamin SOUPA","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"Bouygues Energies \u0026 Services","lieu":"Ligne/liaison Lisieux - Vallée 1","jours":{"0":{"j":8,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":9,"n":null},"4":{"j":7,"n":null}},"nom":"Lisieux - Vallée 1","numero":"26-039"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":"TELSAM","km":"51000","immat":"HG260GD","commentaires":""}},
+  {"tech":"Bilal HAMOUCH","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-10-01T12:44:34Z","envoi":{"technicien":"Bilal HAMOUCH","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"Omexom","lieu":"Poste 63kV de Casteljaloux (CSLJA), 12 Avenue de Marmande, 47700 Casteljaloux — GMR GASC / Équipe LESPARAT","jours":{"0":{"j":7,"n":null}},"nom":"Poste de Casteljaloux (GASC/LESPARAT)","numero":"26-044"},{"client":"Omexom","lieu":"Poste de Portet St Simon","jours":{"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Poste de Portet (P.SIM)","numero":"26-051"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":null,"km":null,"immat":null,"commentaires":""}},
+  {"tech":"Didier PERRIN","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-10-01T05:48:01Z","envoi":{"technicien":"Didier PERRIN","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"OMEXOM","lieu":"Poste de Dambron (RD355 route de Popry, 28140 Dambron) — Opération 06 : Entretien ligne Dambron-Voves-Tivernon","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Dambron - Voves","numero":"26-031"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":null,"km":null,"immat":null,"commentaires":""}},
+  {"tech":"Didier PERRIN","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-05T09:34:34Z","envoi":{"technicien":"Didier PERRIN","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"Bouygues Energies \u0026 Services","lieu":"Ligne/liaison Lisieux - Vallée 1","jours":{"0":{"j":8,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":9,"n":null},"4":{"j":7,"n":null}},"nom":"Lisieux - Vallée 1","numero":"26-039"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":"TELSAM","km":"36343","immat":"HJ-948-LJ","commentaires":""}},
+  {"tech":"François PERRIN","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-02T12:51:01Z","envoi":{"technicien":"François PERRIN","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"Bouygues Energies \u0026 Services","lieu":"Ligne/liaison Lisieux - Vallée 1","jours":{"0":{"j":8,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":9,"n":null},"4":{"j":7,"n":null}},"nom":"Lisieux - Vallée 1","numero":"26-039"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":null,"km":null,"immat":null,"commentaires":""}},
+  {"tech":"Hugues VIRY","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-09-25T10:03:19Z","envoi":{"technicien":"Hugues VIRY","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"Omexom","lieu":"Poste de Portet St Simon","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Poste de Portet (P.SIM)","numero":"26-051"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":null,"immat":"Hk711gr","commentaires":""}},
+  {"tech":"Hugues VIRY","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-02T11:00:01Z","envoi":{"technicien":"Hugues VIRY","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"","lieu":"Poste source Cantegrit","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Poste Cantegrit","numero":"26-003"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":"TELSAM","km":null,"immat":"Hk711gr","commentaires":""}},
+  {"tech":"Morad EL ABBASSI","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-01T16:17:44Z","envoi":{"technicien":"Morad EL ABBASSI","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"RTE MARSEILLE","lieu":"Postes RTE de Coudon et de l\u0027Escaillon (Var, secteur de Toulon) et chambre JT005 - raccordement et recette de la paire FO 39-40","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Axe Coudon - Escaillon","numero":"26-093"},{"client":"EQOS","lieu":"Ligne aérienne 225 kV AOSTE - MARNISE Z BRENS - liaison 48 FO, OPPC et THYM","jours":{},"nom":"Aoste - Marnise Z Brens (225 kV)","numero":"26-115"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":null,"immat":null,"commentaires":""}},
+  {"tech":"Pascal BONAVENTURE","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-09-25T05:27:47Z","envoi":{"technicien":"Pascal BONAVENTURE","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"Omexom","lieu":"Poste de Portet St Simon","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Poste de Portet (P.SIM)","numero":"26-051"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":"TELSAM","km":"10513","immat":"HL-596-QH","commentaires":""}},
+  {"tech":"Pascal BONAVENTURE","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-02T11:09:51Z","envoi":{"technicien":"Pascal BONAVENTURE","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"","lieu":"Poste source Cantegrit","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Poste Cantegrit","numero":"26-003"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":"TELSAM","km":null,"immat":"HL-596-QH","commentaires":""}},
+  {"tech":"Sid Ahmed BENZAMERA","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-10-05T09:57:49Z","envoi":{"technicien":"Sid Ahmed BENZAMERA","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"Omexom","lieu":"Poste de Portet St Simon","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Poste de Portet (P.SIM)","numero":"26-051"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":null,"km":null,"immat":null,"commentaires":""}},
+  {"tech":"Sid Ahmed BENZAMERA","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-05T09:59:23Z","envoi":{"technicien":"Sid Ahmed BENZAMERA","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"Bouygues Energies \u0026 Services","lieu":"Ligne/liaison Lisieux - Vallée 1","jours":{"0":{"j":8,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":9,"n":null},"4":{"j":7,"n":null}},"nom":"Lisieux - Vallée 1","numero":"26-039"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":null,"km":null,"immat":null,"commentaires":""}},
+  {"tech":"Vincent PERRIN","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-09-28T04:31:30Z","envoi":{"technicien":"Vincent PERRIN","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"","lieu":"","jours":{"0":{"j":9,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Aure - Loudenvielle","numero":"26-024"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":"44568","immat":"HG-183-RR","commentaires":""}},
+  {"tech":"Vincent PERRIN","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-05T11:15:53Z","envoi":{"technicien":"Vincent PERRIN","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"","lieu":"","jours":{"0":{"j":9,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":10,"n":null}},"nom":"Aure - Loudenvielle","numero":"26-024"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":"TELSAM","km":"45805","immat":"HG-183-RR ","commentaires":""}},
+  {"tech":"Younes MOUSSA","annee":2026,"semaine":39,"source":"envoi","recuLe":"2026-09-24T15:14:49Z","envoi":{"technicien":"Younes MOUSSA","weekNum":39,"mondayDate":"2026-09-21T00:00:00.000Z","chantierLines":[{"client":"Omexom","lieu":"Poste 63kV de Casteljaloux (CSLJA), 12 Avenue de Marmande, 47700 Casteljaloux — GMR GASC / Équipe LESPARAT","jours":{"0":{"j":7,"n":null}},"nom":"Poste de Casteljaloux (GASC/LESPARAT)","numero":"26-044"},{"client":"Omexom","lieu":"Poste de Portet St Simon","jours":{"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Poste de Portet (P.SIM)","numero":"26-051"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"vehiculeMode":null,"km":null,"immat":null,"commentaires":""}},
+  {"tech":"Younes MOUSSA","annee":2026,"semaine":40,"source":"envoi","recuLe":"2026-10-01T18:28:00Z","envoi":{"technicien":"Younes MOUSSA","weekNum":40,"mondayDate":"2026-09-28T00:00:00.000Z","chantierLines":[{"client":"RTE MARSEILLE","lieu":"Postes RTE de Coudon et de l\u0027Escaillon (Var, secteur de Toulon) et chambre JT005 - raccordement et recette de la paire FO 39-40","jours":{"0":{"j":7,"n":null},"1":{"j":7,"n":null},"2":{"j":7,"n":null},"3":{"j":7,"n":null},"4":{"j":7,"n":null}},"nom":"Axe Coudon - Escaillon","numero":"26-093"},{"client":"EQOS","lieu":"Ligne aérienne 225 kV AOSTE - MARNISE Z BRENS - liaison 48 FO, OPPC et THYM","jours":{},"nom":"Aoste - Marnise Z Brens (225 kV)","numero":"26-115"}],"absences":[],"pd":{"4":1},"gd":{"0":1,"1":1,"2":1,"3":1},"nacelle":{},"interventions":[],"vehiculeMode":null,"km":null,"immat":null,"commentaires":""}}
 ];
+/* LES ENTRÉES `source: 'envoi'` (S39 et S40, posées le 06/10/2026) gardent la
+   saisie TELLE QU'ELLE EST PARTIE (`envoi`, relue dans les PDF de Dropbox) :
+   c'est `feuilleDepuisEnvoi` qui la met au format du magasin, la même fonction
+   que pour une feuille rendue par le serveur. Calculée au premier besoin, une
+   seule fois — SEED_DATA n'est lu qu'à ce moment-là.
+   UNE FEUILLE QUI PORTE UN ARRÊT MALADIE OU UN ACCIDENT N'EST JAMAIS ICI : ce
+   fichier est public. Elle revient par le serveur, derrière la session (la S39
+   de Morad EL ABBASSI). Seules les feuilles reçues y sont : pas de trou comblé. */
+SEED_FEUILLES.forEach(s => {
+  if(!s.envoi || s.feuille) return;
+  let prete = null;
+  Object.defineProperty(s, 'feuille', { enumerable: true,
+    get(){ return prete || (prete = feuilleDepuisEnvoi(s.envoi, s.recuLe)); } });
+});
 
 /* Vierge = rien de ce que le technicien peut saisir. On regarde TOUT, pas
    seulement les heures : une semaine où il n'a noté que ses kilomètres, une
@@ -2585,6 +2630,100 @@ function feuillePrete(tech, s){
     feuille.removedAutoIds.push('__contribution_agence__');
   }
   return feuille;
+}
+
+/* =====================================================================
+   LA FEUILLE ENVOYÉE, REMISE DANS L'APPLI (06/10/2026)
+   ---------------------------------------------------------------------
+   Signalé par Patrice : « depuis la semaine 39, après l'envoi, les cases ne
+   montrent plus les heures saisies ». Rien n'était perdu — le PDF est dans
+   Dropbox, la base du suivi a la feuille — mais l'appli ne relisait QUE le
+   téléphone. Jusqu'à la S38, SEED_FEUILLES recopiait chaque semaine à la
+   main ; la recopie s'est arrêtée là, et le passage à la nouvelle adresse
+   (24/09) a donné à chacun un navigateur vide. Donc : nouveau téléphone,
+   navigateur vidé, autre adresse, ou accès atelier du bureau = cases vides.
+
+   La saisie partie (la même que celle cachée dans le PDF) est remise au
+   format du magasin local par `feuilleDepuisEnvoi`. Elle sert à deux
+   chemins, et c'est la même fonction pour les deux :
+   - `feuilleEnvoyeeDuServeur` : `/api/mes-heures` rend la dernière feuille
+     reçue (base, Dropbox ou Excel). Nouvelle adresse seulement — sans
+     session, rien n'est demandé ;
+   - les entrées `envoi` de SEED_FEUILLES (S39, S40), pour l'ancienne
+     adresse et le hors-ligne.
+
+   MÊMES RÈGLES QUE LA POSE DES SEMAINES PASSÉES : on ne remplit qu'une
+   semaine VIDE sur ce téléphone (une saisie n'est jamais écrasée), une
+   semaine effacée par le technicien ne revient pas (`effaceeLe`), et la
+   feuille dit qu'elle est déjà partie (`envoyeLe`).
+   ===================================================================== */
+function feuilleDepuisEnvoi(p, recuLe){
+  const nb = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(n) ? 0 : n; };
+  const lignes = (p.chantierLines || []).map(l => {
+    const fiche = l.numero ? SEED_DATA.find(x => x.numero === l.numero) : null;
+    const jours = {};
+    Object.keys(l.jours || {}).forEach(d => {
+      const h = l.jours[d] || {}, o = {};
+      if(nb(h.j)) o.j = nb(h.j);
+      if(nb(h.n)) o.n = nb(h.n);
+      if(o.j || o.n) jours[d] = o;
+    });
+    const ligne = { id: fiche ? fiche.id : null, nom: l.nom || '', lieu: l.lieu || '', client: l.client || '', jours };
+    // Fiche absente de l'appli : le n° d'affaire envoyé reste sur la ligne, il repartira avec elle.
+    if(!fiche && l.numero) ligne.numero = l.numero;
+    return ligne;
+  });
+  const absences = [];
+  (p.absences || []).forEach(a => {
+    const jours = {};
+    Object.keys(a.jours || {}).forEach(d => { if(nb(a.jours[d])) jours[d] = nb(a.jours[d]); });
+    if(!Object.keys(jours).length) return;
+    /* La contribution agence part dans sa case du document officiel, mais
+       l'appli la saisit comme une ligne de chantier (cf. buildExportPayload). */
+    if(a.key === 'contribution'){
+      const jl = {}; Object.keys(jours).forEach(d => { jl[d] = { j: jours[d] }; });
+      lignes.push({ id:'__contribution_agence__', addedManually:true, nom:'Contribution agence', lieu:'', client:'', jours: jl });
+    } else {
+      absences.push({ key: a.key, jours });
+    }
+  });
+  /* Les mentions calculées à l'envoi (paternité…) sont DEVANT le commentaire
+     du technicien : on les retire, l'envoi suivant les recalculera. */
+  let commentaires = String(p.commentaires || '');
+  const mentions = absences.map(a => {
+    const code = ABSENCE_CODES.find(c => c.key === a.key);
+    if(!code || !code.mention) return null;
+    const total = Object.keys(a.jours).reduce((s, d) => s + a.jours[d], 0);
+    return code.mention + ' : ' + total + ' h (' + JOURS.filter((lbl, d) => a.jours[d]).join(', ') + ')';
+  }).filter(Boolean).join(' — ');
+  if(mentions && commentaires.indexOf(mentions) === 0){
+    commentaires = commentaires.slice(mentions.length).replace(/^ — /, '');
+  }
+  const f = {
+    chantierLines: lignes, removedAutoIds: [], absences,
+    pd: p.pd || {}, gd: p.gd || {}, nacelle: p.nacelle || {},
+    interventions: (p.interventions || []).map(it => ({ ref: it.ref || '', date: it.date || '', debut: it.debut || '', fin: it.fin || '' })),
+    vehiculeMode: p.vehiculeMode || null, km: p.km == null ? '' : String(p.km), immat: p.immat == null ? '' : String(p.immat),
+    commentaires,
+  };
+  if(recuLe) f.envoyeLe = recuLe;
+  return f;
+}
+
+/* Rend la feuille envoyée prête à poser, ou null (pas de session, pas de
+   réponse en quelques secondes, rien d'envoyé). Ne bloque jamais l'écran. */
+async function feuilleEnvoyeeDuServeur(tech, w){
+  if(!SESSION_SUIVI || !tech) return null;
+  try{
+    const r = await avecDelai(fetch('/api/mes-heures?tech=' + encodeURIComponent(tech)
+      + '&annee=' + w.year + '&semaine=' + w.weekNum,
+      { credentials:'same-origin', headers:{ 'Accept':'application/json' } }), 4000);
+    if(!r || !r.ok) return null;
+    const d = await avecDelai(r.json(), 2000);
+    if(!d || !d.feuille) return null;
+    const f = feuillePrete(tech, { feuille: feuilleDepuisEnvoi(d.feuille, d.recuLe), annee: w.year, semaine: w.weekNum });
+    return feuilleVierge(f) ? null : f;
+  }catch(e){ return null; }
 }
 
 /* =====================================================================
@@ -3029,8 +3168,11 @@ async function effacerSemaine(){
     + "Tes chantiers de la semaine réapparaîtront, vides.\n\n"
     + "Cette action est définitive.");
   if(!ok) return;
+  /* `effaceeLe` : la feuille déjà envoyée ne revient pas d'elle-même par le
+     serveur (`feuilleEnvoyeeDuServeur`) — effacer reste définitif ici. */
   hoursEntry = { chantierLines:[], removedAutoIds:[], absences:[], pd:{}, gd:{}, nacelle:{},
-                 interventions:[], vehiculeMode:null, km:'', immat:'', commentaires:'' };
+                 interventions:[], vehiculeMode:null, km:'', immat:'', commentaires:'',
+                 effaceeLe: new Date().toISOString() };
   await kvSet(hoursKeyCurrent, hoursEntry);
   await loadAndRenderHours();
 }
@@ -3443,7 +3585,9 @@ function buildExportPayload(mon, weekNum){
       const fiche = line.id ? SEED_DATA.find(x=> x.id===line.id) : null;
       return {
         client: line.client||'', lieu: line.lieu||'', jours,
-        nom: line.nom||'', numero: (fiche && fiche.numero) ? fiche.numero : '',
+        // `line.numero` : une feuille reprise d'un envoi dont la fiche n'est pas
+        // dans l'appli garde le n° qu'elle portait (feuilleDepuisEnvoi).
+        nom: line.nom||'', numero: (fiche && fiche.numero) ? fiche.numero : (line.numero || ''),
       };
     });
   const absences = (hoursEntry.absences||[]).map(a=>{
@@ -4182,10 +4326,21 @@ function istPour(c){
     return { doc: 'ist', court: mo ? 'MO' : 'IST', feminin: !mo, indice: String(m.indice), libelle: (m.titre || 'IST') + ' ind.' + (m.indiceDoc || ''), article: mo ? 'le ' : 'l\'', signe: s ? s.signe_le : null };
   });
 }
-/* Le document à signer : le PDP sans référence, une IST avec la sienne. */
+/* UN SECOND PDP SUR LE MÊME CHANTIER (06/10/2026, Naoutot à côté de Cantegrit) :
+   le bureau a repéré sa feuille avec une clé (référence « PDP:naoutot:3 »). Il se
+   signe comme le PDP — habilitation et date d'arrivée comprises — sans dépendre de
+   l'indice de la fiche, qui ne porte que le PDP principal. */
+function pdpSecondairesPour(c){
+  if(!EMARGEMENT || !c || !c.numero || c.mesureTouret) return [];
+  return (EMARGEMENT.modeles || []).filter(x => x.numero === c.numero && x.secondaire).map(m => {
+    const s = (EMARGEMENT.miennes || []).find(x => x.numero === c.numero && String(x.indice) === String(m.indice));
+    return { doc: 'pdp', secondaire: true, indice: String(m.indice), libelle: (m.titre || 'PDP') + ' ind.' + (m.indiceDoc || ''), article: 'le ', signe: s ? s.signe_le : null };
+  });
+}
+/* Le document à signer : le PDP sans référence, les autres avec la leur. */
 function emDocPour(c, ref){
   if(!ref) return emargementPour(c);
-  return istPour(c).find(x => x.indice === ref) || null;
+  return pdpSecondairesPour(c).concat(istPour(c)).find(x => x.indice === ref) || null;
 }
 function emQuand(iso){
   const d = new Date(iso);
@@ -4229,7 +4384,7 @@ function emLienPdp(c){
   return c.documentsAppTech || '';
 }
 let EM_TRAIT = null;   // { traits, boite } — ce qui a été dessiné dans le cadre
-function emListe(c){ return [emargementPour(c)].filter(Boolean).concat(istPour(c)); }
+function emListe(c){ return [emargementPour(c)].filter(Boolean).concat(pdpSecondairesPour(c), istPour(c)); }
 function ouvrirEmargement(cid, k){
   const c = chantierById(cid);
   const em = emListe(c)[k || 0];
@@ -4244,7 +4399,9 @@ function ouvrirEmargement(cid, k){
   const ist = em.doc === 'ist';
   const court = ist ? (em.court || 'IST') : 'PDP';
   const fem = ist && em.feminin !== false;   // une IST se lit au féminin, un MO non
-  const lien = ist ? (c.documentsAppTech || '') : emLienPdp(c);
+  /* Un second PDP est rangé dans le dossier App Tech, comme une IST : le lien du
+     premier PDP ouvrirait le mauvais document. */
+  const lien = (ist || em.secondaire) ? (c.documentsAppTech || '') : emLienPdp(c);
   const aujourdhui = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const ov = document.createElement('div');
   ov.className = 'suivi-overlay';
